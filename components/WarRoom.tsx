@@ -35,17 +35,6 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   const [allDealsLoaded, setAllDealsLoaded] = useState(!loadAllDeals)
   const [loadingAll, setLoadingAll] = useState(false)
 
-  // Auth check + get user email client-side
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push('/login')
-      } else if (!userEmail && session.user?.email) {
-        setResolvedEmail(session.user.email)
-      }
-    })
-  }, [])
-
   // Real-time subscription to deals
   useEffect(() => {
     const channel = supabase
@@ -78,32 +67,48 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     return () => { supabase.removeChannel(channel) }
   }, [supabase])
 
-  // Client-side data fetch on mount
+  // Client-side data fetch — runs after auth confirmed
   useEffect(() => {
     if (!loadAllDeals) return
-    setLoadingAll(true)
-    const sb = createClient()
-    // Fetch in two rounds: active first, then everything
-    sb.from('deals')
-      .select('*')
-      .not('status', 'like', '6 -%')
-      .order('modified', { ascending: false })
-      .then(({ data }) => {
-        if (data) setDeals(data)
+    async function loadData() {
+      setLoadingAll(true)
+      const sb = createClient()
+
+      // Wait for auth to be ready — retry up to 5 times
+      let session = null
+      for (let i = 0; i < 5; i++) {
+        const { data } = await sb.auth.getSession()
+        if (data.session) { session = data.session; break }
+        await new Promise(r => setTimeout(r, 500))
+      }
+      if (!session) { router.push('/login'); return }
+      setResolvedEmail(session.user?.email ?? '')
+
+      // Round 1: active deals fast
+      const { data: active, error: e1 } = await sb.from('deals')
+        .select('*')
+        .not('status', 'like', '6 -%')
+        .order('modified', { ascending: false })
+      if (active && active.length > 0) {
+        setDeals(active)
         setLoadingAll(false)
-        // Then fetch the rest
-        return sb.from('deals').select('*').order('modified', { ascending: false })
-      })
-      .then(({ data }) => {
-        if (data) { setDeals(data); setAllDealsLoaded(true) }
-      })
-    // Also fetch boe + cap rates
-    sb.from('boe_data').select('*').then(({ data }) => {
-      if (data) setBoeMap(Object.fromEntries(data.map((b: any) => [b.deal_name, b])))
-    })
-    sb.from('cap_rates').select('*').then(({ data }) => {
-      if (data) setCapRateMap(Object.fromEntries(data.map((c: any) => [c.deal_name, c])))
-    })
+      }
+
+      // Round 2: full dataset + supporting tables in parallel
+      const [dealsRes, boeRes, crRes] = await Promise.all([
+        sb.from('deals').select('*').order('modified', { ascending: false }),
+        sb.from('boe_data').select('*'),
+        sb.from('cap_rates').select('*'),
+      ])
+      if (dealsRes.data && dealsRes.data.length > 0) {
+        setDeals(dealsRes.data)
+        setAllDealsLoaded(true)
+      }
+      if (boeRes.data) setBoeMap(Object.fromEntries(boeRes.data.map((b: any) => [b.deal_name, b])))
+      if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
+      setLoadingAll(false)
+    }
+    loadData()
   }, [loadAllDeals])
 
   const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string }) => {
@@ -177,6 +182,18 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
     { id: 'caprates', label: 'Cap Rate Tracker', icon: <CapIcon /> },
   ]
+
+  if (deals.length === 0) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0D1B2E', flexDirection:'column', gap:16 }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, fontWeight:700, color:'#C9A84C', letterSpacing:'0.08em' }}>STONEBRIDGE</div>
+        <div style={{ fontSize:13, color:'rgba(255,255,255,0.4)', letterSpacing:'0.12em', textTransform:'uppercase' }}>Loading War Room…</div>
+        <div style={{ width:200, height:3, background:'rgba(255,255,255,0.08)', borderRadius:2, marginTop:8, overflow:'hidden' }}>
+          <div style={{ width:'40%', height:'100%', background:'#C9A84C', borderRadius:2 }}/>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F5F4EF', fontFamily: "'DM Sans',sans-serif" }}>
