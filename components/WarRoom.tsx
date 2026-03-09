@@ -15,9 +15,10 @@ interface Props {
   initialBoeData: BoeData[]
   initialCapRates: CapRate[]
   userEmail: string
+  loadAllDeals?: boolean
 }
 
-export default function WarRoom({ initialDeals, initialBoeData, initialCapRates, userEmail }: Props) {
+export default function WarRoom({ initialDeals, initialBoeData, initialCapRates, userEmail, loadAllDeals }: Props) {
   const supabase = createClient()
   const [page, setPage] = useState<Page>('dashboard')
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
@@ -28,6 +29,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     Object.fromEntries(initialCapRates.map(c => [c.deal_name, c]))
   )
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+  const [allDealsLoaded, setAllDealsLoaded] = useState(!loadAllDeals)
+  const [loadingAll, setLoadingAll] = useState(false)
 
   // Real-time subscription to deals
   useEffect(() => {
@@ -60,6 +63,24 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [supabase])
+
+  // Background-load the full dataset (Passed deals etc.) after first render
+  useEffect(() => {
+    if (!loadAllDeals || allDealsLoaded) return
+    setLoadingAll(true)
+    const supabase = createClient()
+    supabase
+      .from('deals')
+      .select('*')
+      .order('modified', { ascending: false })
+      .then(({ data }) => {
+        if (data) {
+          setDeals(data)
+          setAllDealsLoaded(true)
+        }
+        setLoadingAll(false)
+      })
+  }, [loadAllDeals, allDealsLoaded])
 
   const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string }) => {
     const res = await fetch('/api/deals', {
@@ -201,7 +222,10 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>
             {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker' }[page]}
           </h1>
-          <div style={{ fontSize: 12, color: '#8A9BB0' }}>{deals.length.toLocaleString()} deals</div>
+          <div style={{ fontSize: 12, color: '#8A9BB0', display:'flex', alignItems:'center', gap:8 }}>
+            {loadingAll && <span style={{ fontSize:10, color:'#C9A84C', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
+            {deals.length.toLocaleString()} deals{!allDealsLoaded ? ' (active)' : ''}
+          </div>
         </div>
 
         {/* Page content */}
