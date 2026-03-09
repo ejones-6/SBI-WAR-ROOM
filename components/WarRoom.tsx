@@ -64,23 +64,33 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     return () => { supabase.removeChannel(channel) }
   }, [supabase])
 
-  // Background-load the full dataset (Passed deals etc.) after first render
+  // Client-side data fetch on mount
   useEffect(() => {
-    if (!loadAllDeals || allDealsLoaded) return
+    if (!loadAllDeals) return
     setLoadingAll(true)
-    const supabase = createClient()
-    supabase
-      .from('deals')
+    const sb = createClient()
+    // Fetch in two rounds: active first, then everything
+    sb.from('deals')
       .select('*')
+      .not('status', 'like', '6 -%')
       .order('modified', { ascending: false })
       .then(({ data }) => {
-        if (data) {
-          setDeals(data)
-          setAllDealsLoaded(true)
-        }
+        if (data) setDeals(data)
         setLoadingAll(false)
+        // Then fetch the rest
+        return sb.from('deals').select('*').order('modified', { ascending: false })
       })
-  }, [loadAllDeals, allDealsLoaded])
+      .then(({ data }) => {
+        if (data) { setDeals(data); setAllDealsLoaded(true) }
+      })
+    // Also fetch boe + cap rates
+    sb.from('boe_data').select('*').then(({ data }) => {
+      if (data) setBoeMap(Object.fromEntries(data.map((b: any) => [b.deal_name, b])))
+    })
+    sb.from('cap_rates').select('*').then(({ data }) => {
+      if (data) setCapRateMap(Object.fromEntries(data.map((c: any) => [c.deal_name, c])))
+    })
+  }, [loadAllDeals])
 
   const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string }) => {
     const res = await fetch('/api/deals', {
