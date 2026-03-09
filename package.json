@@ -20,7 +20,8 @@
     "react-leaflet": "^4.2.1",
     "lucide-react": "^0.383.0",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^2.3.0"
+    "tailwind-merge": "^2.3.0",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "^20",
