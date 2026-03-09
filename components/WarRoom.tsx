@@ -1,5 +1,6 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import DealsPage from './deals/DealsPage'
@@ -20,7 +21,9 @@ interface Props {
 
 export default function WarRoom({ initialDeals, initialBoeData, initialCapRates, userEmail, loadAllDeals }: Props) {
   const supabase = createClient()
+  const router = useRouter()
   const [page, setPage] = useState<Page>('dashboard')
+  const [resolvedEmail, setResolvedEmail] = useState(userEmail)
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [boeMap, setBoeMap] = useState<Record<string, BoeData>>(
     Object.fromEntries(initialBoeData.map(b => [b.deal_name, b]))
@@ -31,6 +34,17 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   const [allDealsLoaded, setAllDealsLoaded] = useState(!loadAllDeals)
   const [loadingAll, setLoadingAll] = useState(false)
+
+  // Auth check + get user email client-side
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        router.push('/login')
+      } else if (!userEmail && session.user?.email) {
+        setResolvedEmail(session.user.email)
+      }
+    })
+  }, [])
 
   // Real-time subscription to deals
   useEffect(() => {
@@ -212,7 +226,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
         {/* User */}
         <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 4, letterSpacing: '0.05em' }}>Signed in as</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolvedEmail}</div>
           <button onClick={handleSignOut} style={{
             width: '100%', padding: '7px', background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6,
