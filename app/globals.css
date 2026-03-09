@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0D1B2E;
+  --navy-light: #152540;
+  --gold: #C9A84C;
+  --gold-light: #F0B429;
+  --slate: #8A9BB0;
+  --white: #ffffff;
+  --bg: #F5F4EF;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'DM Sans', sans-serif; background: var(--bg); }
+
+/* Status badges */
+.s-new    { background: rgba(46,125,80,.1);   color: #2E7D50; }
+.s-active { background: rgba(21,101,160,.1);  color: #1565A0; }
+.s-dormant{ background: rgba(138,122,58,.1);  color: #8A7A3A; }
+.s-passed { background: rgba(158,158,158,.1); color: #757575; }
+.s-lost   { background: rgba(192,57,43,.1);   color: #C0392B; }
+.s-exited { background: rgba(85,85,85,.1);    color: #555; }
+.s-owned  { background: rgba(107,63,160,.1);  color: #6B3FA0; }
+.s-comp   { background: rgba(58,122,122,.1);  color: #3A7A7A; }
+
+/* Cap rate badges */
+.cr-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; white-space:nowrap; }
+.cr-low   { background:rgba(192,57,43,.1);   color:#C0392B; }
+.cr-mid   { background:rgba(240,180,41,.12); color:#B87A00; }
+.cr-high  { background:rgba(46,125,80,.1);   color:#2E7D50; }
+.cr-none  { color: #8A9BB0; }
+
+/* Guidance colors */
+.guidance-pos { color: #1E7A4A; font-weight: 700; }
+.guidance-neg { color: #C0392B; font-weight: 700; }
+.guidance-zero{ color: #8A9BB0; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(13,27,46,.15); border-radius: 3px; }
