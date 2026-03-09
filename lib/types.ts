@@ -39,11 +39,7 @@ export interface BoeAdjs {
   ins?: string
 }
 
-export interface BoePayroll {
-  'py-pm'?: string; 'py-am'?: string; 'py-la'?: string; 'py-bi'?: string
-  'py-ms'?: string; 'py-mt'?: string; 'py-ma'?: string; 'py-bo'?: string
-  'py-ben'?: string
-}
+export type BoePayroll = Record<string, string>
 
 export interface BoeData {
   id?: string
