@@ -23,9 +23,9 @@ export async function PATCH(req: NextRequest) {
   if (!name && !id) return NextResponse.json({ error: 'name or id required' }, { status: 400 })
   updates.modified = new Date().toISOString().slice(0, 10)
   const query = id
-    ? supabase.from('deals').update(updates).eq('id', id)
-    : supabase.from('deals').update(updates).eq('name', name).limit(1)
-  const { data, error } = await query.select().single()
+    ? supabase.from('deals').update(updates).eq('id', id).select()
+    : supabase.from('deals').update(updates).eq('name', name).select()
+  const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json(data[0])
 }
