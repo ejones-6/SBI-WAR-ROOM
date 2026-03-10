@@ -9,7 +9,7 @@ interface Props {
   onSave: (boe: BoeData) => Promise<any>
 }
 
-const ADJ_ORDER = ['gpr','ltl','vac','bad','conc','mod','emp','oi','ga','mkt','mgt','utl','tax','taxm','ins']
+const ADJ_ORDER = ['gpr','ltl','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
 
 const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
 
@@ -264,6 +264,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   const COL = '196px 88px 60px 60px 108px 88px 60px 1fr'
 
+  function tabToNext(key: string, shiftKey: boolean) {
+    const currentIdx = ADJ_ORDER.indexOf(key)
+    const nextKey = !shiftKey ? ADJ_ORDER[currentIdx + 1] : ADJ_ORDER[currentIdx - 1]
+    if (nextKey) setTimeout(() => {
+      const panel = document.querySelector('[data-boe-panel]')
+      const next = panel?.querySelector<HTMLInputElement>(`input[data-adj-key="${nextKey}"]`)
+      if (next) { next.focus(); next.select() }
+    }, 0)
+  }
+
   function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholder='', note=true }:
     { k: keyof BoeAdjs; label: string; t12v: number; pfv: number; isNeg?: boolean; adjType?: 'pct'|'dollar'|'ppu'; adjPlaceholder?: string; note?: boolean }) {
     const gprt = gpr_t || 1; const gprp = gpr_p || 1
@@ -292,14 +302,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               if (e.key === 'Tab' || e.key === 'Enter') {
                 e.preventDefault()
                 const val = e.currentTarget.value
-                const currentIdx = ADJ_ORDER.indexOf(k as string)
-                const nextKey = !e.shiftKey ? ADJ_ORDER[currentIdx + 1] : ADJ_ORDER[currentIdx - 1]
                 setA(k, val)
-                if (nextKey) setTimeout(() => {
-                  const panel = document.querySelector('[data-boe-panel]')
-                  const next = panel?.querySelector<HTMLInputElement>(`input[data-adj-key="${nextKey}"]`)
-                  if (next) next.focus()
-                }, 0)
+                tabToNext(k as string, e.shiftKey)
               }
             }}
             data-adj-key={k}
@@ -424,7 +428,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
             {[['Base R&M','rmi-rm','750'],['Contract Svcs','rmi-ct','420'],['Turnover','rmi-tu','350']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
-                <input type="number" value={rmi[k]??''} onChange={e => setRmi(p=>({...p,[k]:e.target.value}))} placeholder={ph}
+                <input type="text" data-adj-key={k} defaultValue={rmi[k]??''} placeholder={ph}
+                  onBlur={e => setRmi(p=>({...p,[k]:e.target.value}))}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setRmi(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
@@ -460,19 +466,25 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
             <div style={{ gridColumn:'span 4', fontSize:10, fontWeight:600, color:'#0D1B2E', letterSpacing:'0.05em' }}>INSIDE MANAGEMENT</div>
             {[['Prop Manager','py-pm','85000'],['Asst Manager','py-am','60000'],['Leasing Agent','py-la','45000'],['Bonus %','py-bi','0.25']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
-                <input type="number" value={payroll[k]??''} onChange={e => setPayroll(p=>({...p,[k]:e.target.value}))} placeholder={ph}
+                <input type="text" data-adj-key={k} defaultValue={payroll[k]??''} placeholder={ph}
+                  onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
             <div style={{ gridColumn:'span 4', fontSize:10, fontWeight:600, color:'#0D1B2E', letterSpacing:'0.05em', marginTop:4 }}>OUTSIDE MANAGEMENT</div>
             {[['Maint Supervisor','py-ms','80000'],['Maint Tech','py-mt','60000'],['Maint Asst','py-ma','40000'],['Bonus %','py-bo','0.05']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
-                <input type="number" value={payroll[k]??''} onChange={e => setPayroll(p=>({...p,[k]:e.target.value}))} placeholder={ph}
+                <input type="text" data-adj-key={k} defaultValue={payroll[k]??''} placeholder={ph}
+                  onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
             <div><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>Benefits %</label>
-              <input type="number" value={payroll['py-ben']??''} onChange={e => setPayroll(p=>({...p,'py-ben':e.target.value}))} placeholder="0.325"
+              <input type="text" data-adj-key="py-ben" defaultValue={payroll['py-ben']??''} placeholder="0.325"
+                onBlur={e => setPayroll(p=>({...p,'py-ben':e.target.value}))}
+                onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,'py-ben':e.currentTarget.value})); tabToNext('py-ben', e.shiftKey) } }}
                 style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
             </div>
           </div>
@@ -484,7 +496,18 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
       {/* Non-Controllable */}
       {SectionHead('Non-Controllable Expenses')}
-      <Row k="mgt" label="Mgmt Fee" t12v={t12.mgt} pfv={mgt_p} adjType="pct" adjPlaceholder="2.5%" />
+      <div style={{ display:'grid', gridTemplateColumns:COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
+        <div style={{ fontSize:12, color:'#334155', paddingLeft:14 }}>Mgmt Fee</div>
+        <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12.mgt)}</div>
+        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12.mgt,units)}</div>
+        <div/>
+        <div style={{ padding:'2px 6px' }}>
+          <div style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.08)', borderRadius:4, fontSize:11, background:'rgba(13,27,46,0.03)', textAlign:'right', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif" }}>2.5% 🔒</div>
+        </div>
+        <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>{fmt(mgt_p)}</div>
+        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(mgt_p,units)}</div>
+        <div/>
+      </div>
       <Row k="utl" label="Utilities" t12v={utl_t} pfv={utl_p} adjType="dollar" adjPlaceholder="$ adj" />
 
       {/* RE Tax with build-up */}
@@ -503,14 +526,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
             onKeyDown={e => {
               if (e.key === 'Tab' || e.key === 'Enter') {
                 e.preventDefault()
-                const currentIdx = ADJ_ORDER.indexOf('tax')
-                const nextKey = !e.shiftKey ? ADJ_ORDER[currentIdx + 1] : ADJ_ORDER[currentIdx - 1]
                 setA('tax', e.currentTarget.value)
-                if (nextKey) setTimeout(() => {
-                  const panel = document.querySelector('[data-boe-panel]')
-                  const next = panel?.querySelector<HTMLInputElement>(`input[data-adj-key="${nextKey}"]`)
-                  if (next) next.focus()
-                }, 0)
+                tabToNext('tax', e.shiftKey)
               }
             }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
@@ -528,7 +545,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
             {[['Millage Rate (per $1K)','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
-                <input type="number" value={taxHelper[k]??''} onChange={e => setTaxHelper(p=>({...p,[k]:e.target.value}))} placeholder={ph}
+                <input type="text" data-adj-key={k} defaultValue={taxHelper[k]??''} placeholder={ph}
+                  onBlur={e => setTaxHelper(p=>({...p,[k]:e.target.value}))}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setTaxHelper(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
