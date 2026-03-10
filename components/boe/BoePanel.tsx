@@ -65,7 +65,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
       if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper(boe.tax_helper as any)
     }
-  }, [deal.name])
+  }, [deal.name, boe?.updated_at])
 
   const v = (k: keyof BoeAdjs) => adjs[k] !== undefined && adjs[k] !== '' ? parseFloat(adjs[k]!) : null
 
