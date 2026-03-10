@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest) {
   const { name, ...updates } = body
   if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
   updates.modified = new Date().toISOString().slice(0, 10)
-  const { data, error } = await supabase.from('deals').update(updates).eq('name', name).select().single()
+  const { data, error } = await supabase.from('deals').update(updates).eq('name', name).select().limit(1).single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }
