@@ -139,16 +139,20 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period } as any)
     // Save cap rate directly
     if (pp && cap_adj) {
-      fetch('/api/cap-rates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deal_name: deal.name,
-          noi_cap_rate: cap_adj,
-          broker_cap_rate: null,
-          purchase_price: pp / 1000,
-        }),
-      })
+      try {
+        const crRes = await fetch('/api/cap-rates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deal_name: deal.name,
+            noi_cap_rate: cap_adj,
+            broker_cap_rate: null,
+            purchase_price: pp / 1000,
+          }),
+        })
+        if (!crRes.ok) console.error('cap-rate save failed', await crRes.text())
+        else console.log('cap-rate saved:', cap_adj)
+      } catch(err) { console.error('cap-rate fetch error', err) }
     }
     setSaving(false)
     setStatus('✓ Saved to database')
@@ -278,7 +282,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ padding:'2px 6px' }}>
           <input type="number" step={adjType==='pct'?'0.1':'any'} value={a(k)} onChange={e => setA(k, e.target.value)}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); inputs[idx+1].focus(); }; } }}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }; } }}
             data-adj="1"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
         </div>
@@ -475,7 +479,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div/>
         <div style={{ padding:'2px 6px' }}>
           <input type="number" data-adj="1" value={a('tax')} onChange={e => setA('tax',e.target.value)} placeholder="$ adj"
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); inputs[idx+1].focus(); }; } }}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }; } }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(tax_p)}</div>

@@ -150,6 +150,14 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     if (res.ok) {
       const saved: BoeData = await res.json()
       setBoeMap(prev => ({ ...prev, [saved.deal_name]: saved }))
+      // Also refresh cap rates after BOE save to pick up any new value
+      setTimeout(async () => {
+        const crRes = await fetch('/api/cap-rates')
+        if (crRes.ok) {
+          const crData = await crRes.json()
+          if (Array.isArray(crData)) setCapRateMap(Object.fromEntries(crData.map((c: any) => [c.deal_name, c])))
+        }
+      }, 800)
       return saved
     }
   }, [])
