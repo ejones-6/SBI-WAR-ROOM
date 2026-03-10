@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       const incoming: any[] = body.deals
       if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0 })
 
-      const { data: existing } = await supabase.from('deals').select('name, status')
+      const { data: existing } = await supabase.from('deals').select('name, status').limit(5000)
       const existingMap = new Map((existing ?? []).map((d: any) => [d.name.trim(), d.status]))
 
       const LOCKED_PREFIXES = ['6', '7', '8', '9', '10']
@@ -39,40 +39,46 @@ export async function POST(req: NextRequest) {
 
       // Insert new deals in chunks of 200
       let inserted = 0
-      const chunkSize = 200
-      for (let i = 0; i < newDeals.length; i += chunkSize) {
-        const chunk = newDeals.slice(i, i + chunkSize)
-        const { data, error } = await supabase.from('deals').insert(chunk).select('id')
-        if (!error && data) inserted += data.length
+      for (let i = 0; i < newDeals.length; i += 500) {
+        const chunk = newDeals.slice(i, i + 200)
+        const { data } = await supabase.from('deals').insert(chunk).select('id')
+        if (data) inserted += data.length
       }
 
-      // Update existing deals
-      let updated = 0
-      for (const deal of existingDeals) {
+      // Upsert existing deals using upsert on name
+      // Build update objects and upsert in bulk
+      const toUpdate = existingDeals.map(deal => {
         const currentStatus = existingMap.get(deal.name.trim()) ?? ''
         const isLocked = LOCKED_PREFIXES.some(p => currentStatus.startsWith(p + ' -'))
         const isActive = ACTIVE_PREFIXES.some(p => currentStatus.startsWith(p + ' -'))
 
-        const updates: any = { modified: new Date().toISOString().slice(0, 10) }
-
-        // Never touch status/info on locked deals
+        const row: any = { name: deal.name.trim() }
         if (!isLocked) {
-          if (deal.status)         updates.status = deal.status
-          if (deal.units)          updates.units = deal.units
-          if (deal.year_built)     updates.year_built = deal.year_built
-          if (deal.purchase_price) updates.purchase_price = deal.purchase_price
-          if (deal.price_per_unit) updates.price_per_unit = deal.price_per_unit
-          if (deal.broker)         updates.broker = deal.broker
-          if (deal.market)         updates.market = deal.market
+          if (deal.status)         row.status = deal.status
+          if (deal.units)          row.units = deal.units
+          if (deal.year_built)     row.year_built = deal.year_built
+          if (deal.purchase_price) row.purchase_price = deal.purchase_price
+          if (deal.price_per_unit) row.price_per_unit = deal.price_per_unit
+          if (deal.broker)         row.broker = deal.broker
+          if (deal.market)         row.market = deal.market
         }
-
-        // Always update bid_due_date for active/new deals even if null (to clear stale dates)
-        if (isActive) {
-          updates.bid_due_date = deal.bid_due_date ?? null
+        // Always sync bid_due_date for active/new deals
+        if (isActive || !isLocked) {
+          row.bid_due_date = deal.bid_due_date ?? null
         }
+        return row
+      })
 
-        const { error } = await supabase.from('deals').update(updates).eq('name', deal.name.trim())
-        if (!error) updated++
+      // Run updates in parallel batches of 50
+      let updated = 0
+      const batchSize = 100
+      for (let i = 0; i < toUpdate.length; i += batchSize) {
+        const batch = toUpdate.slice(i, i + batchSize)
+        await Promise.all(batch.map(row => {
+          const { name, ...fields } = row
+          return supabase.from('deals').update(fields).eq('name', name)
+        }))
+        updated += batch.length
       }
 
       return NextResponse.json({ inserted, updated })
