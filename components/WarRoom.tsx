@@ -355,6 +355,8 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
   const [imported, setImported] = useState(0)
+  const [insertedCount, setInsertedCount] = useState(0)
+  const [updatedCount, setUpdatedCount] = useState(0)
   const [error, setError] = useState('')
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -365,25 +367,41 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
     try {
       const XLSX = await import('xlsx')
       const buf = await file.arrayBuffer()
-      const wb = XLSX.read(buf)
+      const wb = XLSX.read(buf, { cellDates: true })
       const ws = wb.Sheets['Deal Log'] ?? wb.Sheets[wb.SheetNames[0]]
-      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+      // Find the header row — look for row containing 'Deal Name'
+      const allRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+      const headerRowIdx = allRows.findIndex(r => r.some((c: any) => String(c).trim() === 'Deal Name'))
+      if (headerRowIdx < 0) throw new Error('Could not find Deal Name column in file')
+      const headers: string[] = allRows[headerRowIdx].map((c: any) => String(c).trim())
+      const dataRows = allRows.slice(headerRowIdx + 1)
 
-      // Map columns to deal fields
-      const deals = rows.map((r: any) => ({
-        name: r['Deal Name'] || r['name'] || '',
-        status: (r['Status'] || r['status'] || '1 - New').toString().trim(),
-        market: r['Market'] || r['market'] || '',
-        units: parseInt(r['Units'] || r['units']) || null,
-        year_built: parseInt(r['Year Built'] || r['year_built']) || null,
-        purchase_price: parseFloat(r['Purchase Price'] || r['purchase_price']) || null,
-        price_per_unit: parseFloat(r['$ / Unit'] || r['price_per_unit']) || null,
-        bid_due_date: r['Bid Due Date'] || r['bid_due_date'] || null,
-        broker: r['Broker'] || r['broker'] || null,
-        comments: r['Comments'] || r['comments'] || null,
-        added: r['Added'] ? new Date(r['Added']).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        modified: new Date().toISOString().split('T')[0],
-      })).filter(d => d.name)
+      const col = (r: any[], name: string) => {
+        const idx = headers.indexOf(name)
+        return idx >= 0 ? r[idx] : ''
+      }
+      const parseDate = (v: any): string | null => {
+        if (!v) return null
+        const d = new Date(v)
+        return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
+      }
+
+      const deals = dataRows.map((r: any[]) => {
+        const name = String(col(r, 'Deal Name') || '').trim()
+        const status = String(col(r, 'Status') || '1 - New').trim()
+        return {
+          name,
+          status,
+          market: String(col(r, 'Market') || '').trim(),
+          units: parseInt(String(col(r, 'Units'))) || null,
+          year_built: parseInt(String(col(r, 'Year Built'))) || null,
+          purchase_price: parseFloat(String(col(r, 'Purchase Price') || '').replace(/[,$]/g, '')) || null,
+          price_per_unit: parseFloat(String(col(r, '$ / Unit') || '').replace(/[,$]/g, '')) || null,
+          bid_due_date: parseDate(col(r, 'Bid Due Date')),
+          added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
+          modified: new Date().toISOString().split('T')[0],
+        }
+      }).filter(d => d.name)
 
       setPreview(deals)
       setStatus('preview')
@@ -395,12 +413,25 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
 
   async function handleImport() {
     setStatus('importing')
-    let count = 0
+    let inserted = 0, updated = 0
     for (const deal of preview) {
-      try { await addDeal(deal); count++ } catch {}
+      try {
+        const res = await fetch('/api/deals', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...deal, _import: true }),
+        })
+        if (res.ok) {
+          const result = await res.json()
+          if (result._action === 'inserted') inserted++
+          else updated++
+        }
+      } catch {}
     }
     onDealsImported(preview)
-    setImported(count)
+    setInsertedCount(inserted)
+    setUpdatedCount(updated)
+    setImported(inserted + updated)
     setStatus('done')
   }
 
@@ -477,9 +508,10 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
       ) : (
         <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>{imported} deals imported!</div>
-          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 24 }}>Your pipeline is up to date</div>
-          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>Done! {imported} deals processed</div>
+          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new</span> deals added · <span style={{color:'#F0B429',fontWeight:600}}>{updatedCount} existing</span> deals updated</div>
+          <div style={{ fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>BOE data, comments, seller/buyer info preserved on all existing deals</div>
+          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0); setInsertedCount(0); setUpdatedCount(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
         </div>
       )}
     </div>
