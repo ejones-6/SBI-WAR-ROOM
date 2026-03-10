@@ -27,6 +27,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     buyer: deal.buyer ?? '',
     seller: deal.seller ?? '',
     sold_price: deal.sold_price?.toString() ?? '',
+    comments: deal.comments ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -42,6 +43,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       buyer: deal.buyer ?? '',
       seller: deal.seller ?? '',
       sold_price: deal.sold_price?.toString() ?? '',
+      comments: deal.comments ?? '',
     })
     setTab('details')
   }, [deal.name])
@@ -66,6 +68,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       buyer: form.buyer || null,
       seller: form.seller || null,
       sold_price: soldP,
+      comments: form.comments || null,
     })
     setSaving(false)
     setSaved(true)
@@ -190,9 +193,12 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                 {/* Comments — full width */}
                 <div style={{ gridColumn:'span 3' }}>
                   <label style={labelStyle}>Comments</label>
-                  <div style={{ padding:'12px 14px', border:'1px solid rgba(13,27,46,0.08)', borderRadius:8, fontSize:13, color:'#444', background:'rgba(13,27,46,.015)', lineHeight:1.7, whiteSpace:'pre-wrap', maxHeight:200, overflowY:'auto' }}>
-                    {deal.comments || 'No comments on file.'}
-                  </div>
+                  <textarea
+                    value={form.comments}
+                    onChange={e => setForm(p => ({...p, comments: e.target.value}))}
+                    style={{ ...inputStyle, minHeight: 120, resize: 'vertical', lineHeight: 1.7 }}
+                    placeholder="No comments on file."
+                  />
                 </div>
 
                 {/* Cap Rate intel */}
