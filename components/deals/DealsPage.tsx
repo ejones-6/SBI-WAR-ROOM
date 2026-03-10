@@ -45,8 +45,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       const cr = capRateMap[deal.name]
       if (cr?.noi_cap_rate) {
         const pct = Number(cr.noi_cap_rate)
-        const cls = pct < 4.5 ? 'cr-low' : pct < 5.5 ? 'cr-mid' : 'cr-high'
-        return <span className={`cr-badge ${cls}`}>{fmtPct(pct)}<sup style={{fontSize:7,opacity:.6,marginLeft:1}}>BOE</sup></span>
+        return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}<sup style={{fontSize:7,opacity:.5,marginLeft:1}}>BOE</sup></span>
       }
     }
     const cr = capRateMap[deal.name]
@@ -54,8 +53,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       const v = cr.broker_cap_rate ?? cr.noi_cap_rate
       if (v) {
         const pct = Number(v)
-        const cls = pct < 4.5 ? 'cr-low' : pct < 5.5 ? 'cr-mid' : 'cr-high'
-        return <span className={`cr-badge ${cls}`}>{fmtPct(pct)}</span>
+        return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}</span>
       }
     }
     return <span className="cr-none">—</span>
@@ -143,7 +141,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#0D1B2E' }}>
-                {['Deal Name','Status','Units','Year','Price','$/Unit','Cap Rate','Bid Date','Seller','Buyer','Sold Price','+/− Guidance'].map((h, i) => (
+                {['Deal Name','Status','Units','Year','Guidance','$/Unit','Cap Rate','Bid Date','Seller','Buyer','Sold Price','+/− Guidance'].map((h, i) => (
                   <th key={h} style={{ padding: '11px 14px', textAlign: i === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F0B429', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
