@@ -397,6 +397,8 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
           purchase_price: parseFloat(String(col(r, 'Purchase Price') || '').replace(/[,$]/g, '')) || null,
           price_per_unit: parseFloat(String(col(r, '$ / Unit') || '').replace(/[,$]/g, '')) || null,
           bid_due_date: parseDate(col(r, 'Bid Due Date')),
+          comments: String(col(r, 'Comments') || '').trim() || null,
+          broker: String(col(r, 'Broker') || '').trim() || null,
           added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
           modified: new Date().toISOString().split('T')[0],
         }
