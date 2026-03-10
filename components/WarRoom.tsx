@@ -87,7 +87,6 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       // Round 1: active deals fast
       const { data: active, error: e1 } = await sb.from('deals')
         .select('*')
-        .not('status', 'like', '6 -%')
         .order('modified', { ascending: false })
         .limit(2500)
       if (active && active.length > 0) {
@@ -401,7 +400,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
           added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
           modified: new Date().toISOString().split('T')[0],
         }
-      }).filter(d => d.name)
+      }).filter(d => d.name && !['6','7','8','9'].some(n => d.status.startsWith(n + ' -')))
 
       setPreview(deals)
       setStatus('preview')
