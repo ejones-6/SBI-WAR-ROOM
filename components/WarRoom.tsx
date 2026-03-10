@@ -118,15 +118,14 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     })
-    if (res.ok) {
-      const updated: Deal = await res.json()
-      setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
-      if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
-      return updated
-    } else {
-      const err = await res.json()
-      console.error('saveDeal error:', err)
-    }
+    const text = await res.text()
+    if (!text) { console.error('saveDeal: empty response', res.status); return }
+    const data = JSON.parse(text)
+    if (!res.ok) { console.error('saveDeal error:', data); return }
+    const updated: Deal = data
+    setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
+    if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
+    return updated
   }, [selectedDeal])
 
   const addDeal = useCallback(async (deal: Omit<Deal, 'id' | 'created_at' | 'updated_at'>) => {
