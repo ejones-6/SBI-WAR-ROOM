@@ -9,7 +9,7 @@ interface Props {
   boe: BoeData | null
   capRate: CapRate | null
   onClose: () => void
-  onSave: (updates: Partial<Deal> & { name: string }) => Promise<any>
+  onSave: (updates: Partial<Deal> & { name: string; id?: string }) => Promise<any>
   onSaveBoe: (boe: BoeData) => Promise<any>
 }
 
@@ -56,24 +56,28 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
   async function handleSave() {
     setSaving(true)
-    await onSave({
-      id: deal.id,
-      name: deal.name,
-      status: form.status,
-      purchase_price: pp,
-      units: u,
-      year_built: parseInt(form.year_built) || null,
-      broker: form.broker || null,
-      bid_due_date: form.bid_due_date || null,
-      price_per_unit: ppu,
-      buyer: form.buyer || null,
-      seller: form.seller || null,
-      sold_price: soldP,
-      comments: form.comments || null,
-    })
+    try {
+      await onSave({
+        id: deal.id,
+        name: deal.name,
+        status: form.status,
+        purchase_price: pp,
+        units: u,
+        year_built: parseInt(form.year_built) || null,
+        broker: form.broker || null,
+        bid_due_date: form.bid_due_date || null,
+        price_per_unit: ppu,
+        buyer: form.buyer || null,
+        seller: form.seller || null,
+        sold_price: soldP,
+        comments: form.comments || null,
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (e) {
+      console.error('handleSave error:', e)
+    }
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
   }
 
   // ESC to close
