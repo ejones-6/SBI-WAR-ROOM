@@ -32,10 +32,12 @@ export async function POST(req: NextRequest) {
       const existingMap = new Map((existing ?? []).map((d: any) => [d.name.trim(), d.status]))
 
       const LOCKED_PREFIXES = ['6', '7', '8', '9', '10']
+      const ACTIVE_PREFIXES = ['1', '2', '3', '4', '5']
 
       const newDeals = incoming.filter(d => !existingMap.has(d.name.trim()))
       const existingDeals = incoming.filter(d => existingMap.has(d.name.trim()))
 
+      // Insert new deals in chunks of 200
       let inserted = 0
       const chunkSize = 200
       for (let i = 0; i < newDeals.length; i += chunkSize) {
@@ -44,20 +46,30 @@ export async function POST(req: NextRequest) {
         if (!error && data) inserted += data.length
       }
 
+      // Update existing deals
       let updated = 0
       for (const deal of existingDeals) {
         const currentStatus = existingMap.get(deal.name.trim()) ?? ''
         const isLocked = LOCKED_PREFIXES.some(p => currentStatus.startsWith(p + ' -'))
+        const isActive = ACTIVE_PREFIXES.some(p => currentStatus.startsWith(p + ' -'))
 
         const updates: any = { modified: new Date().toISOString().slice(0, 10) }
-        if (!isLocked && deal.status) updates.status = deal.status
-        if (deal.units)          updates.units = deal.units
-        if (deal.year_built)     updates.year_built = deal.year_built
-        if (deal.purchase_price) updates.purchase_price = deal.purchase_price
-        if (deal.price_per_unit) updates.price_per_unit = deal.price_per_unit
-        if (deal.bid_due_date)   updates.bid_due_date = deal.bid_due_date
-        if (deal.broker)         updates.broker = deal.broker
-        if (deal.market)         updates.market = deal.market
+
+        // Never touch status/info on locked deals
+        if (!isLocked) {
+          if (deal.status)         updates.status = deal.status
+          if (deal.units)          updates.units = deal.units
+          if (deal.year_built)     updates.year_built = deal.year_built
+          if (deal.purchase_price) updates.purchase_price = deal.purchase_price
+          if (deal.price_per_unit) updates.price_per_unit = deal.price_per_unit
+          if (deal.broker)         updates.broker = deal.broker
+          if (deal.market)         updates.market = deal.market
+        }
+
+        // Always update bid_due_date for active/new deals even if null (to clear stale dates)
+        if (isActive) {
+          updates.bid_due_date = deal.bid_due_date ?? null
+        }
 
         const { error } = await supabase.from('deals').update(updates).eq('name', deal.name.trim())
         if (!error) updated++
