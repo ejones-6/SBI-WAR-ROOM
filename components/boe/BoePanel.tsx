@@ -174,7 +174,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
             const s = String(h).trim()
             if (/^annual$/i.test(s)) annualCols.push(i)
             else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(s)) monthlyCols.push(i)
-            else if (h instanceof Date) monthlyCols.push(i)
+            else if (typeof h === "object" && h !== null) monthlyCols.push(i)
           }
         })
       }
