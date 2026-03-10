@@ -143,8 +143,8 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#0D1B2E' }}>
-                {['Deal Name','Status','Units','Year','Price','$/Unit','Cap Rate','Bid Date','Buyer','Seller','Sold Price','+/− Guidance'].map((h, i) => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: i === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F0B429', whiteSpace: 'nowrap' }}>{h}</th>
+                {['Deal Name','Status','Units','Year','Price','$/Unit','Cap Rate','Bid Date','Buyer','Seller','Sold Price','+/− Guidance'].map(h => (
+                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F0B429', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -168,25 +168,28 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                         )}
                       </small>
                     </td>
-                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                    <td style={{ padding: '10px 14px' }}>
                       <span className={`status-badge ${sc}`} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:600,whiteSpace:'nowrap' }}>
                         <span style={{ width:6,height:6,borderRadius:'50%',background:'currentColor',opacity:.7 }}/>
                         {sl}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.units?.toLocaleString() ?? '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.year_built ?? '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtShort(deal.purchase_price)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtUnit(deal.price_per_unit)}</td>
-                    <td style={{ padding: '10px 14px', textAlign: 'center' }}>{crCell(deal)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.buyer || '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{deal.units?.toLocaleString() ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{deal.year_built ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtShort(deal.purchase_price)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtUnit(deal.price_per_unit)}</td>
+                    <td style={{ padding: '10px 14px' }}>{crCell(deal)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.seller || '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.sold_price ? fmtShort(deal.sold_price) : '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.buyer || '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{deal.sold_price ? fmtShort(deal.sold_price) : '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {guidanceDiff !== null ? (
                         <span className={guidanceDiff > 0 ? 'guidance-pos' : guidanceDiff < 0 ? 'guidance-neg' : 'guidance-zero'}>
-                          {guidanceDiff >= 0 ? '+' : ''}{((guidanceDiff / deal.purchase_price!) * 100).toFixed(1)}%
+                          {guidanceDiff >= 0 ? '+' : ''}{fmtShort(guidanceDiff)}
+                          <small style={{ display: 'block', fontSize: 9, fontWeight: 400 }}>
+                            {guidanceDiff >= 0 ? '+' : ''}{((guidanceDiff / deal.purchase_price!) * 100).toFixed(1)}%
+                          </small>
                         </span>
                       ) : '—'}
                     </td>
