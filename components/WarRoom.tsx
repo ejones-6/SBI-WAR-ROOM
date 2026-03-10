@@ -111,6 +111,18 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     loadData()
   }, [loadAllDeals])
 
+  const refreshDeals = useCallback(async () => {
+    const sb = createClient()
+    const [dealsRes, boeRes, crRes] = await Promise.all([
+      sb.from('deals').select('*').order('modified', { ascending: false }).limit(2500),
+      sb.from('boe_data').select('*'),
+      sb.from('cap_rates').select('*'),
+    ])
+    if (dealsRes.data && dealsRes.data.length > 0) setDeals(dealsRes.data)
+    if (boeRes.data) setBoeMap(Object.fromEntries(boeRes.data.map((b: any) => [b.deal_name, b])))
+    if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
+  }, [])
+
   const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string }) => {
     const res = await fetch('/api/deals', {
       method: 'PATCH',
@@ -316,11 +328,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
           {page === 'upload' && (
-            <UploadPipelinePage onDealsImported={(newDeals) => setDeals(prev => {
-              const existingNames = new Set(prev.map(d => d.name))
-              const fresh = newDeals.filter(d => !existingNames.has(d.name))
-              return [...fresh, ...prev]
-            })} addDeal={addDeal} />
+            <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
           )}
         </div>
       </main>
@@ -350,7 +358,7 @@ function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
 // Upload Pipeline Page
-function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (deals: any[]) => void, addDeal: (deal: any) => Promise<any> }) {
+function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () => void, addDeal: (deal: any) => Promise<any> }) {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
   const [imported, setImported] = useState(0)
@@ -425,7 +433,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
         setInsertedCount(result.inserted ?? 0)
         setUpdatedCount(result.updated ?? 0)
         setImported((result.inserted ?? 0) + (result.updated ?? 0))
-        onDealsImported(preview)
+        onDealsImported()
       }
     } catch {}
     setStatus('done')
