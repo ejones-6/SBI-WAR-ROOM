@@ -281,22 +281,22 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </div>
         <div style={{ padding:'2px 6px' }}>
           <input
+            key={k + '_adj'}
             type="text"
-            value={a(k)}
-            onChange={e => setA(k, e.target.value)}
+            defaultValue={a(k)}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
+            onBlur={e => setA(k, e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Tab') {
+              if (e.key === 'Tab' || e.key === 'Enter') {
+                e.preventDefault()
+                const val = e.currentTarget.value
                 const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]')
                 const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]'))
                 const idx = inputs.indexOf(e.currentTarget as HTMLInputElement)
-                if (!e.shiftKey && idx >= 0 && idx < inputs.length - 1) {
-                  e.preventDefault()
-                  inputs[idx+1].focus()
-                } else if (e.shiftKey && idx > 0) {
-                  e.preventDefault()
-                  inputs[idx-1].focus()
-                }
+                const nextInput = !e.shiftKey ? inputs[idx + 1] : inputs[idx - 1]
+                setA(k, val)
+                // Use setTimeout to move focus after React re-render
+                if (nextInput) setTimeout(() => nextInput.focus(), 0)
               }
             }}
             data-adj="1"
