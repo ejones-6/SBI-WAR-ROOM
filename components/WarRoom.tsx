@@ -401,6 +401,11 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
       }
       const parseDate = (v: any): string | null => {
         if (!v) return null
+        // Handle Excel serial numbers (SheetJS returns dates as numbers e.g. 46462)
+        if (typeof v === 'number') {
+          const d = new Date(Math.round((v - 25569) * 86400 * 1000))
+          return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
+        }
         const d = new Date(v)
         return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
       }
