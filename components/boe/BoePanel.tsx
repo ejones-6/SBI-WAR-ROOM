@@ -17,17 +17,36 @@ const DEFAULT_ADJS: BoeAdjs = {
 }
 
 const BOE_MAP: Record<string, string[]> = {
-  gpr:['gpr'], ltl:['ltl'], vac:['vac'], bad:['bad'], conc:['conc'], mod:['mod'], emp:['emp'],
-  oi:['app','admin','dam','mtm','pet_f','pet_r','int','term','cable','tran','nsf','lat','oth','rubs','util_rb','util_re','park','stor','laun','oth_inc','other_income','ancillary'],
-  ga:['gen_admin','g&a','general_administrative','office','admin_exp'],
-  mkt:['marketing','advertising','leasing_comm'],
-  rm:['repair','maintenance','r&m','make_ready','turn','grounds','contract'],
-  pay:['payroll','salaries','wages','benefits','management_fee_on_site'],
-  mgt:['mgmt_fee','management_fee_off_site','property_management'],
-  utl:['utilities','electric','gas','water','sewer','trash'],
-  tax:['real_estate_tax','property_tax','taxes'],
-  taxm:['misc_tax','business_tax','other_tax','bid'],
-  ins:['insurance'],
+  gpr:  ['gpr'],
+  ltl:  ['ltl'],
+  vac:  ['vac'],
+  bad:  ['bad'],
+  conc: ['conc'],
+  mod:  ['mod'],
+  emp:  ['emp'],
+  // All other income rows sum to oi
+  oi:   ['app','admin','dam','mtm','pet_f','pet_r','int','term','cable','tran','nsf','late',
+          'wash','park','stor','park_c','cell','bill','prem','pest','oi','comm',
+          'reim_e','reim_w','reim_g','reim_o','reim_t','key','cc','leg','amn','fsd',
+          'vend','p/d','p/d_u','gym','club','oi1','oi2','oi3','oi4','ri'],
+  // G&A = Administrative + Licenses
+  ga:   ['ga','lic'],
+  // Marketing
+  mkt:  ['adv'],
+  // R&M = repairs + contract services + turnover + landscaping
+  rm:   ['rm','cont','turn','ls'],
+  // Payroll
+  pay:  ['pay'],
+  // Management fee
+  mgt:  ['mgt'],
+  // Utilities = all utility lines
+  utl:  ['elec','wat','gas','utl','trash'],
+  // Real estate taxes = all tax lines
+  tax:  ['tax','tax_c','tax_o','tax_p'],
+  // Misc taxes
+  taxm: [],
+  // Insurance
+  ins:  ['ins'],
 }
 
 function fmt(n: number) { return n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}` }
@@ -136,7 +155,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type:'array', cellDates:true })
-      let ws = wb.Sheets['Overview'] ?? wb.Sheets[wb.SheetNames.find(n => /t12|rediq/i.test(n)) ?? wb.SheetNames[0]]
+      let ws = wb.Sheets[wb.SheetNames.find(n => /t12|rediq|drop|operating/i.test(n)) ?? wb.SheetNames.find(n => !/overview|about/i.test(n)) ?? wb.SheetNames[0]]
       const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' })
 
       // Find header row (has 'Code' in col A)
@@ -144,36 +163,45 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if (hdrIdx < 0) { setStatus('⚠ Could not find header row'); return }
       const hdr = rows[hdrIdx] as string[]
 
-      // Find T12 column or sum monthly cols
+      // Rediq header: Code | Account | Annual(yr1) | Annual(yr2) | Annual(yr3) | Monthly...
+      // We want the most recent Annual column or sum all monthly cols
       const t12ColIdx = hdr.findIndex(h => /^t12$/i.test(String(h).trim()))
-      const dataCols: number[] = []
+      const annualCols: number[] = []
+      const monthlyCols: number[] = []
       if (t12ColIdx < 0) {
-        hdr.forEach((h,i) => { if (i > 1 && /jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(String(h))) dataCols.push(i) })
+        hdr.forEach((h, i) => {
+          if (i > 1) {
+            const s = String(h).trim()
+            if (/^annual$/i.test(s)) annualCols.push(i)
+            else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(s)) monthlyCols.push(i)
+            else if (h instanceof Date) monthlyCols.push(i)
+          }
+        })
       }
+      const useCol = t12ColIdx >= 0 ? t12ColIdx : (annualCols.length > 0 ? annualCols[annualCols.length - 1] : -1)
+      const dataCols = monthlyCols
 
       // Parse rows
       const codeMap: Record<string, number> = {}
       for (let i = hdrIdx+1; i < rows.length; i++) {
         const row = rows[i]
-        const code = String(row[0] ?? '').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_')
+        const code = String(row[0] ?? '').trim().toLowerCase().replace(/[^a-z0-9_/]/g,'_')
         if (!code) continue
         let val = 0
-        if (t12ColIdx >= 0) {
-          val = parseFloat(String(row[t12ColIdx]).replace(/[,$]/g,'')) || 0
+        if (useCol >= 0) {
+          val = parseFloat(String(row[useCol]).replace(/[,$]/g,'')) || 0
         } else {
           dataCols.forEach(c => { val += parseFloat(String(row[c]).replace(/[,$]/g,'')) || 0 })
         }
         codeMap[code] = val
       }
 
-      // Map to BOE buckets
+      // Map to BOE buckets using exact Rediq codes
       const newT12: BoeT12 = { ...EMPTY_T12 }
       for (const [bucket, codes] of Object.entries(BOE_MAP)) {
         let total = 0
         for (const code of codes) {
-          for (const [k, v] of Object.entries(codeMap)) {
-            if (k.includes(code)) total += v
-          }
+          total += codeMap[code] ?? 0
         }
         ;(newT12 as any)[bucket] = total
       }
