@@ -151,55 +151,17 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       const saved: BoeData = await res.json()
       setBoeMap(prev => ({ ...prev, [saved.deal_name]: saved }))
 
-      // Auto-save cap rates calculated from BOE
+      // Auto-save cap rates using values calculated by BoePanel
+      const boeAny = boe as any
       const deal = deals.find(d => d.name === boe.deal_name)
-      if (deal?.purchase_price && boe.t12) {
+      if (deal?.purchase_price && boeAny._cap_adj != null) {
         const pp = deal.purchase_price
-        const units = deal.units ?? 1
-        const t12 = boe.t12 as any
-        const adjs = boe.adjs as any
-
-        // Replicate BOE calc: NOI T12
-        const gpr_t = t12.gpr ?? 0
-        const ltl_t = t12.ltl ?? 0
-        const vac_t = t12.vac ?? 0
-        const bad_t = t12.bad ?? 0
-        const conc_t = t12.conc ?? 0
-        const mod_t = t12.mod ?? 0
-        const emp_t = t12.emp ?? 0
-        const oi_t = t12.oi ?? 0
-        const egr_t = gpr_t + ltl_t + vac_t + bad_t + conc_t + mod_t + emp_t + oi_t
-        const opex_t = (t12.ga??0) + (t12.mkt??0) + (t12.rm??0) + (t12.pay??0) +
-                       (t12.mgt??0) + (t12.utl??0) + (t12.tax??0) + (t12.taxm??0) + (t12.ins??0)
-        const noi_t12 = egr_t - opex_t
-
-        // PF NOI (simplified — use adj values where available)
-        const v = (k: string) => adjs[k] !== undefined && adjs[k] !== '' ? parseFloat(adjs[k]) : null
-        const gpr_p = v('gpr') != null ? gpr_t * (1 + v('gpr')! / 100) : gpr_t
-        const ltl_p = ltl_t * (1 + (v('ltl') ?? 3) / 100)
-        const vac_p = v('vac') != null ? -(v('vac')! / 100) * (gpr_p + ltl_p) : vac_t
-        const bad_p = v('bad') != null ? -(v('bad')! / 100) * gpr_p : bad_t
-        const conc_p = v('conc') != null ? -(v('conc')! / 100) * gpr_p : conc_t
-        const mod_p = v('mod') != null ? -(v('mod')! / 100) * gpr_p : mod_t
-        const emp_p = v('emp') != null ? -(v('emp')! / 100) * gpr_p : emp_t
-        const oi_p = oi_t + (v('oi') ?? 0)
-        const egr_p = gpr_p + ltl_p + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p
-        const mgt_p = ((v('mgt') ?? 2.5) / 100) * egr_p
-        const ins_p = (v('ins') ?? 550) * units
-        const rm_adj = adjs['rm'] ? parseFloat(adjs['rm']) * units : (t12.rm ?? 0)
-        const pay_adj = adjs['pay'] ? parseFloat(adjs['pay']) : (t12.pay ?? 0)
-        const opex_p = (t12.ga??0)+(v('ga')??0) + (t12.mkt??0)+(v('mkt')??0) +
-                       rm_adj + pay_adj + mgt_p +
-                       (t12.utl??0)+(v('utl')??0) + (t12.tax??0)+(v('tax')??0) +
-                       (t12.taxm??0)+(v('taxm')??0) + ins_p
-        const noi_pf = egr_p - opex_p
-
         await fetch('/api/cap-rates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             deal_name: boe.deal_name,
-            noi_cap_rate: pp > 0 ? noi_t12 / pp : null,
+            noi_cap_rate: boeAny._cap_adj / 100,
             broker_cap_rate: null,
             purchase_price: pp / 1000,
             sold_price: deal.sold_price ? deal.sold_price / 1000 : null,

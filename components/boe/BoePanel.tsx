@@ -136,7 +136,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   async function handleSave() {
     setSaving(true)
-    await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period })
+    await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, _noi_t12: noi_t, _noi_pf: noi_p, _cap_na: cap_na, _cap_adj: cap_adj } as any)
     setSaving(false)
     setStatus('✓ Saved to database')
     setTimeout(() => setStatus(''), 2500)
