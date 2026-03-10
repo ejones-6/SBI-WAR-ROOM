@@ -103,7 +103,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       return new Date(d.added).getFullYear() === 2026
     }).forEach(d => {
       const region = getRegion ? getRegion(d.market || '') : (d.market || 'Other')
-      const label = (REGION_LABELS && REGION_LABELS[region]) || region || 'Other'
+      const label = (REGION_LABELS && (REGION_LABELS as Record<string, string>)[region]) || region || 'Other'
       counts[label] = (counts[label] || 0) + 1
     })
     return Object.entries(counts)
