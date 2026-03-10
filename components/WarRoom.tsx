@@ -423,8 +423,8 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
       if (res.ok) {
         const result = await res.json()
         setInsertedCount(result.inserted ?? 0)
-        setUpdatedCount(result.skipped ?? 0)
-        setImported((result.inserted ?? 0) + (result.skipped ?? 0))
+        setUpdatedCount(result.updated ?? 0)
+        setImported((result.inserted ?? 0) + (result.updated ?? 0))
         onDealsImported(preview)
       }
     } catch {}
@@ -505,7 +505,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (de
         <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>Done! {imported} deals processed</div>
-          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new deals added</span> · <span style={{color:'#8A9BB0'}}>{updatedCount} already existed, skipped</span></div>
+          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new deals added</span> · <span style={{color:'#F0B429',fontWeight:600}}>{updatedCount} existing deals updated</span></div>
           <div style={{ fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>BOE data, comments, seller/buyer info preserved on all existing deals</div>
           <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0); setInsertedCount(0); setUpdatedCount(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
         </div>
