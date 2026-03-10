@@ -24,17 +24,18 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     const body = await req.json()
 
-    // Batch import — insert new, update must-grab fields on existing
     if (body._batch) {
       const incoming: any[] = body.deals
       if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0 })
 
-      // Fetch all existing deal names in one query
-      const { data: existing } = await supabase.from('deals').select('name')
-      const existingNames = new Set((existing ?? []).map((d: any) => d.name.trim()))
+      // Fetch all existing deals with their current status
+      const { data: existing } = await supabase.from('deals').select('name, status')
+      const existingMap = new Map((existing ?? []).map((d: any) => [d.name.trim(), d.status]))
 
-      const newDeals = incoming.filter(d => !existingNames.has(d.name.trim()))
-      const existingDeals = incoming.filter(d => existingNames.has(d.name.trim()))
+      const LOCKED_STATUSES = ['6 - Passed', '7 - Lost', '8 - Property Comp', '9 - Exited', '10 - Owned Property']
+
+      const newDeals = incoming.filter(d => !existingMap.has(d.name.trim()))
+      const existingDeals = incoming.filter(d => existingMap.has(d.name.trim()))
 
       // Insert new deals in chunks of 200
       let inserted = 0
@@ -46,12 +47,14 @@ export async function POST(req: NextRequest) {
       }
 
       // Update must-grab fields on existing deals
-      // Only overwrite: status, units, year_built, purchase_price, price_per_unit, bid_due_date, broker, market
-      // Never overwrite: seller, buyer, sold_price, comments, BOE data, cap rates
+      // Never overwrite status on locked/closed deals
       let updated = 0
       for (const deal of existingDeals) {
+        const currentStatus = existingMap.get(deal.name.trim()) ?? ''
+        const isLocked = LOCKED_STATUSES.some(s => currentStatus.startsWith(s.split(' - ')[0]))
+
         const updates: any = { modified: new Date().toISOString().slice(0, 10) }
-        if (deal.status)         updates.status = deal.status
+        if (!isLocked && deal.status) updates.status = deal.status
         if (deal.units)          updates.units = deal.units
         if (deal.year_built)     updates.year_built = deal.year_built
         if (deal.purchase_price) updates.purchase_price = deal.purchase_price
