@@ -28,16 +28,14 @@ export async function POST(req: NextRequest) {
       const incoming: any[] = body.deals
       if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0 })
 
-      // Fetch all existing deals with their current status
       const { data: existing } = await supabase.from('deals').select('name, status')
       const existingMap = new Map((existing ?? []).map((d: any) => [d.name.trim(), d.status]))
 
-      const LOCKED_STATUSES = ['6 - Passed', '7 - Lost', '8 - Property Comp', '9 - Exited', '10 - Owned Property']
+      const LOCKED_PREFIXES = ['6', '7', '8', '9', '10']
 
       const newDeals = incoming.filter(d => !existingMap.has(d.name.trim()))
       const existingDeals = incoming.filter(d => existingMap.has(d.name.trim()))
 
-      // Insert new deals in chunks of 200
       let inserted = 0
       const chunkSize = 200
       for (let i = 0; i < newDeals.length; i += chunkSize) {
@@ -46,12 +44,10 @@ export async function POST(req: NextRequest) {
         if (!error && data) inserted += data.length
       }
 
-      // Update must-grab fields on existing deals
-      // Never overwrite status on locked/closed deals
       let updated = 0
       for (const deal of existingDeals) {
         const currentStatus = existingMap.get(deal.name.trim()) ?? ''
-        const isLocked = LOCKED_STATUSES.some(s => currentStatus.startsWith(s.split(' - ')[0]))
+        const isLocked = LOCKED_PREFIXES.some(p => currentStatus.startsWith(p + ' -'))
 
         const updates: any = { modified: new Date().toISOString().slice(0, 10) }
         if (!isLocked && deal.status) updates.status = deal.status
@@ -70,7 +66,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ inserted, updated })
     }
 
-    // Regular single deal insert (from Add Deal form)
     const { data, error } = await supabase.from('deals').insert(body).select()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json(data?.[0])
