@@ -150,29 +150,29 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     if (res.ok) {
       const saved: BoeData = await res.json()
       setBoeMap(prev => ({ ...prev, [saved.deal_name]: saved }))
-
-      // Auto-save cap rates using values calculated by BoePanel
-      const boeAny = boe as any
-      const deal = deals.find(d => d.name === boe.deal_name)
-      if (deal?.purchase_price && boeAny._cap_adj != null) {
-        const pp = deal.purchase_price
-        await fetch('/api/cap-rates', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            deal_name: boe.deal_name,
-            noi_cap_rate: boeAny._cap_adj / 100,
-            broker_cap_rate: null,
-            purchase_price: pp / 1000,
-            sold_price: deal.sold_price ? deal.sold_price / 1000 : null,
-            delta: deal.sold_price && pp > 0 ? (deal.sold_price - pp) / pp : null,
-          }),
-        }).then(r => r.ok ? r.json() : null).then(cr => {
-          if (cr) setCapRateMap(prev => ({ ...prev, [cr.deal_name]: cr }))
-        })
-      }
-
       return saved
+    }
+  }, [])
+
+  const saveCapRateFromBoe = useCallback(async (dealName: string, capAdj: number) => {
+    const deal = deals.find(d => d.name === dealName)
+    if (!deal?.purchase_price) return
+    const pp = deal.purchase_price
+    const res = await fetch('/api/cap-rates', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deal_name: dealName,
+        noi_cap_rate: capAdj / 100,
+        broker_cap_rate: null,
+        purchase_price: pp / 1000,
+        sold_price: deal.sold_price ? deal.sold_price / 1000 : null,
+        delta: deal.sold_price && pp > 0 ? (deal.sold_price - pp) / pp : null,
+      }),
+    })
+    if (res.ok) {
+      const cr = await res.json()
+      setCapRateMap(prev => ({ ...prev, [cr.deal_name]: cr }))
     }
   }, [deals])
 
@@ -327,6 +327,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           onClose={() => setSelectedDeal(null)}
           onSave={saveDeal}
           onSaveBoe={saveBoe}
+          onSaveCapRate={saveCapRateFromBoe}
         />
       )}
     </div>

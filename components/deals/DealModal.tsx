@@ -9,13 +9,14 @@ interface Props {
   boe: BoeData | null
   capRate: CapRate | null
   onClose: () => void
-  onSave: (updates: Partial<Deal> & { name: string; id?: string }) => Promise<any>
+  onSave: (updates: Partial<Deal> & { name: string }) => Promise<any>
   onSaveBoe: (boe: BoeData) => Promise<any>
+  onSaveCapRate?: (dealName: string, capAdj: number) => void
 }
 
 type Tab = 'details' | 'boe'
 
-export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe }: Props) {
+export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
   const [form, setForm] = useState({
     status: deal.status,
@@ -56,28 +57,24 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
   async function handleSave() {
     setSaving(true)
-    try {
-      await onSave({
-        id: deal.id,
-        name: deal.name,
-        status: form.status,
-        purchase_price: pp,
-        units: u,
-        year_built: parseInt(form.year_built) || null,
-        broker: form.broker || null,
-        bid_due_date: form.bid_due_date || null,
-        price_per_unit: ppu,
-        buyer: form.buyer || null,
-        seller: form.seller || null,
-        sold_price: soldP,
-        comments: form.comments || null,
-      })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
-    } catch (e) {
-      console.error('handleSave error:', e)
-    }
+    await onSave({
+      id: deal.id,
+      name: deal.name,
+      status: form.status,
+      purchase_price: pp,
+      units: u,
+      year_built: parseInt(form.year_built) || null,
+      broker: form.broker || null,
+      bid_due_date: form.bid_due_date || null,
+      price_per_unit: ppu,
+      buyer: form.buyer || null,
+      seller: form.seller || null,
+      sold_price: soldP,
+      comments: form.comments || null,
+    })
     setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
   }
 
   // ESC to close
@@ -237,7 +234,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           )}
 
           {tab === 'boe' && (
-            <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} />
+            <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} onSaveCapRate={onSaveCapRate} />
           )}
         </div>
       </div>

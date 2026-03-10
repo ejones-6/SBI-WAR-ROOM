@@ -30,9 +30,8 @@ export async function POST(req: NextRequest) {
       .from('boe_data')
       .upsert(body, { onConflict: 'deal_name' })
       .select()
-      .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    return NextResponse.json(data)
+    return NextResponse.json(data?.[0] ?? null)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'unknown' }, { status: 500 })
   }

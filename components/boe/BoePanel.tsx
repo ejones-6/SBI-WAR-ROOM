@@ -7,6 +7,7 @@ interface Props {
   deal: Deal
   boe: BoeData | null
   onSave: (boe: BoeData) => Promise<any>
+  onSaveCapRate?: (dealName: string, capAdj: number) => void
 }
 
 const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
@@ -53,7 +54,7 @@ function fmt(n: number) { return n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleSt
 function fmtpu(n: number, u: number) { if (!u) return '—'; return `$${Math.round(n/u).toLocaleString()}` }
 function fmtPct(n: number) { return n.toFixed(1) + '%' }
 
-export default function BoePanel({ deal, boe, onSave }: Props) {
+export default function BoePanel({ deal, boe, onSave, onSaveCapRate }: Props) {
   const units = deal.units ?? 1
   const pp = deal.purchase_price ?? 0
 
@@ -136,7 +137,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   async function handleSave() {
     setSaving(true)
-    await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, _noi_t12: noi_t, _noi_pf: noi_p, _cap_na: cap_na, _cap_adj: cap_adj } as any)
+    await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period } as any)
+    if (onSaveCapRate && pp && cap_adj) onSaveCapRate(deal.name, cap_adj)
     setSaving(false)
     setStatus('✓ Saved to database')
     setTimeout(() => setStatus(''), 2500)
@@ -265,7 +267,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ padding:'2px 6px' }}>
           <input type="number" step={adjType==='pct'?'0.1':'any'} value={a(k)} onChange={e => setA(k, e.target.value)}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (inputs[idx+1]) inputs[idx+1].focus(); } }}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) inputs[idx+1].focus(); } }}
             data-adj="1"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
         </div>
@@ -462,7 +464,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div/>
         <div style={{ padding:'2px 6px' }}>
           <input type="number" data-adj="1" value={a('tax')} onChange={e => setA('tax',e.target.value)} placeholder="$ adj"
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (inputs[idx+1]) inputs[idx+1].focus(); } }}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) inputs[idx+1].focus(); } }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(tax_p)}</div>
