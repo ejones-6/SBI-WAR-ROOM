@@ -234,7 +234,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           )}
 
           {tab === 'boe' && (
-            <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} onSaveCapRate={onSaveCapRate} />
+            <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} />
           )}
         </div>
       </div>
