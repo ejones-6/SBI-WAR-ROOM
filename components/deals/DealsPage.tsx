@@ -180,8 +180,8 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                     <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{fmtUnit(deal.price_per_unit)}</td>
                     <td style={{ padding: '10px 14px' }}>{crCell(deal)}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0' }}>{deal.buyer || '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0' }}>{deal.seller || '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.seller || '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.buyer || '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{deal.sold_price ? fmtShort(deal.sold_price) : '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap' }}>
                       {guidanceDiff !== null ? (

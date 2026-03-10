@@ -9,7 +9,7 @@ import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
 
-type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates'
+type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
 interface Props {
   initialDeals: Deal[]
@@ -181,7 +181,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'deals', label: 'Deals', icon: <ListIcon />, badgeKey: '1 - New' },
     { id: 'pipeline', label: 'Pipeline', icon: <PipeIcon />, badgeKey: '2 - Active' },
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
-    { id: 'caprates', label: 'Cap Rate Tracker', icon: <CapIcon /> },
+    { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
   ]
 
   if (deals.length === 0) {
@@ -262,7 +262,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
         }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>
-            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker' }[page]}
+            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline' }[page]}
           </h1>
           <div style={{ fontSize: 12, color: '#8A9BB0', display:'flex', alignItems:'center', gap:8 }}>
             {loadingAll && <span style={{ fontSize:10, color:'#C9A84C', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
@@ -284,8 +284,12 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           {page === 'analytics' && (
             <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
-          {page === 'caprates' && (
-            <CapRatesPage capRateMap={capRateMap} deals={deals} onSave={saveCapRate} />
+          {page === 'upload' && (
+            <UploadPipelinePage onDealsImported={(newDeals) => setDeals(prev => {
+              const existingNames = new Set(prev.map(d => d.name))
+              const fresh = newDeals.filter(d => !existingNames.has(d.name))
+              return [...fresh, ...prev]
+            })} addDeal={addDeal} />
           )}
         </div>
       </main>
@@ -311,3 +315,140 @@ function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
+function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
+
+// Upload Pipeline Page
+function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: (deals: any[]) => void, addDeal: (deal: any) => Promise<any> }) {
+  const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
+  const [preview, setPreview] = useState<any[]>([])
+  const [imported, setImported] = useState(0)
+  const [error, setError] = useState('')
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setStatus('parsing')
+    setError('')
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf)
+      const ws = wb.Sheets['Deal Log'] ?? wb.Sheets[wb.SheetNames[0]]
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' })
+
+      // Map columns to deal fields
+      const deals = rows.map((r: any) => ({
+        name: r['Deal Name'] || r['name'] || '',
+        status: (r['Status'] || r['status'] || '1 - New').toString().trim(),
+        market: r['Market'] || r['market'] || '',
+        units: parseInt(r['Units'] || r['units']) || null,
+        year_built: parseInt(r['Year Built'] || r['year_built']) || null,
+        purchase_price: parseFloat(r['Purchase Price'] || r['purchase_price']) || null,
+        price_per_unit: parseFloat(r['$ / Unit'] || r['price_per_unit']) || null,
+        bid_due_date: r['Bid Due Date'] || r['bid_due_date'] || null,
+        broker: r['Broker'] || r['broker'] || null,
+        comments: r['Comments'] || r['comments'] || null,
+        added: r['Added'] ? new Date(r['Added']).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        modified: new Date().toISOString().split('T')[0],
+      })).filter(d => d.name)
+
+      setPreview(deals)
+      setStatus('preview')
+    } catch (err: any) {
+      setError('Failed to parse file: ' + err.message)
+      setStatus('idle')
+    }
+  }
+
+  async function handleImport() {
+    setStatus('importing')
+    let count = 0
+    for (const deal of preview) {
+      try { await addDeal(deal); count++ } catch {}
+    }
+    onDealsImported(preview)
+    setImported(count)
+    setStatus('done')
+  }
+
+  const cardStyle = { background: '#fff', borderRadius: 12, padding: 32, border: '1px solid rgba(13,27,46,0.08)' }
+  const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }
+
+  return (
+    <div style={{ padding: 32, maxWidth: 800, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: '#0D1B2E' }}>Upload Pipeline from Rediq</div>
+        <div style={{ fontSize: 13, color: '#8A9BB0', marginTop: 4 }}>Drop your latest Deal Log Excel file to import new deals into the War Room</div>
+      </div>
+
+      {status === 'idle' || status === 'parsing' ? (
+        <div style={cardStyle}>
+          <label style={{ display: 'block', border: '2px dashed rgba(13,27,46,0.15)', borderRadius: 10, padding: '48px 32px', textAlign: 'center', cursor: 'pointer', transition: 'border-color .2s' }}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(13,27,46,0.15)')}>
+            <input type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: 'none' }} />
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', marginBottom: 6 }}>
+              {status === 'parsing' ? 'Parsing file…' : 'Drop your Rediq Deal Log here'}
+            </div>
+            <div style={{ fontSize: 12, color: '#8A9BB0' }}>Supports .xlsx and .xls files from Rediq</div>
+          </label>
+          {error && <div style={{ marginTop: 12, color: '#C0392B', fontSize: 13 }}>{error}</div>}
+        </div>
+      ) : status === 'preview' ? (
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>{preview.length} deals found</div>
+              <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 2 }}>Review before importing</div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setStatus('idle')} style={{ padding: '8px 18px', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 7, background: '#fff', color: '#8A9BB0', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleImport} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Import {preview.length} Deals →
+              </button>
+            </div>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#0D1B2E' }}>
+                  {['Deal Name', 'Status', 'Market', 'Units', 'Year', 'Price', 'Broker'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#F0B429', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.slice(0, 20).map((d, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)' }}>
+                    <td style={{ padding: '7px 12px', fontWeight: 500, color: '#0D1B2E', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.status}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.market}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.units ?? '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.year_built ?? '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.purchase_price ? `$${(d.purchase_price/1e6).toFixed(1)}M` : '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.broker || '—'}</td>
+                  </tr>
+                ))}
+                {preview.length > 20 && (
+                  <tr><td colSpan={7} style={{ padding: '8px 12px', color: '#8A9BB0', fontSize: 11, textAlign: 'center' }}>…and {preview.length - 20} more deals</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : status === 'importing' ? (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
+          <div style={{ fontSize: 13, color: '#8A9BB0' }}>Importing deals into Supabase…</div>
+        </div>
+      ) : (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>{imported} deals imported!</div>
+          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 24 }}>Your pipeline is up to date</div>
+          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
+        </div>
+      )}
+    </div>
+  )
+}

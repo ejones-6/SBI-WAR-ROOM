@@ -27,6 +27,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     buyer: deal.buyer ?? '',
     seller: deal.seller ?? '',
     sold_price: deal.sold_price?.toString() ?? '',
+    comments: deal.comments ?? '',
   })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -42,6 +43,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       buyer: deal.buyer ?? '',
       seller: deal.seller ?? '',
       sold_price: deal.sold_price?.toString() ?? '',
+      comments: deal.comments ?? '',
     })
     setTab('details')
   }, [deal.name])
@@ -66,6 +68,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       buyer: form.buyer || null,
       seller: form.seller || null,
       sold_price: soldP,
+      comments: form.comments || null,
     })
     setSaving(false)
     setSaved(true)
@@ -96,7 +99,17 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
         <div style={{ padding:'20px 28px 0', borderBottom:'1px solid rgba(13,27,46,0.08)', flexShrink:0 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
             <div>
-              <h2 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E' }}>{deal.name}</h2>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(deal.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Search on Google Maps"
+                style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E', textDecoration:'none', display:'inline-block' }}
+                onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
+                onMouseLeave={e => (e.currentTarget.style.color = '#0D1B2E')}
+              >
+                {deal.name} <span style={{ fontSize:14, verticalAlign:'middle' }}>↗</span>
+              </a>
               <div style={{ fontSize:12, color:'#8A9BB0', marginTop:3 }}>📍 {deal.market}</div>
             </div>
             <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#8A9BB0', fontSize:20, padding:4, lineHeight:1 }}>✕</button>
@@ -180,9 +193,12 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                 {/* Comments — full width */}
                 <div style={{ gridColumn:'span 3' }}>
                   <label style={labelStyle}>Comments</label>
-                  <div style={{ padding:'12px 14px', border:'1px solid rgba(13,27,46,0.08)', borderRadius:8, fontSize:13, color:'#444', background:'rgba(13,27,46,.015)', lineHeight:1.7, whiteSpace:'pre-wrap', maxHeight:200, overflowY:'auto' }}>
-                    {deal.comments || 'No comments on file.'}
-                  </div>
+                  <textarea
+                    value={form.comments}
+                    onChange={e => setForm(p => ({...p, comments: e.target.value}))}
+                    style={{ ...inputStyle, minHeight: 120, resize: 'vertical', lineHeight: 1.7 }}
+                    placeholder="No comments on file."
+                  />
                 </div>
 
                 {/* Cap Rate intel */}
