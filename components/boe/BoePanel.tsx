@@ -240,7 +240,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   }
 
   const a = (k: keyof BoeAdjs) => adjs[k] ?? ''
-  const setA = (k: keyof BoeAdjs, val: string) => setAdjs(p => ({...p, [k]: val}))
+  const setA = (k: keyof BoeAdjs, val: string) => setAdjs(p => ({...p, [k]: val === '' ? '' : val}))
   const setN = (k: string, val: string) => setNotes(p => ({...p, [k]: val}))
 
   const COL = '196px 88px 60px 60px 108px 88px 60px 1fr'
@@ -265,6 +265,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ padding:'2px 6px' }}>
           <input type="number" step={adjType==='pct'?'0.1':'any'} value={a(k)} onChange={e => setA(k, e.target.value)}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (inputs[idx+1]) inputs[idx+1].focus(); } }}
+            data-adj="1"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>
@@ -273,7 +275,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>
         {note && <div style={{ padding:'2px 6px 2px 4px' }}>
-          <input type="text" value={notes[k as string] ?? ''} onChange={e => setN(k as string, e.target.value)}
+          <input type="text" tabIndex={-1} value={notes[k as string] ?? ''} onChange={e => setN(k as string, e.target.value)}
             placeholder="Notes…" style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.1)', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
         </div>}
       </div>
@@ -459,7 +461,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.tax,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="number" value={a('tax')} onChange={e => setA('tax',e.target.value)} placeholder="$ adj"
+          <input type="number" data-adj="1" value={a('tax')} onChange={e => setA('tax',e.target.value)} placeholder="$ adj"
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (inputs[idx+1]) inputs[idx+1].focus(); } }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(tax_p)}</div>
