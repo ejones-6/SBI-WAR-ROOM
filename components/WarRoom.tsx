@@ -123,6 +123,9 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
       if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
       return updated
+    } else {
+      const err = await res.json()
+      console.error('saveDeal error:', err)
     }
   }, [selectedDeal])
 

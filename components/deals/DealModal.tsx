@@ -46,7 +46,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       comments: deal.comments ?? '',
     })
     setTab('details')
-  }, [deal.name])
+  }, [deal.name, deal.comments, deal.status, deal.purchase_price, deal.units, deal.buyer, deal.seller, deal.sold_price])
 
   const pp = parseFloat(form.purchase_price) || null
   const u = parseInt(form.units) || null
@@ -166,11 +166,11 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                 <div><label style={labelStyle}>Bid Due Date</label>
                   <input style={inputStyle} type="date" value={form.bid_due_date} onChange={e => setForm(p => ({...p, bid_due_date:e.target.value}))} /></div>
 
-                <div><label style={labelStyle}>Buyer</label>
-                  <input style={inputStyle} type="text" placeholder="Acquiring entity…" value={form.buyer} onChange={e => setForm(p => ({...p, buyer:e.target.value}))} /></div>
-
                 <div><label style={labelStyle}>Seller</label>
                   <input style={inputStyle} type="text" placeholder="Selling entity…" value={form.seller} onChange={e => setForm(p => ({...p, seller:e.target.value}))} /></div>
+
+                <div><label style={labelStyle}>Buyer</label>
+                  <input style={inputStyle} type="text" placeholder="Acquiring entity…" value={form.buyer} onChange={e => setForm(p => ({...p, buyer:e.target.value}))} /></div>
 
                 <div><label style={labelStyle}>Sold Price ($)</label>
                   <input style={inputStyle} type="number" placeholder="0" value={form.sold_price} onChange={e => setForm(p => ({...p, sold_price:e.target.value}))} /></div>

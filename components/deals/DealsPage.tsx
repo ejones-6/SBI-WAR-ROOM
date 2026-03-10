@@ -143,8 +143,8 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#0D1B2E' }}>
-                {['Deal Name','Status','Units','Year','Price','$/Unit','Cap Rate','Bid Date','Buyer','Seller','Sold Price','+/− Guidance'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F0B429', whiteSpace: 'nowrap' }}>{h}</th>
+                {['Deal Name','Status','Units','Year','Price','$/Unit','Cap Rate','Bid Date','Seller','Buyer','Sold Price','+/− Guidance'].map((h, i) => (
+                  <th key={h} style={{ padding: '11px 14px', textAlign: i === 0 ? 'left' : 'center', fontSize: 10, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#F0B429', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
