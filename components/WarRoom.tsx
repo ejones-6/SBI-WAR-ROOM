@@ -181,7 +181,6 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'deals', label: 'Deals', icon: <ListIcon />, badgeKey: '1 - New' },
     { id: 'pipeline', label: 'Pipeline', icon: <PipeIcon />, badgeKey: '2 - Active' },
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
-    { id: 'caprates', label: 'Cap Rate Tracker', icon: <CapIcon /> },
   ]
 
   if (deals.length === 0) {
@@ -283,9 +282,6 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           )}
           {page === 'analytics' && (
             <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
-          )}
-          {page === 'caprates' && (
-            <CapRatesPage capRateMap={capRateMap} deals={deals} onSave={saveCapRate} />
           )}
         </div>
       </main>
