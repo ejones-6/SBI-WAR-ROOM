@@ -1,7 +1,9 @@
 'use client'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, statusClass, statusLabel, formatBidDate, bidDateClass, getRegion, REGION_LABELS } from '@/lib/utils'
+import dynamic from 'next/dynamic'
+const DealsMap = dynamic(() => import('./DealsMap'), { ssr: false })
 
 interface Props {
   deals: Deal[]
@@ -17,6 +19,7 @@ const MARKET_COLORS: Record<string, string> = {
 }
 
 function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
+  const [tooltip, setTooltip] = useState<{ label: string; value: number; x: number; y: number } | null>(null)
   const total = data.reduce((s, d) => s + d.value, 0)
   if (total === 0) return null
   let cumulative = 0
@@ -27,36 +30,66 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
     cumulative += pct
     const startAngle = start * 2 * Math.PI - Math.PI / 2
     const endAngle = cumulative * 2 * Math.PI - Math.PI / 2
+    const midAngle = (startAngle + endAngle) / 2
     const x1 = cx + r * Math.cos(startAngle)
     const y1 = cy + r * Math.sin(startAngle)
     const x2 = cx + r * Math.cos(endAngle)
     const y2 = cy + r * Math.sin(endAngle)
     const large = pct > 0.5 ? 1 : 0
-    return { ...d, path: `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`, pct }
+    const tx = cx + r * Math.cos(midAngle)
+    const ty = cy + r * Math.sin(midAngle)
+    return { ...d, path: `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`, pct, tx, ty }
   })
   return (
-    <svg width={160} height={160} viewBox="0 0 160 160">
-      {slices.map((s, i) => (
-        <path key={i} d={s.path} fill="none" stroke={s.color} strokeWidth={stroke} strokeLinecap="butt" />
-      ))}
-      <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 18, fontWeight: 700, fill: '#0D1B2E', fontFamily: "'Cormorant Garamond',serif" }}>{total}</text>
-      <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 9, fill: '#8A9BB0', letterSpacing: '0.08em' }}>DEALS IN 2026</text>
-    </svg>
+    <div style={{ position: 'relative' }}>
+      <svg width={160} height={160} viewBox="0 0 160 160">
+        {slices.map((s, i) => (
+          <path key={i} d={s.path} fill="none" stroke={s.color} strokeWidth={stroke} strokeLinecap="butt"
+            style={{ cursor: 'pointer', transition: 'stroke-width 0.15s' }}
+            onMouseEnter={e => {
+              const rect = (e.target as SVGElement).closest('svg')!.getBoundingClientRect()
+              setTooltip({ label: s.label, value: s.value, x: s.tx, y: s.ty })
+              ;(e.target as SVGPathElement).setAttribute('stroke-width', '28')
+            }}
+            onMouseLeave={e => {
+              setTooltip(null)
+              ;(e.target as SVGPathElement).setAttribute('stroke-width', String(stroke))
+            }}
+          />
+        ))}
+        <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 18, fontWeight: 700, fill: '#0D1B2E', fontFamily: "'Cormorant Garamond',serif" }}>{total}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 9, fill: '#8A9BB0', letterSpacing: '0.08em' }}>DEALS IN 2026</text>
+        {tooltip && (
+          <g>
+            <rect x={tooltip.x - 36} y={tooltip.y - 22} width={72} height={36} rx={4} fill="rgba(13,27,46,0.92)" />
+            <text x={tooltip.x} y={tooltip.y - 6} textAnchor="middle" style={{ fontSize: 13, fontWeight: 700, fill: '#fff', fontFamily: "'Cormorant Garamond',serif" }}>{tooltip.value}</text>
+            <text x={tooltip.x} y={tooltip.y + 9} textAnchor="middle" style={{ fontSize: 8, fill: '#C9A84C', letterSpacing: '0.05em' }}>{tooltip.label.toUpperCase()}</text>
+          </g>
+        )}
+      </svg>
+    </div>
   )
 }
 
 function BarChart({ data }: { data: { label: string; value: number; current?: boolean }[] }) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const max = Math.max(...data.map(d => d.value), 1)
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100, paddingBottom: 20, position: 'relative' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, paddingBottom: 24, position: 'relative' }}>
       {data.map((d, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }}
+          onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
+          {hovered === i && (
+            <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 4, background: 'rgba(13,27,46,0.92)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10 }}>
+              {d.value} deals
+            </div>
+          )}
           <div style={{
             width: '100%', height: Math.max((d.value / max) * 80, 2),
-            background: d.current ? '#C9A84C' : '#0D1B2E',
+            background: d.current ? '#C9A84C' : hovered === i ? '#1565A0' : '#0D1B2E',
             borderRadius: '3px 3px 0 0',
-            opacity: d.current ? 1 : 0.65,
-            transition: 'height 0.3s ease'
+            opacity: d.current ? 1 : hovered === i ? 1 : 0.65,
+            transition: 'all 0.15s ease', cursor: 'pointer'
           }} />
           <div style={{ fontSize: 9, color: '#8A9BB0', whiteSpace: 'nowrap', transform: 'rotate(-30deg)', transformOrigin: 'top center', marginTop: 4 }}>{d.label}</div>
         </div>
@@ -78,7 +111,6 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
     return priced.length ? priced.reduce((s, d) => s + d.purchase_price!, 0) / priced.length : 0
   }, [deals])
 
-  // Monthly deal flow — last 12 months
   const monthlyData = useMemo(() => {
     const months = []
     for (let i = 11; i >= 0; i--) {
@@ -95,7 +127,6 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
     return months
   }, [deals, currentMonth, currentYear])
 
-  // 2026 deal allocation by market
   const marketData = useMemo(() => {
     const counts: Record<string, number> = {}
     deals.filter(d => {
@@ -142,88 +173,38 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, marginBottom: 20 }}>
-        {/* Monthly deal flow bar chart */}
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '18px 22px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginBottom: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '20px 26px' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>Monthly Deal Flow — Last 12 Months</div>
           <BarChart data={monthlyData} />
         </div>
-
-        {/* Donut + legend */}
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '18px 22px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12 }}>2026 Deal Allocation by Market</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <DonutChart data={marketData} />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', flex: 1 }}>
-              {marketData.map(d => (
-                <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: '#0D1B2E' }}>{d.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '20px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, alignSelf: 'flex-start' }}>2026 Deal Allocation by Market</div>
+          <DonutChart data={marketData} />
         </div>
       </div>
 
-      {/* Bottom row: Active pipeline + Upcoming bids */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, marginBottom: 20 }}>
-        {/* Active pipeline table */}
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(13,27,46,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Active Pipeline</div>
-            <span style={{ fontSize: 11, color: '#8A9BB0' }}>{active.length + newDeals.length} deals</span>
-          </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'rgba(13,27,46,0.03)' }}>
-                {['Deal', 'Status', 'Price', 'Bid Date'].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...active, ...newDeals].slice(0, 15).map(deal => (
-                <tr key={deal.id} onClick={() => onOpenDeal(deal)} style={{ cursor: 'pointer', borderBottom: '1px solid rgba(13,27,46,0.04)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <td style={{ padding: '9px 14px', fontWeight: 500, fontSize: 13, color: '#0D1B2E', maxWidth: 200 }}>
-                    {deal.name}
-                    <small style={{ display: 'block', fontSize: 11, color: '#8A9BB0' }}>{deal.market}</small>
-                  </td>
-                  <td style={{ padding: '9px 14px' }}>
-                    <span className={`status-badge ${statusClass(deal.status)}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600 }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', opacity: .7 }} />
-                      {statusLabel(deal.status)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '9px 14px', fontSize: 12, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{fmtShort(deal.purchase_price)}</td>
-                  <td style={{ padding: '9px 14px', fontSize: 12, whiteSpace: 'nowrap' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Interactive Deal Map */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden', height: 500, marginBottom: 20, display: 'flex', flexDirection: 'column' }}>
+        <DealsMap deals={deals} onOpenDeal={onOpenDeal} />
+      </div>
 
-        {/* Upcoming bids */}
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(13,27,46,0.07)' }}>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Upcoming Bids</div>
-          </div>
+      {/* Upcoming bids */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(13,27,46,0.07)' }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Upcoming Bids</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
           {upcomingBids.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: '#8A9BB0', fontSize: 13 }}>No upcoming bids</div>
+            <div style={{ padding: 24, color: '#8A9BB0', fontSize: 13, gridColumn: '1/-1' }}>No upcoming bids</div>
           ) : upcomingBids.map(deal => (
-            <div key={deal.id} onClick={() => onOpenDeal(deal)} style={{ padding: '12px 20px', borderBottom: '1px solid rgba(13,27,46,0.05)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            <div key={deal.id} onClick={() => onOpenDeal(deal)} style={{ padding: '12px 20px', borderRight: '1px solid rgba(13,27,46,0.05)', borderBottom: '1px solid rgba(13,27,46,0.05)', cursor: 'pointer' }}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
               onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#0D1B2E' }}>{deal.name}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0' }}>{deal.market}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, fontWeight: 600 }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0' }}>{fmtShort(deal.purchase_price)}</div>
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#0D1B2E', marginBottom: 2 }}>{deal.name}</div>
+              <div style={{ fontSize: 11, color: '#8A9BB0', marginBottom: 6 }}>{deal.market}</div>
+              <div style={{ fontSize: 12, fontWeight: 600 }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
+              <div style={{ fontSize: 11, color: '#8A9BB0' }}>{fmtShort(deal.purchase_price)}</div>
             </div>
           ))}
         </div>

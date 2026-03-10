@@ -424,6 +424,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
           bid_due_date: parseDate(col(r, 'Bid Due Date')),
           comments: String(col(r, 'Comments') || '').trim() || null,
           broker: String(col(r, 'Broker') || '').trim() || null,
+          address: String(col(r, 'Address') || '').trim() || null,
           added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
           modified: new Date().toISOString().split('T')[0],
         }

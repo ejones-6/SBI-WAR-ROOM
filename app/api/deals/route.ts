@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
           if (deal.purchase_price) row.purchase_price = deal.purchase_price
           if (deal.price_per_unit) row.price_per_unit = deal.price_per_unit
           if (deal.broker)         row.broker = deal.broker
+        if (deal.address)        row.address = deal.address
           if (deal.market)         row.market = deal.market
         }
         // Always sync bid_due_date for active/new deals
