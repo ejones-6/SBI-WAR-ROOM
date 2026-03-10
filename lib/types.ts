@@ -15,6 +15,7 @@ export interface Deal {
   flagged: boolean
   hot: boolean
   broker: string | null
+  address: string | null
   buyer: string | null
   seller: string | null
   sold_price: number | null
