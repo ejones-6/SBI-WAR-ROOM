@@ -155,65 +155,84 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type:'array', cellDates:true })
-      let ws = wb.Sheets[wb.SheetNames.find(n => /t12|rediq|drop|operating/i.test(n)) ?? wb.SheetNames.find(n => !/overview|about/i.test(n)) ?? wb.SheetNames[0]]
+
+      // Prefer the monthly data sheet (not Overview or About)
+      const sheetName = wb.SheetNames.find(n => !/overview|about/i.test(n) && wb.SheetNames.indexOf(n) > 0)
+                     ?? wb.SheetNames[0]
+      const ws = wb.Sheets[sheetName]
       const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' })
 
       // Find header row (has 'Code' in col A)
       const hdrIdx = rows.findIndex(r => String(r[0]).trim().toLowerCase() === 'code')
       if (hdrIdx < 0) { setStatus('⚠ Could not find header row'); return }
-      const hdr = rows[hdrIdx] as string[]
+      const hdr = rows[hdrIdx]
 
-      // Rediq header: Code | Account | Annual(yr1) | Annual(yr2) | Annual(yr3) | Monthly...
-      // We want the most recent Annual column or sum all monthly cols
-      const t12ColIdx = hdr.findIndex(h => /^t12$/i.test(String(h).trim()))
-      const annualCols: number[] = []
+      // Find monthly columns (date objects or month names) — cols 3+ in monthly sheet
       const monthlyCols: number[] = []
-      if (t12ColIdx < 0) {
-        hdr.forEach((h, i) => {
-          if (i > 1) {
-            const s = String(h).trim()
-            if (/^annual$/i.test(s)) annualCols.push(i)
-            else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(s)) monthlyCols.push(i)
-            else if (typeof h === "object" && h !== null) monthlyCols.push(i)
-          }
-        })
-      }
-      const useCol = t12ColIdx >= 0 ? t12ColIdx : (annualCols.length > 0 ? annualCols[annualCols.length - 1] : -1)
-      const dataCols = monthlyCols
+      hdr.forEach((h: any, i: number) => {
+        if (i >= 3) {
+          if (typeof h === 'object' && h !== null) monthlyCols.push(i)
+          else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(String(h))) monthlyCols.push(i)
+        }
+      })
+      // Fallback: use cols 3-14 if no monthly cols found
+      const useCols = monthlyCols.length > 0 ? monthlyCols : Array.from({length:12},(_,i)=>i+3)
 
-      // Parse rows
+      const sumRow = (row: any[]) => useCols.reduce((s, c) => s + (parseFloat(String(row[c] ?? '').replace(/[,$]/g,'')) || 0), 0)
+
+      // Build code map — accumulate values (same code can appear multiple times)
       const codeMap: Record<string, number> = {}
+      // Also capture subtotal rows by label
+      const labelMap: Record<string, number> = {}
+
       for (let i = hdrIdx+1; i < rows.length; i++) {
         const row = rows[i]
         const code = String(row[0] ?? '').trim().toLowerCase().replace(/[^a-z0-9_/]/g,'_')
-        if (!code) continue
-        let val = 0
-        if (useCol >= 0) {
-          val = parseFloat(String(row[useCol]).replace(/[,$]/g,'')) || 0
-        } else {
-          dataCols.forEach(c => { val += parseFloat(String(row[c]).replace(/[,$]/g,'')) || 0 })
+        const label = String(row[1] ?? '').trim().toUpperCase()
+        const val = sumRow(row)
+        if (code) {
+          codeMap[code] = (codeMap[code] ?? 0) + val
         }
-        codeMap[code] = val
+        if (label) {
+          labelMap[label] = val
+        }
       }
 
-      // Map to BOE buckets using exact Rediq codes
+      // Map to BOE buckets
       const newT12: BoeT12 = { ...EMPTY_T12 }
-      for (const [bucket, codes] of Object.entries(BOE_MAP)) {
-        let total = 0
-        for (const code of codes) {
-          total += codeMap[code] ?? 0
-        }
-        ;(newT12 as any)[bucket] = total
-      }
-      // Make loss lines negative
+
+      // Direct code mappings (accumulates all rows with same code)
+      newT12.gpr  = codeMap['gpr']  ?? 0
+      newT12.ltl  = codeMap['ltl']  ?? 0
+      newT12.vac  = codeMap['vac']  ?? 0   // sum of all vac rows
+      newT12.bad  = codeMap['bad']  ?? 0   // sum of all bad rows
+      newT12.conc = codeMap['conc'] ?? 0
+      newT12.mod  = codeMap['mod']  ?? 0
+      newT12.emp  = codeMap['emp']  ?? 0
+
+      // Other Income — use TOTAL OTHER INCOME subtotal row if available
+      newT12.oi = labelMap['TOTAL OTHER INCOME'] ?? BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
+
+      // Expenses — sum all matching codes
+      newT12.ga   = (codeMap['ga']  ?? 0) + (codeMap['lic'] ?? 0)
+      newT12.mkt  = codeMap['adv']  ?? 0
+      newT12.rm   = (codeMap['rm']  ?? 0) + (codeMap['cont'] ?? 0) + (codeMap['turn'] ?? 0) + (codeMap['ls'] ?? 0)
+      newT12.pay  = codeMap['pay']  ?? 0
+      newT12.mgt  = codeMap['mgt']  ?? 0
+      newT12.utl  = (codeMap['elec'] ?? 0) + (codeMap['wat'] ?? 0) + (codeMap['gas'] ?? 0) + (codeMap['utl'] ?? 0) + (codeMap['trash'] ?? 0)
+      newT12.tax  = (codeMap['tax'] ?? 0) + (codeMap['tax_c'] ?? 0) + (codeMap['tax_o'] ?? 0) + (codeMap['tax_p'] ?? 0)
+      newT12.taxm = 0
+      newT12.ins  = codeMap['ins']  ?? 0
+
+      // Ensure loss lines are negative
       for (const k of ['vac','bad','conc','mod','emp'] as const) {
         if (newT12[k] > 0) newT12[k] = -newT12[k]
       }
 
-      const periodLabel = dataCols.length > 0 ? `${dataCols.length} months` : 'T12'
+      const periodLabel = `${useCols.length} months`
       setT12(newT12)
       setPeriod(periodLabel)
-      setStatus(`✓ Loaded ${t12ColIdx >= 0 ? 'T12 column' : dataCols.length + ' months summed'} from ${file.name}`)
+      setStatus(`✓ Loaded ${useCols.length} months from ${file.name}`)
     } catch(err) {
       setStatus('⚠ Parse error: ' + String(err))
     }
