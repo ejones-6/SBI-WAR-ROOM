@@ -9,6 +9,8 @@ interface Props {
   onSave: (boe: BoeData) => Promise<any>
 }
 
+const ADJ_ORDER = ['gpr','ltl','vac','bad','conc','mod','emp','oi','ga','mkt','mgt','utl','tax','taxm','ins']
+
 const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
 
 const DEFAULT_ADJS: BoeAdjs = {
@@ -290,16 +292,17 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               if (e.key === 'Tab' || e.key === 'Enter') {
                 e.preventDefault()
                 const val = e.currentTarget.value
-                const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]')
-                const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]'))
-                const idx = inputs.indexOf(e.currentTarget as HTMLInputElement)
-                const nextInput = !e.shiftKey ? inputs[idx + 1] : inputs[idx - 1]
+                const currentIdx = ADJ_ORDER.indexOf(k as string)
+                const nextKey = !e.shiftKey ? ADJ_ORDER[currentIdx + 1] : ADJ_ORDER[currentIdx - 1]
                 setA(k, val)
-                // Use setTimeout to move focus after React re-render
-                if (nextInput) setTimeout(() => nextInput.focus(), 0)
+                if (nextKey) setTimeout(() => {
+                  const panel = document.querySelector('[data-boe-panel]')
+                  const next = panel?.querySelector<HTMLInputElement>(`input[data-adj-key="${nextKey}"]`)
+                  if (next) next.focus()
+                }, 0)
               }
             }}
-            data-adj="1"
+            data-adj-key={k}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>
@@ -494,15 +497,20 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.tax,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="text" inputMode="decimal" data-adj="1" value={a('tax')} onChange={e => setA('tax', e.target.value)}
+          <input type="text" data-adj-key="tax" defaultValue={a('tax')}
             placeholder="$ adj"
+            onBlur={e => setA('tax', e.target.value)}
             onKeyDown={e => {
-              if (e.key === 'Tab') {
-                const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]')
-                const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]'))
-                const idx = inputs.indexOf(e.currentTarget as HTMLInputElement)
-                if (!e.shiftKey && idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); inputs[idx+1].focus() }
-                else if (e.shiftKey && idx > 0) { e.preventDefault(); inputs[idx-1].focus() }
+              if (e.key === 'Tab' || e.key === 'Enter') {
+                e.preventDefault()
+                const currentIdx = ADJ_ORDER.indexOf('tax')
+                const nextKey = !e.shiftKey ? ADJ_ORDER[currentIdx + 1] : ADJ_ORDER[currentIdx - 1]
+                setA('tax', e.currentTarget.value)
+                if (nextKey) setTimeout(() => {
+                  const panel = document.querySelector('[data-boe-panel]')
+                  const next = panel?.querySelector<HTMLInputElement>(`input[data-adj-key="${nextKey}"]`)
+                  if (next) next.focus()
+                }, 0)
               }
             }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
