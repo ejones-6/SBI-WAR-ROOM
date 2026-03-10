@@ -86,7 +86,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     }
   }, [deal.name, boe?.updated_at])
 
-  const v = (k: keyof BoeAdjs) => adjs[k] !== undefined && adjs[k] !== '' ? parseFloat(adjs[k]!) : null
+  const v = (k: keyof BoeAdjs) => { const raw = adjs[k]; if (raw === undefined || raw === '') return null; const num = parseFloat(String(raw).replace(/[%,\$\s]/g, '')); return isNaN(num) ? null : num }
 
   // ── Compute all PF values ──────────────────────────────────
   const gpr_t = t12.gpr; const gpr_p = v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t
@@ -280,9 +280,24 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           {isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
         </div>
         <div style={{ padding:'2px 6px' }}>
-          <input type="number" step={adjType==='pct'?'0.1':'any'} value={a(k)} onChange={e => setA(k, e.target.value)}
+          <input
+            type={adjType === 'ppu' ? 'number' : 'text'}
+            inputMode={adjType === 'pct' ? 'decimal' : 'numeric'}
+            value={a(k)}
+            onChange={e => {
+              let val = e.target.value
+              // Allow typing % symbol for pct fields — strip on save via v()
+              setA(k, val)
+            }}
+            onBlur={e => {
+              // Normalize on blur: strip % and commas, keep sign
+              let val = e.target.value.replace(/[%,$\s]/g, '').trim()
+              if (val === '' || val === '-') { setA(k, val === '-' ? '' : ''); return }
+              const num = parseFloat(val)
+              if (!isNaN(num)) setA(k, String(num))
+            }}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }; } }}
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } } }}
             data-adj="1"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
         </div>
@@ -478,8 +493,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.tax,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="number" data-adj="1" value={a('tax')} onChange={e => setA('tax',e.target.value)} placeholder="$ adj"
-            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { e.preventDefault(); const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }; } }}
+          <input type="text" inputMode="numeric" data-adj="1" value={a('tax')} onChange={e => setA('tax', e.target.value)}
+            onBlur={e => { const val = e.target.value.replace(/[$,%\s]/g,'').trim(); const num = parseFloat(val); if (!isNaN(num)) setA('tax', String(num)); else if (val === '') setA('tax', '') }}
+            placeholder="$ adj"
+            onKeyDown={e => { if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); const panel = (e.currentTarget as HTMLElement).closest('[data-boe-panel]'); const inputs = Array.from((panel ?? document).querySelectorAll<HTMLInputElement>('input[data-adj]')); const idx = inputs.indexOf(e.currentTarget as HTMLInputElement); if (idx >= 0 && idx < inputs.length - 1) { const next = inputs[idx+1]; next.focus(); next.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } } }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(tax_p)}</div>
