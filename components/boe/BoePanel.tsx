@@ -63,15 +63,15 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [period, setPeriod] = useState(boe?.period ?? '')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
-  const [showPayroll, setShowPayroll] = useState(false)
-  const [showRM, setShowRM] = useState(false)
-  const [showTax, setShowTax] = useState(false)
+  const [showPayroll, setShowPayroll] = useState(true)
+  const [showRM, setShowRM] = useState(true)
+  const [showTax, setShowTax] = useState(true)
   const [payroll, setPayroll] = useState<Record<string,string>>(boe?.payroll ?? {
     'py-pm':'85000','py-am':'60000','py-la':'45000','py-bi':'0.25',
     'py-ms':'80000','py-mt':'60000','py-ma':'40000','py-bo':'0.05','py-ben':'0.325'
   })
   const [rmi, setRmi] = useState<Record<string,string>>(boe?.rmi ?? { 'rmi-rm':'750','rmi-ct':'420','rmi-tu':'350' })
-  const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'' })
+  const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'','tx-sf':'100' })
 
   // Load from saved boe on deal change
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       setPeriod(boe.period ?? '')
       if (boe.payroll && Object.keys(boe.payroll).length) setPayroll(boe.payroll as any)
       if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
-      if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper(boe.tax_helper as any)
+      if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper({...{'tx-sf':'100'}, ...boe.tax_helper as any})
     }
   }, [deal.name, boe?.updated_at])
 
@@ -113,7 +113,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   // Tax calc
   const tv = (k: string) => parseFloat(taxHelper[k] ?? '0') || 0
-  const taxCalc = pp * (tv('tx-rat')/100) * (tv('tx-mil')/1000) + tv('tx-nad')
+  const taxCalc = pp * (tv('tx-rat')/100) * (tv('tx-mil')/1000) * (tv('tx-sf')/100) + tv('tx-nad')
 
   const ga_t  = t12.ga;  const ga_p  = ga_t  + (v('ga')??0)
   const mkt_t = t12.mkt; const mkt_p = mkt_t + (v('mkt')??0)
@@ -220,8 +220,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       newT12.pay  = codeMap['pay']  ?? 0
       newT12.mgt  = codeMap['mgt']  ?? 0
       newT12.utl  = (codeMap['elec'] ?? 0) + (codeMap['wat'] ?? 0) + (codeMap['gas'] ?? 0) + (codeMap['utl'] ?? 0) + (codeMap['trash'] ?? 0)
-      newT12.tax  = (codeMap['tax'] ?? 0) + (codeMap['tax_c'] ?? 0) + (codeMap['tax_o'] ?? 0) + (codeMap['tax_p'] ?? 0)
-      newT12.taxm = 0
+      newT12.tax  = codeMap['tax'] ?? 0
+      newT12.taxm = (codeMap['tax_c'] ?? 0) + (codeMap['tax_o'] ?? 0) + (codeMap['tax_p'] ?? 0)
       newT12.ins  = codeMap['ins']  ?? 0
 
       // Ensure loss lines are negative
@@ -473,7 +473,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ background:'rgba(13,27,46,0.02)', padding:'10px 14px 12px', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
           <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', marginBottom:8 }}>TAX BUILD-UP</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-            {[['Millage Rate (per $1K)','tx-mil',''],['Assessment Ratio %','tx-rat',''],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
+            {[['Millage Rate (per $1K)','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="number" value={taxHelper[k]??''} onChange={e => setTaxHelper(p=>({...p,[k]:e.target.value}))} placeholder={ph}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
