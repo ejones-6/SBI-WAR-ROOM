@@ -22,7 +22,7 @@ interface Props {
 export default function WarRoom({ initialDeals, initialBoeData, initialCapRates, userEmail, loadAllDeals }: Props) {
   const supabase = createClient()
   const router = useRouter()
-  const [page, setPage] = useState<Page>('dashboard')
+  const [page, setPage] = useState<Page>('deals')
   const [resolvedEmail, setResolvedEmail] = useState(userEmail)
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [boeMap, setBoeMap] = useState<Record<string, BoeData>>(

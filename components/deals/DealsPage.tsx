@@ -14,7 +14,7 @@ interface Props {
 }
 
 export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAddDeal }: Props) {
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('2 - Active')
   const [region, setRegion] = useState('all')
   const [sort, setSort] = useState('modified-desc')
   const [search, setSearch] = useState('')
