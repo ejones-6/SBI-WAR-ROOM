@@ -88,20 +88,32 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       const { data: active, error: e1 } = await sb.from('deals')
         .select('*')
         .order('modified', { ascending: false })
-        .limit(2500)
+        .range(0, 999)
       if (active && active.length > 0) {
         setDeals(active)
         setLoadingAll(false)
       }
 
-      // Round 2: full dataset + supporting tables in parallel
-      const [dealsRes, boeRes, crRes] = await Promise.all([
-        sb.from('deals').select('*').order('modified', { ascending: false }).limit(2500),
+      // Round 2: fetch ALL deals in pages of 1000
+      let allDeals: any[] = []
+      let page = 0
+      while (true) {
+        const { data: page_data } = await sb.from('deals')
+          .select('*')
+          .order('modified', { ascending: false })
+          .range(page * 1000, (page + 1) * 1000 - 1)
+        if (!page_data || page_data.length === 0) break
+        allDeals = [...allDeals, ...page_data]
+        if (page_data.length < 1000) break
+        page++
+      }
+
+      const [boeRes, crRes] = await Promise.all([
         sb.from('boe_data').select('*'),
         sb.from('cap_rates').select('*'),
       ])
-      if (dealsRes.data && dealsRes.data.length > 0) {
-        setDeals(dealsRes.data)
+      if (allDeals.length > 0) {
+        setDeals(allDeals)
         setAllDealsLoaded(true)
       }
       if (boeRes.data) setBoeMap(Object.fromEntries(boeRes.data.map((b: any) => [b.deal_name, b])))
