@@ -19,10 +19,13 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const supabase = createClient()
   const body = await req.json()
-  const { name, ...updates } = body
-  if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
+  const { name, id, ...updates } = body
+  if (!name && !id) return NextResponse.json({ error: 'name or id required' }, { status: 400 })
   updates.modified = new Date().toISOString().slice(0, 10)
-  const { data, error } = await supabase.from('deals').update(updates).eq('name', name).select().limit(1).single()
+  const query = id
+    ? supabase.from('deals').update(updates).eq('id', id)
+    : supabase.from('deals').update(updates).eq('name', name).limit(1)
+  const { data, error } = await query.select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data)
 }

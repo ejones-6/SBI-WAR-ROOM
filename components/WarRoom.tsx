@@ -112,7 +112,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     loadData()
   }, [loadAllDeals])
 
-  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string }) => {
+  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string }) => {
     const res = await fetch('/api/deals', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

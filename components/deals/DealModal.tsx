@@ -57,6 +57,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   async function handleSave() {
     setSaving(true)
     await onSave({
+      id: deal.id,
       name: deal.name,
       status: form.status,
       purchase_price: pp,
