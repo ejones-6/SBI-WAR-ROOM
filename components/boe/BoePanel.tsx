@@ -283,11 +283,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           <input
             type="text"
             value={a(k)}
-            onChange={e => {
-              // Allow free typing: digits, decimal, minus, percent
-              const val = e.target.value
-              if (val === '' || val === '-' || /^-?[0-9]*\.?[0-9]*%?$/.test(val)) setA(k, val)
-            }}
+            onChange={e => setA(k, e.target.value)}
             placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
             onKeyDown={e => {
               if (e.key === 'Tab') {
