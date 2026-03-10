@@ -430,7 +430,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} defaultValue={rmi[k]??''} placeholder={ph}
                   onBlur={e => setRmi(p=>({...p,[k]:e.target.value}))}
-                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setRmi(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setRmi(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
@@ -468,7 +468,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} defaultValue={payroll[k]??''} placeholder={ph}
                   onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
-                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
@@ -477,14 +477,14 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} defaultValue={payroll[k]??''} placeholder={ph}
                   onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
-                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
             <div><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>Benefits %</label>
               <input type="text" data-adj-key="py-ben" defaultValue={payroll['py-ben']??''} placeholder="0.325"
                 onBlur={e => setPayroll(p=>({...p,'py-ben':e.target.value}))}
-                onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setPayroll(p=>({...p,'py-ben':e.currentTarget.value})); tabToNext('py-ben', e.shiftKey) } }}
+                onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,'py-ben':v})); tabToNext('py-ben', e.shiftKey) } }}
                 style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
             </div>
           </div>
@@ -547,7 +547,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} defaultValue={taxHelper[k]??''} placeholder={ph}
                   onBlur={e => setTaxHelper(p=>({...p,[k]:e.target.value}))}
-                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setTaxHelper(p=>({...p,[k]:e.currentTarget.value})); tabToNext(k, e.shiftKey) } }}
+                  onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setTaxHelper(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
