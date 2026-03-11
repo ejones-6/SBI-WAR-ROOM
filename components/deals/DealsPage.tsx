@@ -21,7 +21,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
-  const [newDeal, setNewDeal] = useState({ name: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
+  const [newDeal, setNewDeal] = useState({ name: '', street: '', city: '', state: '', zip: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
   const [newDealRegion, setNewDealRegion] = useState<Region | ''>('')
 
   const filtered = useMemo(() => {
@@ -63,8 +63,11 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
 
   async function submitAdd() {
     if (!newDeal.name || !newDeal.market) return
+    const addressParts = [newDeal.street, newDeal.city, newDeal.state, newDeal.zip].filter(Boolean)
+    const address = addressParts.length > 0 ? addressParts.join(', ') : null
     await onAddDeal({
       name: newDeal.name, market: newDeal.market,
+      address,
       units: newDeal.units ? parseInt(newDeal.units) : null,
       year_built: newDeal.yearBuilt ? parseInt(newDeal.yearBuilt) : null,
       purchase_price: newDeal.purchasePrice ? parseFloat(newDeal.purchasePrice) : null,
@@ -74,7 +77,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       flagged: false, hot: false,
     })
     setShowAdd(false)
-    setNewDeal({ name:'',market:'',units:'',yearBuilt:'',purchasePrice:'',status:'1 - New',broker:'' }); setNewDealRegion('')
+    setNewDeal({ name:'',street:'',city:'',state:'',zip:'',market:'',units:'',yearBuilt:'',purchasePrice:'',status:'1 - New',broker:'' }); setNewDealRegion('')
   }
 
   const FILTER_CHIPS = [
@@ -228,32 +231,69 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                 <input type="text" value={newDeal.name} onChange={e => setNewDeal(p => ({ ...p, name: e.target.value }))}
                   style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
+              {/* Address */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Street Address</label>
+                <input type="text" value={newDeal.street} onChange={e => setNewDeal(p => ({ ...p, street: e.target.value }))}
+                  placeholder="123 Main St"
+                  style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>City</label>
+                <input type="text" value={newDeal.city} onChange={e => setNewDeal(p => ({ ...p, city: e.target.value }))}
+                  placeholder="Tampa"
+                  style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>State</label>
+                <select value={newDeal.state} onChange={e => setNewDeal(p => ({ ...p, state: e.target.value }))}
+                  style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'#fff', color: newDeal.state ? '#0D1B2E' : '#8A9BB0' }}>
+                  <option value="">State…</option>
+                  {['AL','AR','AZ','CO','DC','FL','GA','MD','NC','NV','SC','TN','TX','VA'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Zip Code</label>
+                <input type="text" value={newDeal.zip} onChange={e => setNewDeal(p => ({ ...p, zip: e.target.value }))}
+                  placeholder="33601"
+                  style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+              </div>
               {/* Region → Market two-level dropdown */}
               <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div>
                   <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Region</label>
                   <select
                     value={newDealRegion}
-                    onChange={e => { setNewDealRegion(e.target.value as Region); setNewDeal(p => ({ ...p, market: '' })) }}
+                    onChange={e => { setNewDealRegion(e.target.value as Region | 'Misc'); setNewDeal(p => ({ ...p, market: '' })) }}
                     style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'#fff', color: newDealRegion ? '#0D1B2E' : '#8A9BB0' }}>
                     <option value="">Select region…</option>
                     {(Object.keys(REGION_MAP) as Region[]).filter(r => r !== 'Misc').map(r => (
                       <option key={r} value={r}>{REGION_LABELS[r]}</option>
                     ))}
+                    <option value="Misc">Miscellaneous</option>
                   </select>
                 </div>
                 <div>
                   <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Market</label>
-                  <select
-                    value={newDeal.market}
-                    onChange={e => setNewDeal(p => ({ ...p, market: e.target.value }))}
-                    disabled={!newDealRegion}
-                    style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background: newDealRegion ? '#fff' : '#f5f5f5', color: newDeal.market ? '#0D1B2E' : '#8A9BB0' }}>
-                    <option value="">{newDealRegion ? 'Select market…' : '— pick region first —'}</option>
-                    {newDealRegion && REGION_MAP[newDealRegion as Region].map(m => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
+                  {newDealRegion === 'Misc' ? (
+                    <input
+                      type="text"
+                      value={newDeal.market}
+                      onChange={e => setNewDeal(p => ({ ...p, market: e.target.value }))}
+                      placeholder="Type market name…"
+                      style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+                  ) : (
+                    <select
+                      value={newDeal.market}
+                      onChange={e => setNewDeal(p => ({ ...p, market: e.target.value }))}
+                      disabled={!newDealRegion}
+                      style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background: newDealRegion ? '#fff' : '#f5f5f5', color: newDeal.market ? '#0D1B2E' : '#8A9BB0' }}>
+                      <option value="">{newDealRegion ? 'Select market…' : '— pick region first —'}</option>
+                      {newDealRegion && REGION_MAP[newDealRegion as Region].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
               {/* Rest of fields */}
