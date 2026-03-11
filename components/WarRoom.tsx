@@ -261,17 +261,16 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
         flexShrink: 0, position: 'relative', zIndex: 10
       }}>
         {/* Logo */}
-        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ padding: '20px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C9A84C" strokeWidth="1.8">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
+            <img
+              src="https://www.stonebridgeinvestments.com/wp-content/themes/stonebridge/img/menu/logoyellow.svg"
+              alt="StoneBridge"
+              style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
+            />
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#F0B429', fontSize: 13, fontWeight: 700, letterSpacing: '0.1em' }}>STONEBRIDGE</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Acquisitions</div>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#C9A84C', fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.2 }}>StoneBridge</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 2 }}>Acquisitions War Room</div>
             </div>
           </div>
         </div>
@@ -315,7 +314,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Top bar */}
         <div style={{
-          height: 52, background: '#fff', borderBottom: '1px solid rgba(13,27,46,0.08)',
+          height: 52, background: '#fff', borderBottom: '3px solid #C9A84C',
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
         }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>

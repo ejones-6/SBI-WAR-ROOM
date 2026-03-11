@@ -132,21 +132,35 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           </div>
 
           {/* Tabs */}
-          <div style={{ display:'flex', gap:0 }}>
-            {(['details','boe'] as Tab[]).map(t => (
-              <button key={t} onClick={() => setTab(t)} style={{
-                padding:'8px 20px', border:'none', background:'none', cursor:'pointer',
-                fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:600,
-                color: tab===t ? '#0D1B2E' : '#8A9BB0',
-                borderBottom: tab===t ? '2px solid #C9A84C' : '2px solid transparent',
-                textTransform:'uppercase', letterSpacing:'0.08em',
-              }}>
-                {t === 'details' ? 'Deal Details' : 'BOE Underwriting'}
-                {t === 'boe' && boe && Object.keys(boe.t12 ?? {}).length > 0 && (
-                  <span style={{ marginLeft:6, background:'#2E7D50', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:9 }}>T12</span>
-                )}
-              </button>
-            ))}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ display:'flex', gap:0 }}>
+              {(['details','boe'] as Tab[]).map(t => (
+                <button key={t} onClick={() => setTab(t)} style={{
+                  padding:'8px 20px', border:'none', background:'none', cursor:'pointer',
+                  fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:600,
+                  color: tab===t ? '#0D1B2E' : '#8A9BB0',
+                  borderBottom: tab===t ? '2px solid #C9A84C' : '2px solid transparent',
+                  textTransform:'uppercase', letterSpacing:'0.08em',
+                }}>
+                  {t === 'details' ? 'Deal Details' : 'BOE'}
+                  {t === 'boe' && boe && Object.keys(boe.t12 ?? {}).length > 0 && (
+                    <span style={{ marginLeft:6, background:'#2E7D50', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:9 }}>T12</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {tab === 'boe' && (
+              <div style={{ display:'flex', gap:16, paddingRight:4, paddingBottom:8 }}>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase' }}>Units</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:'#0D1B2E', fontFamily:"'Cormorant Garamond',serif" }}>{deal.units?.toLocaleString() ?? '—'}</div>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontSize:9, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase' }}>Year Built</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:'#0D1B2E', fontFamily:"'Cormorant Garamond',serif" }}>{deal.year_built ?? '—'}</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
