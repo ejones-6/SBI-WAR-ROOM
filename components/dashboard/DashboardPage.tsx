@@ -257,32 +257,42 @@ function TickerRow({ label, value, change, pct, loading }: { label: string; valu
 }
 
 function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
-  const [tooltip, setTooltip] = useState<any>(null)
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null)
   const total = data.reduce((s, d) => s + d.value, 0)
   if (total === 0) return null
+
   let cum = 0
-  const r = 56, cx = 74, cy = 74, sw = 20
-  const slices = data.map(d => {
+  const r = 56, cx = 74, cy = 74
+  const slices = data.map((d, i) => {
     const pct = d.value / total, start = cum; cum += pct
-    const sa = start * 2 * Math.PI - Math.PI / 2, ea = cum * 2 * Math.PI - Math.PI / 2
+    const sa = start * 2 * Math.PI - Math.PI / 2
+    const ea = cum * 2 * Math.PI - Math.PI / 2
     const ma = (sa + ea) / 2
-    return { ...d, path: `M ${cx + r * Math.cos(sa)} ${cy + r * Math.sin(sa)} A ${r} ${r} 0 ${pct > 0.5 ? 1 : 0} 1 ${cx + r * Math.cos(ea)} ${cy + r * Math.sin(ea)}`, pct, tx: cx + r * Math.cos(ma), ty: cy + r * Math.sin(ma) }
+    const sw = hoveredIdx === i ? 26 : 20
+    return {
+      ...d, i, pct, sw,
+      path: `M ${cx + r * Math.cos(sa)} ${cy + r * Math.sin(sa)} A ${r} ${r} 0 ${pct > 0.5 ? 1 : 0} 1 ${cx + r * Math.cos(ea)} ${cy + r * Math.sin(ea)}`,
+      tx: cx + r * Math.cos(ma), ty: cy + r * Math.sin(ma)
+    }
   })
+
+  const hovered = hoveredIdx !== null ? slices[hoveredIdx] : null
+
   return (
-    <svg width={148} height={148}>
-      {slices.map((s, i) => (
-        <path key={i} d={s.path} fill="none" stroke={s.color} strokeWidth={sw}
-          style={{ cursor: 'pointer', transition: 'stroke-width 0.15s' }}
-          onMouseEnter={e => { setTooltip(s); (e.target as any).setAttribute('stroke-width', '26') }}
-          onMouseLeave={e => { setTooltip(null); (e.target as any).setAttribute('stroke-width', String(sw)) }} />
+    <svg width={148} height={148} style={{ overflow: 'visible' }}>
+      {slices.map((s) => (
+        <path key={s.i} d={s.path} fill="none" stroke={s.color} strokeWidth={s.sw}
+          style={{ cursor: 'pointer' }}
+          onMouseEnter={() => setHoveredIdx(s.i)}
+          onMouseLeave={() => setHoveredIdx(null)} />
       ))}
       <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: 20, fontWeight: 700, fill: '#0D1B2E', fontFamily: "'Cormorant Garamond',serif" }}>{total}</text>
       <text x={cx} y={cy + 12} textAnchor="middle" style={{ fontSize: 8, fill: '#8A9BB0', letterSpacing: '0.1em' }}>DEALS</text>
-      {tooltip && (
-        <g>
-          <rect x={tooltip.tx - 38} y={tooltip.ty - 22} width={76} height={34} rx={4} fill="rgba(13,27,46,0.95)" />
-          <text x={tooltip.tx} y={tooltip.ty - 5} textAnchor="middle" style={{ fontSize: 14, fontWeight: 700, fill: '#fff', fontFamily: "'Cormorant Garamond',serif" }}>{tooltip.value}</text>
-          <text x={tooltip.tx} y={tooltip.ty + 9} textAnchor="middle" style={{ fontSize: 8, fill: '#C9A84C', letterSpacing: '0.06em' }}>{tooltip.label.toUpperCase()}</text>
+      {hovered && (
+        <g style={{ pointerEvents: 'none' }}>
+          <rect x={hovered.tx - 38} y={hovered.ty - 22} width={76} height={34} rx={4} fill="rgba(13,27,46,0.95)" />
+          <text x={hovered.tx} y={hovered.ty - 5} textAnchor="middle" style={{ fontSize: 14, fontWeight: 700, fill: '#fff', fontFamily: "'Cormorant Garamond',serif" }}>{hovered.value}</text>
+          <text x={hovered.tx} y={hovered.ty + 9} textAnchor="middle" style={{ fontSize: 8, fill: '#C9A84C', letterSpacing: '0.06em' }}>{hovered.label.toUpperCase()}</text>
         </g>
       )}
     </svg>
