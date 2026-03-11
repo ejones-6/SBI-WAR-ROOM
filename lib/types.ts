@@ -52,6 +52,8 @@ export interface BoeData {
   rmi: { 'rmi-rm'?: string; 'rmi-ct'?: string; 'rmi-tu'?: string }
   tax_helper: { 'tx-mil'?: string; 'tx-rat'?: string; 'tx-nad'?: string }
   period: string
+  pf_noi_override?: number | null
+  noi_badge?: string
   updated_at?: string
 }
 
@@ -78,7 +80,7 @@ export interface UserProfile {
 // ── Computed / UI helpers ─────────────────────────────
 export type StatusKey = '1 - New' | '2 - Active' | '5 - Dormant' | '6 - Passed' | '7 - Lost' | '9 - Exited' | '10 - Owned Property' | '11 - Property Comp'
 
-export type Region = 'DC' | 'Carolinas' | 'GA' | 'TX' | 'TN' | 'FL' | 'Misc'
+export type Region = 'DC' | 'NC' | 'SC' | 'GA' | 'TX' | 'Nashville' | 'Orlando' | 'Tampa' | 'SFL' | 'Misc'
 
 export type SortOrder =
   | 'modified-desc'
