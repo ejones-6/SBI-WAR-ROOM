@@ -107,8 +107,8 @@ function RatesWidget() {
   const RATES = [
     { key: 'SOFR',  label: 'SOFR',    seriesId: 'SOFR'   },
     { key: 'DGS5',  label: '5Y UST',  seriesId: 'DGS5'   },
+    { key: 'DGS7',  label: '7Y UST',  seriesId: 'DGS7'   },
     { key: 'DGS10', label: '10Y UST', seriesId: 'DGS10'  },
-    { key: 'DGS30', label: '30Y UST', seriesId: 'DGS30'  },
   ]
 
   async function fetchRates() {
