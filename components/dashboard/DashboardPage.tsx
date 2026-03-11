@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, statusClass, statusLabel, formatBidDate, bidDateClass, getRegion, REGION_LABELS } from '@/lib/utils'
 import dynamic from 'next/dynamic'
@@ -98,6 +98,85 @@ function BarChart({ data }: { data: { label: string; value: number; current?: bo
   )
 }
 
+
+function RatesWidget() {
+  const [rates, setRates] = useState<Record<string, { rate: number | null; change: number | null }>>({})
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const RATES = [
+    { key: 'SOFR',  label: 'SOFR',    seriesId: 'SOFR'   },
+    { key: 'DGS5',  label: '5Y UST',  seriesId: 'DGS5'   },
+    { key: 'DGS7',  label: '7Y UST',  seriesId: 'DGS7'   },
+    { key: 'DGS10', label: '10Y UST', seriesId: 'DGS10'  },
+  ]
+
+  async function fetchRates() {
+    try {
+      const results: Record<string, { rate: number | null; change: number | null }> = {}
+      await Promise.all(RATES.map(async ({ key, seriesId }) => {
+        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=b1a5cb8e99b546eb01d5c67e3c3bc2ef&sort_order=desc&limit=2&file_type=json`
+        const res = await fetch(url)
+        const data = await res.json()
+        const obs = data.observations?.filter((o: any) => o.value !== '.') ?? []
+        const latest = obs[0] ? parseFloat(obs[0].value) : null
+        const prev   = obs[1] ? parseFloat(obs[1].value) : null
+        results[key] = {
+          rate:   latest,
+          change: latest != null && prev != null ? parseFloat((latest - prev).toFixed(3)) : null,
+        }
+      }))
+      setRates(results)
+      setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
+    } catch (e) {
+      console.error('Rates fetch error:', e)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch on mount, refresh every 60 minutes
+  useEffect(() => { fetchRates(); const t = setInterval(fetchRates, 60 * 60 * 1000); return () => clearInterval(t) }, [])
+  
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '18px 22px', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Market Rates</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {lastUpdated && <div style={{ fontSize: 10, color: '#8A9BB0' }}>Updated {lastUpdated}</div>}
+          <button onClick={fetchRates} style={{ background: 'none', border: '1px solid rgba(13,27,46,0.1)', borderRadius: 6, padding: '3px 10px', fontSize: 10, color: '#8A9BB0', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>↻ Refresh</button>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+        {RATES.map(({ key, label }) => {
+          const r = rates[key]
+          const up = r?.change != null && r.change > 0
+          const dn = r?.change != null && r.change < 0
+          return (
+            <div key={key} style={{ background: 'rgba(13,27,46,0.02)', borderRadius: 10, padding: '14px 18px', borderLeft: `3px solid ${up ? '#C0392B' : dn ? '#2E7D50' : '#8A9BB0'}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+              {loading ? (
+                <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A84C', fontFamily: "'Cormorant Garamond',serif" }}>—</div>
+              ) : (
+                <>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 700, color: '#0D1B2E' }}>
+                    {r?.rate != null ? r.rate.toFixed(2) + '%' : '—'}
+                  </div>
+                  {r?.change != null && (
+                    <div style={{ fontSize: 11, fontWeight: 600, color: up ? '#C0392B' : dn ? '#2E7D50' : '#8A9BB0', marginTop: 4 }}>
+                      {up ? '▲' : dn ? '▼' : '—'} {Math.abs(r.change).toFixed(3)} bps
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }: Props) {
   const now = new Date()
   const currentMonth = now.getMonth()
@@ -171,6 +250,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           </div>
         ))}
       </div>
+
+      {/* Rates widget */}
+      <RatesWidget />
 
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginBottom: 20 }}>
