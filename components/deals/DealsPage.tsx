@@ -1,5 +1,6 @@
 'use client'
 import { useState, useMemo } from 'react'
+import * as XLSX from 'xlsx'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, fmtUnit, fmtPct, formatBidDate, bidDateClass, statusClass, statusLabel, getRegion, REGION_LABELS, REGION_MAP, sortDeals, ALL_STATUSES } from '@/lib/utils'
 import type { Region } from '@/lib/types'
@@ -23,6 +24,36 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [showAdd, setShowAdd] = useState(false)
   const [newDeal, setNewDeal] = useState({ name: '', street: '', city: '', state: '', zip: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
   const [newDealRegion, setNewDealRegion] = useState<Region | ''>('')
+
+  function handleExport() {
+    const rows = filtered.map(d => ({
+      'Deal Name': d.name,
+      'Status': d.status,
+      'Market': d.market ?? '',
+      'Region': REGION_LABELS[getRegion(d.market)] ?? '',
+      'Units': d.units ?? '',
+      'Year Built': d.year_built ?? '',
+      'Guidance ($)': d.purchase_price ?? '',
+      '$/Unit': d.price_per_unit ?? '',
+      'Cap Rate': capRateMap[d.name]?.noi_cap_rate ?? capRateMap[d.name]?.broker_cap_rate ?? '',
+      'Bid Due Date': d.bid_due_date ?? '',
+      'Broker': d.broker ?? '',
+      'Seller': d.seller ?? '',
+      'Buyer': d.buyer ?? '',
+      'Sold Price ($)': d.sold_price ?? '',
+      'Address': d.address ?? '',
+      'Comments': d.comments ?? '',
+      'Added': d.added ?? '',
+      'Modified': d.modified ?? '',
+    }))
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Deals')
+    const statusLabel = filter === 'all' ? 'All' : filter.replace(/^\d+ - /, '')
+    const regionLabel = region === 'all' ? 'All Regions' : (REGION_LABELS as any)[region] ?? region
+    const filename = `SBI War Room - ${statusLabel} - ${regionLabel}.xlsx`
+    XLSX.writeFile(wb, filename)
+  }
 
   const filtered = useMemo(() => {
     let d = deals
@@ -116,6 +147,9 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
         </select>
         <button onClick={() => setShowAdd(true)} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.08em', fontFamily: "'DM Sans',sans-serif" }}>
           + Add Deal
+        </button>
+        <button onClick={handleExport} title={`Export ${filtered.length} deals to Excel`} style={{ padding: '8px 16px', background: '#fff', color: '#0D1B2E', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em', fontFamily: "'DM Sans',sans-serif", display:'flex', alignItems:'center', gap:6 }}>
+          ↓ Export ({filtered.length})
         </button>
       </div>
 
