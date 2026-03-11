@@ -448,6 +448,7 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
           modified:       parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
         }))
         .filter(d => d.name)
+        .filter(d => ['1 - New', '2 - Active', '5 - Dormant'].includes(d.status))
 
       setPreview(deals)
       setActiveTab('new')
