@@ -51,10 +51,14 @@ const MARKET_SHORT: Record<string, string> = {
 function shortMarket(m: string) { return MARKET_SHORT[m] || m.split(',')[0].replace(/--/g, '/') }
 
 function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
-  // Only 2026 deals
-  const deals2026 = useMemo(() => deals.filter(d => d.added && new Date(d.added).getFullYear() === 2026), [deals])
+  // Filter to 2026 only
+  const deals2026 = useMemo(() => deals.filter(d => {
+    if (!d.added) return false
+    const y = typeof d.added === 'string' ? d.added : String(d.added)
+    return y.includes('2026')
+  }), [deals])
 
-  // Build market list sorted by deal count (only markets with broker data)
+  // Build market list sorted by 2026 deal count
   const marketList = useMemo(() => {
     const counts: Record<string, number> = {}
     deals2026.forEach(d => { if (d.broker && d.market) counts[d.market] = (counts[d.market] || 0) + 1 })
@@ -67,111 +71,110 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
   const [selectedMarket, setSelectedMarket] = useState<string>('All Markets')
 
   const brokerRanking = useMemo(() => {
-    const src = selectedMarket === 'All Markets' ? deals2026 : deals2026.filter(d => d.market === selectedMarket)
+    const filtered = selectedMarket === 'All Markets'
+      ? deals2026
+      : deals2026.filter(d => d.market === selectedMarket)
     const counts: Record<string, number> = {}
-    src.forEach(d => { if (d.broker) { const b = d.broker.trim(); counts[b] = (counts[b] || 0) + 1 } })
+    filtered.forEach(d => { if (d.broker) counts[d.broker.trim()] = (counts[d.broker.trim()] || 0) + 1 })
     return Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([name, count], i) => ({ name, count, color: BROKER_COLORS[i % BROKER_COLORS.length] }))
   }, [deals2026, selectedMarket])
 
   const maxCount = brokerRanking[0]?.count || 1
-  const totalDeals = selectedMarket === 'All Markets'
-    ? deals2026.filter(d => d.broker).length
-    : deals2026.filter(d => d.market === selectedMarket && d.broker).length
-
-  const regionLabel = selectedMarket === 'All Markets' ? '' : ((REGION_LABELS as any)[getRegion(selectedMarket)] || 'Misc')
+  const totalInView = brokerRanking.reduce((s, b) => s + b.count, 0)
 
   return (
-    <div style={{ background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden', marginBottom: 16 }}>
+    <div style={{ background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden', marginBottom: 16, display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-        <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>2026 · Intelligence</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 2 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>Broker Leaderboard</div>
-          <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>Click a market → see top brokers by deal count</div>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence · 2026 YTD</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 2 }}>Broker Activity by Market</div>
         </div>
+        <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.3)' }}>{deals2026.filter(d=>d.broker).length} deals tracked</div>
       </div>
 
       <div style={{ display: 'flex' }}>
-        {/* ── Market sidebar ── */}
-        <div style={{ width: 220, borderRight: '1px solid rgba(201,168,76,0.1)', overflowY: 'auto' as const, maxHeight: 500, flexShrink: 0 }}>
+        {/* Market sidebar */}
+        <div style={{ width: 230, borderRight: '1px solid rgba(201,168,76,0.1)', overflowY: 'auto' as const, maxHeight: 460, flexShrink: 0 }}>
           {marketList.map(({ market, count }) => {
-            const active = selectedMarket === market
+            const isSelected = selectedMarket === market
             const isAll = market === 'All Markets'
-            const region = isAll ? null : ((REGION_LABELS as any)[getRegion(market)] || null)
             return (
-              <button key={market} onClick={() => setSelectedMarket(market)} style={{
-                width: '100%', textAlign: 'left' as const, padding: '9px 14px',
-                background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
-                borderLeft: `3px solid ${active ? '#C9A84C' : 'transparent'}`,
-                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.03)',
-                cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6
-              }}
-                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+              <button
+                key={market}
+                onClick={() => setSelectedMarket(market)}
+                style={{
+                  width: '100%', textAlign: 'left' as const, padding: '9px 14px',
+                  background: isSelected ? 'rgba(201,168,76,0.1)' : 'transparent',
+                  borderLeft: `3px solid ${isSelected ? '#C9A84C' : 'transparent'}`,
+                  border: 'none', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? '#C9A84C' : '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
-                    {isAll ? 'All Markets' : shortMarket(market)}
-                  </div>
-                  {region && <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.28)', marginTop: 1 }}>{region}</div>}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: active ? '#C9A84C' : 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>{count}</span>
+                <span style={{ fontSize: 11, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#C9A84C' : '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 160 }}>
+                  {isAll ? 'All Markets' : shortMarket(market)}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#C9A84C' : 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 6 }}>{count}</span>
               </button>
             )
           })}
         </div>
 
-        {/* ── Broker rankings ── */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const }}>
-          {/* Sub-header */}
-          <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(201,168,76,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>
-                {selectedMarket === 'All Markets' ? 'All 2026 Deals' : shortMarket(selectedMarket)}
-              </span>
-              {regionLabel && <span style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', marginLeft: 8 }}>{regionLabel}</span>}
+        {/* Rankings */}
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          {/* Panel subheader */}
+          <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>
+              {selectedMarket === 'All Markets' ? 'All Markets' : shortMarket(selectedMarket)}
             </div>
-            <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>
-              {totalDeals} deals · {brokerRanking.length} brokers
-            </div>
+            <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.3)', letterSpacing: '0.05em' }}>{brokerRanking.length} brokers · {totalInView} deals</div>
           </div>
 
-          {/* Rankings */}
-          <div style={{ overflowY: 'auto' as const, maxHeight: 456 }}>
+          {/* Column headers */}
+          <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 44px 44px', gap: 0, padding: '6px 18px', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
+            {['#', 'Broker', 'Share', 'Deals', '%'].map(h => (
+              <div key={h} style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: h === '#' || h === 'Deals' || h === '%' ? 'center' as const : 'left' as const }}>{h}</div>
+            ))}
+          </div>
+
+          <div style={{ overflowY: 'auto' as const, maxHeight: 394 }}>
             {brokerRanking.length === 0 ? (
-              <div style={{ padding: '28px 20px', color: 'rgba(255,255,255,0.25)', fontSize: 12, textAlign: 'center' as const }}>No broker data</div>
-            ) : brokerRanking.map((b, i) => {
-              const pct = (b.count / maxCount) * 100
-              const share = ((b.count / totalDeals) * 100).toFixed(0)
-              const medal = i === 0 ? '#C9A84C' : i === 1 ? '#A8A9AD' : i === 2 ? '#CD7F32' : null
+              <div style={{ padding: '32px 18px', color: 'rgba(255,255,255,0.25)', fontSize: 12, textAlign: 'center' as const }}>No 2026 deals for this market</div>
+            ) : brokerRanking.map((broker, idx) => {
+              const barPct = (broker.count / maxCount) * 100
+              const sharePct = ((broker.count / totalInView) * 100).toFixed(0)
+              const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null
               return (
-                <div key={b.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 120px 48px 40px', alignItems: 'center', gap: 12, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.1s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
+                <div key={broker.name}
+                  style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 44px 44px', alignItems: 'center', gap: 0, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,0.03)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {/* Rank badge */}
-                  <div style={{ width: 22, height: 22, borderRadius: 6, background: medal ? medal + '22' : 'rgba(255,255,255,0.04)', border: `1px solid ${medal || 'rgba(255,255,255,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: medal || 'rgba(245,244,239,0.25)' }}>{i + 1}</span>
-                  </div>
+                  {/* Rank */}
+                  <div style={{ fontSize: medal ? 13 : 10, fontWeight: 700, color: 'rgba(245,244,239,0.25)', textAlign: 'center' as const }}>{medal || `${idx+1}`}</div>
 
                   {/* Name */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
-                    <div style={{ width: 7, height: 7, borderRadius: 2, background: b.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{b.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 8, minWidth: 0 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: 2, background: broker.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#F5F4EF', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{broker.name}</span>
                   </div>
 
                   {/* Bar */}
-                  <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: b.color, borderRadius: 3, opacity: 0.7 }} />
+                  <div style={{ paddingRight: 12 }}>
+                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${barPct}%`, background: broker.color, borderRadius: 3, opacity: 0.8 }} />
+                    </div>
                   </div>
 
                   {/* Count */}
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace", textAlign: 'right' as const }}>{b.count}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{broker.count}</div>
 
-                  {/* Market share */}
-                  <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.28)', fontFamily: "'DM Mono',monospace", textAlign: 'right' as const }}>{share}%</div>
+                  {/* Share % */}
+                  <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{sharePct}%</div>
                 </div>
               )
             })}
