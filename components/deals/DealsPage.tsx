@@ -1,7 +1,8 @@
 'use client'
 import { useState, useMemo } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
-import { fmtShort, fmtUnit, fmtPct, formatBidDate, bidDateClass, statusClass, statusLabel, getRegion, REGION_LABELS, sortDeals, ALL_STATUSES } from '@/lib/utils'
+import { fmtShort, fmtUnit, fmtPct, formatBidDate, bidDateClass, statusClass, statusLabel, getRegion, REGION_LABELS, REGION_MAP, sortDeals, ALL_STATUSES } from '@/lib/utils'
+import type { Region } from '@/lib/types'
 
 const PER_PAGE = 25
 
@@ -21,6 +22,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [page, setPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
   const [newDeal, setNewDeal] = useState({ name: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
+  const [newDealRegion, setNewDealRegion] = useState<Region | ''>('')
 
   const filtered = useMemo(() => {
     let d = deals
@@ -72,7 +74,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       flagged: false, hot: false,
     })
     setShowAdd(false)
-    setNewDeal({ name:'',market:'',units:'',yearBuilt:'',purchasePrice:'',status:'1 - New',broker:'' })
+    setNewDeal({ name:'',market:'',units:'',yearBuilt:'',purchasePrice:'',status:'1 - New',broker:'' }); setNewDealRegion('')
   }
 
   const FILTER_CHIPS = [
@@ -220,15 +222,48 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <div style={{ background: '#fff', borderRadius: 14, padding: 32, width: 480, maxWidth: '94vw' }} onClick={e => e.stopPropagation()}>
             <h3 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: '#0D1B2E', marginBottom: 24 }}>Add New Deal</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              {/* Deal Name */}
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Deal Name</label>
+                <input type="text" value={newDeal.name} onChange={e => setNewDeal(p => ({ ...p, name: e.target.value }))}
+                  style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
+              </div>
+              {/* Region → Market two-level dropdown */}
+              <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Region</label>
+                  <select
+                    value={newDealRegion}
+                    onChange={e => { setNewDealRegion(e.target.value as Region); setNewDeal(p => ({ ...p, market: '' })) }}
+                    style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'#fff', color: newDealRegion ? '#0D1B2E' : '#8A9BB0' }}>
+                    <option value="">Select region…</option>
+                    {(Object.keys(REGION_MAP) as Region[]).filter(r => r !== 'Misc').map(r => (
+                      <option key={r} value={r}>{REGION_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>Market</label>
+                  <select
+                    value={newDeal.market}
+                    onChange={e => setNewDeal(p => ({ ...p, market: e.target.value }))}
+                    disabled={!newDealRegion}
+                    style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background: newDealRegion ? '#fff' : '#f5f5f5', color: newDeal.market ? '#0D1B2E' : '#8A9BB0' }}>
+                    <option value="">{newDealRegion ? 'Select market…' : '— pick region first —'}</option>
+                    {newDealRegion && REGION_MAP[newDealRegion as Region].map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {/* Rest of fields */}
               {[
-                { label:'Deal Name', key:'name', span:2 },
-                { label:'Market', key:'market', span:2 },
                 { label:'Units', key:'units', type:'number' },
                 { label:'Year Built', key:'yearBuilt', type:'number' },
                 { label:'Purchase Price ($)', key:'purchasePrice', type:'number' },
                 { label:'Broker', key:'broker' },
               ].map(f => (
-                <div key={f.key} style={{ gridColumn: f.span === 2 ? 'span 2' : undefined }}>
+                <div key={f.key}>
                   <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:5 }}>{f.label}</label>
                   <input type={f.type || 'text'} value={(newDeal as any)[f.key]} onChange={e => setNewDeal(p => ({ ...p, [f.key]: e.target.value }))}
                     style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif" }} />
