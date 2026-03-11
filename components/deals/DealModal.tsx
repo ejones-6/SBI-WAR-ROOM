@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
-import { fmtShort, fmtUnit, ALL_STATUSES } from '@/lib/utils'
+import { fmtShort, fmtUnit, ALL_STATUSES, REGION_MAP, REGION_LABELS } from '@/lib/utils'
+import type { Region } from '@/lib/types'
 import BoePanel from '../boe/BoePanel'
 
 interface Props {
@@ -33,6 +34,16 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  function regionFromMarket(market: string | null | undefined): Region | '' {
+    if (!market) return ''
+    for (const [region, cities] of Object.entries(REGION_MAP)) {
+      if ((cities as string[]).includes(market)) return region as Region
+    }
+    return ''
+  }
+  const [editRegion, setEditRegion] = useState<Region | ''>(regionFromMarket(deal.market))
+  const [editMarket, setEditMarket] = useState<string>(deal.market ?? '')
+
   useEffect(() => {
     setForm({
       status: deal.status,
@@ -46,8 +57,10 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       sold_price: deal.sold_price?.toString() ?? '',
       comments: deal.comments ?? '',
     })
+    setEditRegion(regionFromMarket(deal.market))
+    setEditMarket(deal.market ?? '')
     setTab('details')
-  }, [deal.name, deal.comments, deal.status, deal.purchase_price, deal.units, deal.buyer, deal.seller, deal.sold_price])
+  }, [deal.name, deal.comments, deal.status, deal.purchase_price, deal.units, deal.buyer, deal.seller, deal.sold_price, deal.market])
 
   const pp = parseFloat(form.purchase_price) || null
   const u = parseInt(form.units) || null
@@ -71,6 +84,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       seller: form.seller || null,
       sold_price: soldP,
       comments: form.comments || null,
+      market: editMarket || null,
     })
     setSaving(false)
     setSaved(true)
@@ -190,6 +204,27 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
                 <div><label style={labelStyle}>Date Added</label>
                   <div style={{...inputStyle, background:'rgba(13,27,46,.03)', color:'#8A9BB0', display:'flex', alignItems:'center'}}>{deal.added ?? '—'}</div>
+                </div>
+
+                {/* Region + Market */}
+                <div>
+                  <label style={labelStyle}>Region</label>
+                  <select value={editRegion} onChange={e => { setEditRegion(e.target.value as Region | ''); setEditMarket('') }} style={{...inputStyle, background:'#fff'}}>
+                    <option value=''>— Select Region —</option>
+                    {(Object.keys(REGION_MAP) as Region[]).map(r => (
+                      <option key={r} value={r}>{REGION_LABELS[r]}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Market</label>
+                  <select value={editMarket} onChange={e => setEditMarket(e.target.value)} style={{...inputStyle, background:'#fff'}} disabled={!editRegion}>
+                    <option value=''>— Select Market —</option>
+                    {editRegion && (REGION_MAP[editRegion] as string[]).map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Comments — full width */}
