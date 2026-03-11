@@ -344,7 +344,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   return (
     <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
       {/* KPI Strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr) auto', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
         {[
           { label:'T12 NOI', val: pp ? `${fmt(noi_t)}` : '—', sub: pp ? `${fmtpu(noi_t,units)}/unit` : '' },
           { label:'Pro Forma NOI', val: fmt(noi_p), sub: fmtpu(noi_p,units)+'/unit', gold:true },
@@ -357,6 +357,17 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
             {k.sub && <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{k.sub}</div>}
           </div>
         ))}
+        {/* Deal reference — units & year built */}
+        <div style={{ padding:'8px 16px', display:'flex', flexDirection:'column', justifyContent:'center', gap:8, minWidth:120 }}>
+          <div>
+            <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Units</div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{deal.units ?? '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:3 }}>Year Built</div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{deal.year_built ?? '—'}</div>
+          </div>
+        </div>
       </div>
 
       {/* Upload bar */}
