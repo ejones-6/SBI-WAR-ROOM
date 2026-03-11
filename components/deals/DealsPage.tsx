@@ -296,33 +296,20 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                       <option value="">{newDealRegion ? 'Select market…' : '— pick region first —'}</option>
                       {newDealRegion === 'DC' && (<>
                         <option value="Washington, DC">Washington, DC</option>
-                        <optgroup label="Maryland">
-                          <option value="Suburban Maryland">Suburban Maryland</option>
-                          <option value="Baltimore, MD">Baltimore, MD</option>
-                          <option value="Columbia, MD">Columbia, MD</option>
-                          <option value="Owings Mills, MD">Owings Mills, MD</option>
-                        </optgroup>
-                        <optgroup label="Virginia">
-                          <option value="Northern Virginia">Northern Virginia</option>
-                          <option value="Richmond, VA">Richmond, VA</option>
-                          <option value="Charlottesville, VA">Charlottesville, VA</option>
-                          <option value="Virginia Beach, VA">Virginia Beach, VA</option>
-                        </optgroup>
+                        <option value="Suburban Maryland">Suburban Maryland</option>
+                        <option value="Northern Virginia">Northern Virginia</option>
+                        <option value="Richmond, VA">Richmond, VA</option>
+                        <option value="Charlottesville, VA">Charlottesville, VA</option>
+                        <option value="Virginia Beach, VA">Virginia Beach, VA</option>
                         <option value="Misc - Mid-Atlantic">Misc</option>
                       </>)}
                       {newDealRegion === 'Carolinas' && (<>
-                        <optgroup label="North Carolina">
-                          <option value="Charlotte, NC">Charlotte, NC</option>
-                          <option value="Raleigh/Durham, NC">Raleigh/Durham, NC</option>
-                          <option value="Greensboro/Winston-Salem, NC">Greensboro/Winston-Salem, NC</option>
-                          <option value="Asheville, NC">Asheville, NC</option>
-                          <option value="Wilmington, NC">Wilmington, NC</option>
-                        </optgroup>
-                        <optgroup label="South Carolina">
-                          <option value="Charleston, SC">Charleston, SC</option>
-                          <option value="Greenville, SC">Greenville, SC</option>
-                          <option value="Myrtle Beach, SC">Myrtle Beach, SC</option>
-                        </optgroup>
+                        <option value="Charlotte, NC">Charlotte, NC</option>
+                        <option value="Raleigh/Durham, NC">Raleigh/Durham, NC</option>
+                        <option value="Greensboro/Winston-Salem, NC">Greensboro/Winston-Salem, NC</option>
+                        <option value="Wilmington, NC">Wilmington, NC</option>
+                        <option value="Charleston, SC">Charleston, SC</option>
+                        <option value="Greenville, SC">Greenville, SC</option>
                         <option value="Misc - Carolinas">Misc</option>
                       </>)}
                       {newDealRegion === 'GA' && (<>
@@ -343,34 +330,10 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                       </>)}
                       {newDealRegion === 'FL' && (<>
                         <option value="Jacksonville, FL">Jacksonville, FL</option>
-                        <optgroup label="Orlando">
-                          <option value="Orlando, FL">Orlando, FL</option>
-                          <option value="Gainesville, FL">Gainesville, FL</option>
-                          <option value="Daytona Beach, FL">Daytona Beach, FL</option>
-                          <option value="Ocala, FL">Ocala, FL</option>
-                          <option value="Space Coast, FL">Space Coast, FL</option>
-                          <option value="Sanford, FL">Sanford, FL</option>
-                        </optgroup>
-                        <optgroup label="Tampa">
-                          <option value="Tampa, FL">Tampa, FL</option>
-                          <option value="Sarasota, FL">Sarasota, FL</option>
-                          <option value="Lakeland, FL">Lakeland, FL</option>
-                          <option value="Clearwater, FL">Clearwater, FL</option>
-                          <option value="St. Petersburg, FL">St. Petersburg, FL</option>
-                          <option value="Destin, FL">Destin, FL</option>
-                        </optgroup>
-                        <optgroup label="South Florida">
-                          <option value="South Florida">South Florida (General)</option>
-                          <option value="Miami, FL">Miami, FL</option>
-                          <option value="Fort Lauderdale, FL">Fort Lauderdale, FL</option>
-                          <option value="West Palm Beach, FL">West Palm Beach, FL</option>
-                          <option value="Port St. Lucie, FL">Port St. Lucie, FL</option>
-                        </optgroup>
-                        <optgroup label="Naples / Fort Myers">
-                          <option value="Naples/Fort Myers, FL">Naples/Fort Myers, FL</option>
-                          <option value="Naples, FL">Naples, FL</option>
-                          <option value="Fort Myers, FL">Fort Myers, FL</option>
-                        </optgroup>
+                        <option value="Orlando, FL">Orlando, FL</option>
+                        <option value="Tampa, FL">Tampa, FL</option>
+                        <option value="South Florida">South Florida</option>
+                        <option value="Naples/Fort Myers, FL">Naples/Fort Myers, FL</option>
                         <option value="Misc - Florida">Misc</option>
                       </>)}
                     </select>
