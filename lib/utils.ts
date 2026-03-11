@@ -23,29 +23,103 @@ export function fmtCurrency(n: number | null | undefined): string {
 }
 
 export const REGION_MAP: Record<Region, string[]> = {
-  DC: ['Washington, DC-MD-VA','Baltimore, MD','Richmond-Petersburg, VA','Charlottesville, VA','Norfolk-Virginia Beach-Newport News, VA-NC','Lynchburg, VA'],
-  NC: ['Raleigh-Durham-Chapel Hill, NC','Charlotte-Gastonia-Rock Hill, NC-SC','Greensboro--Winston-Salem--High Point, NC','Asheville, NC','Wilmington, NC','Fayetteville, NC','Hickory-Morganton-Lenoir, NC'],
-  SC: ['Charleston-North Charleston, SC','Greenville-Spartanburg-Anderson, SC','Myrtle Beach, SC'],
-  GA: ['Atlanta, GA','Athens, GA','Savannah, GA','Macon, GA','Chattanooga, TN-GA'],
-  TX: ['Dallas-Fort Worth, TX','Fort Worth, TX','Houston, TX','San Antonio, TX','Austin-San Marcos, TX','Brazoria, TX','Galveston-Texas City, TX'],
-  Nashville: ['Nashville, TN','Knoxville, TN'],
-  Orlando: ['Orlando, FL','Daytona Beach, FL','DaytonaBeach, FL','Gainesville, FL','Ocala, FL','Melbourne-Titusville-Palm Bay, FL','Lakeland-Winter Haven, FL','Jacksonville, FL','Jacksonville-St. Augustine, FL'],
-  Tampa: ['Tampa-St. Petersburg-Clearwater, FL','Sarasota-Bradenton, FL','Fort Myers-Cape Coral, FL','Punta Gorda, FL'],
-  SFL: ['Miami, FL','Fort Lauderdale-Hollywood, FL','West Palm Beach-Boca Raton, FL','Naples, FL','Fort Pierce-Port St. Lucie, FL'],
+  DC: [
+    'Washington, DC','Baltimore, MD','Columbia, MD','Owings Mills, MD',
+    'Richmond, VA','Charlottesville, VA','Fredericksburg, VA','Waynesboro, VA','Virginia Beach, VA',
+  ],
+  Carolinas: [
+    'Charlotte, NC','Raleigh/Durham, NC','Greensboro, NC','Asheville, NC','Wilmington, NC','Cary, NC','Chapel Hill, NC','Durham, NC',
+    'Charleston, SC','Greenville, SC','Myrtle Beach, SC','Summerville, SC','Fort Mill, SC',
+  ],
+  GA: [
+    'Atlanta, GA','Savannah, GA','Macon, GA',
+  ],
+  TX: [
+    'Dallas, TX','Houston, TX',
+  ],
+  TN: [
+    'Nashville, TN',
+  ],
+  FL: [
+    'Orlando, FL','Tampa, FL','Miami, FL','Fort Lauderdale, FL','West Palm Beach, FL',
+    'Jacksonville, FL','Sarasota, FL','Fort Myers, FL','Naples, FL','Gainesville, FL',
+    'Daytona Beach, FL','Ocala, FL','Lakeland, FL','St. Petersburg, FL','Clearwater, FL',
+    'Boynton Beach, FL','Delray Beach, FL','Coconut Creek, FL','Davie, FL','Pembroke Pines, FL',
+    'Jupiter, FL','Palm Beach, FL','Lake Worth, FL','Port St. Lucie, FL','Stuart, FL','Vero Beach, FL',
+    'Destin, FL','Space Coast, FL','Palm Bay, FL','Sanford, FL','Ormond Beach, FL',
+  ],
   Misc: [],
 }
 
+// Legacy market string aliases — maps old Rediq MSA strings to new clean city names
+export const MARKET_ALIAS: Record<string, string> = {
+  // DC region
+  'Washington, DC-MD-VA': 'Washington, DC',
+  'Richmond-Petersburg, VA': 'Richmond, VA',
+  'Norfolk-Virginia Beach-Newport News, VA-NC': 'Virginia Beach, VA',
+  'Lynchburg, VA': 'Waynesboro, VA',
+  // Carolinas
+  'Raleigh-Durham-Chapel Hill, NC': 'Raleigh/Durham, NC',
+  'Raleigh / Durham, NC': 'Raleigh/Durham, NC',
+  'Raleigh, NC': 'Raleigh/Durham, NC',
+  'Durham, NC': 'Raleigh/Durham, NC',
+  'Charlotte-Gastonia-Rock Hill, NC-SC': 'Charlotte, NC',
+  'Greensboro--Winston-Salem--High Point, NC': 'Greensboro, NC',
+  'Fayetteville, NC': 'Raleigh/Durham, NC',
+  'Hickory-Morganton-Lenoir, NC': 'Greensboro, NC',
+  'Charleston-North Charleston, SC': 'Charleston, SC',
+  'Greenville-Spartanburg-Anderson, SC': 'Greenville, SC',
+  // GA
+  'Athens, GA': 'Atlanta, GA',
+  'Chattanooga, TN-GA': 'Atlanta, GA',
+  // TX
+  'Dallas-Fort Worth, TX': 'Dallas, TX',
+  'Dallas / Fort Worth, TX': 'Dallas, TX',
+  'Fort Worth, TX': 'Dallas, TX',
+  'San Antonio, TX': 'Dallas, TX',
+  'Austin-San Marcos, TX': 'Dallas, TX',
+  'Austin, TX': 'Dallas, TX',
+  'Brazoria, TX': 'Houston, TX',
+  'Galveston-Texas City, TX': 'Houston, TX',
+  // TN
+  'Knoxville, TN': 'Nashville, TN',
+  'Memphis, TN': 'Nashville, TN',
+  'Chattanooga, TN': 'Nashville, TN',
+  // FL
+  'DaytonaBeach, FL': 'Daytona Beach, FL',
+  'Ormond Beach, FL': 'Daytona Beach, FL',
+  'Melbourne-Titusville-Palm Bay, FL': 'Space Coast, FL',
+  'Lakeland-Winter Haven, FL': 'Lakeland, FL',
+  'Jacksonville-St. Augustine, FL': 'Jacksonville, FL',
+  'Tampa-St. Petersburg-Clearwater, FL': 'Tampa, FL',
+  'Sarasota-Bradenton, FL': 'Sarasota, FL',
+  'Fort Myers-Cape Coral, FL': 'Fort Myers, FL',
+  'Punta Gorda, FL': 'Fort Myers, FL',
+  'Fort Lauderdale-Hollywood, FL': 'Fort Lauderdale, FL',
+  'West Palm Beach-Boca Raton, FL': 'West Palm Beach, FL',
+  'Fort Pierce-Port St. Lucie, FL': 'Port St. Lucie, FL',
+  'Port St Lucie, FL': 'Port St. Lucie, FL',
+  'Mrytle Beach, SC': 'Myrtle Beach, SC',
+}
+
 export function getRegion(market: string): Region {
+  // Direct match
   for (const [region, markets] of Object.entries(REGION_MAP)) {
     if ((markets as string[]).includes(market)) return region as Region
+  }
+  // Alias match (legacy Rediq MSA strings)
+  const canonical = MARKET_ALIAS[market]
+  if (canonical) {
+    for (const [region, markets] of Object.entries(REGION_MAP)) {
+      if ((markets as string[]).includes(canonical)) return region as Region
+    }
   }
   return 'Misc'
 }
 
 export const REGION_LABELS: Record<Region, string> = {
-  DC: 'DC MSA', NC: 'N. Carolina', SC: 'S. Carolina', GA: 'Georgia',
-  TX: 'Texas', Nashville: 'Nashville', Orlando: 'Orlando', Tampa: 'Tampa',
-  SFL: 'S. Florida', Misc: 'Misc',
+  DC: 'DC MSA', Carolinas: 'Carolinas', GA: 'Georgia',
+  TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
 }
 
 export const STATUS_CLASS: Record<string, string> = {
