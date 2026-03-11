@@ -17,6 +17,219 @@ const REGION_COLORS: Record<string, string> = {
   'Texas': '#8B4513', 'Tennessee': '#6B3FA0', 'Florida': '#1E7A6E', 'Misc': '#8A9BB0'
 }
 
+const BROKER_COLORS = ['#C9A84C','#2E6B9E','#2E7D50','#6B3FA0','#1E7A6E','#8B4513','#C0392B','#2C8C8C','#8A4BAF','#5D6D7E']
+
+// Short display names for long market strings
+const MARKET_SHORT: Record<string, string> = {
+  'Washington, DC-MD-VA': 'Washington DC',
+  'Baltimore, MD': 'Baltimore',
+  'Richmond-Petersburg, VA': 'Richmond',
+  'Charlottesville, VA': 'Charlottesville',
+  'Norfolk-Virginia Beach-Newport News, VA-NC': 'Virginia Beach',
+  'Raleigh-Durham-Chapel Hill, NC': 'Raleigh/Durham',
+  'Charlotte-Gastonia-Rock Hill, NC-SC': 'Charlotte',
+  'Greensboro--Winston-Salem--High Point, NC': 'Greensboro',
+  'Wilmington, NC': 'Wilmington NC',
+  'Charleston-North Charleston, SC': 'Charleston SC',
+  'Greenville-Spartanburg-Anderson, SC': 'Greenville SC',
+  'Atlanta, GA': 'Atlanta',
+  'Savannah, GA': 'Savannah',
+  'Dallas-Fort Worth, TX': 'Dallas/Fort Worth',
+  'Houston, TX': 'Houston',
+  'Austin-San Marcos, TX': 'Austin',
+  'San Antonio, TX': 'San Antonio',
+  'Nashville, TN': 'Nashville',
+  'Orlando, FL': 'Orlando',
+  'Tampa-St. Petersburg-Clearwater, FL': 'Tampa',
+  'Fort Myers-Cape Coral, FL': 'Fort Myers',
+  'Sarasota-Bradenton, FL': 'Sarasota',
+  'Naples, FL': 'Naples',
+  'Miami-Fort Lauderdale, FL': 'South Florida',
+  'Jacksonville, FL': 'Jacksonville',
+}
+
+function shortMarket(m: string) { return MARKET_SHORT[m] || m.split(',')[0].replace(/--/g, '/') }
+
+function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
+  const [selectedRegion, setSelectedRegion] = useState<string>('All')
+  const [sortBy, setSortBy] = useState<'deals' | 'guidance'>('deals')
+  const [expandedBroker, setExpandedBroker] = useState<string | null>(null)
+
+  const REGIONS = ['All', 'DC MSA', 'N. Carolina', 'S. Carolina', 'Georgia', 'Texas', 'Nashville', 'Florida', 'Misc']
+
+  const filtered = useMemo(() => {
+    if (selectedRegion === 'All') return deals
+    return deals.filter(d => {
+      const region = getRegion(d.market || '')
+      return (REGION_LABELS as any)[region] === selectedRegion
+    })
+  }, [deals, selectedRegion])
+
+  const brokerStats = useMemo(() => {
+    const stats: Record<string, { deals: number; guidance: number; markets: Record<string, number>; regions: Record<string, number> }> = {}
+    filtered.forEach(d => {
+      if (!d.broker) return
+      const b = d.broker.trim()
+      if (!stats[b]) stats[b] = { deals: 0, guidance: 0, markets: {}, regions: {} }
+      stats[b].deals++
+      if (d.purchase_price) stats[b].guidance += d.purchase_price
+      const mkt = d.market || 'Unknown'
+      stats[b].markets[mkt] = (stats[b].markets[mkt] || 0) + 1
+      const region = (REGION_LABELS as any)[getRegion(mkt)] || 'Misc'
+      stats[b].regions[region] = (stats[b].regions[region] || 0) + 1
+    })
+    return Object.entries(stats)
+      .map(([name, s]) => ({ name, ...s, topMarkets: Object.entries(s.markets).sort((a,b) => b[1]-a[1]).slice(0, 5), topRegions: Object.entries(s.regions).sort((a,b) => b[1]-a[1]) }))
+      .sort((a, b) => sortBy === 'deals' ? b.deals - a.deals : b.guidance - a.guidance)
+      .slice(0, 10)
+  }, [filtered, sortBy])
+
+  const maxDeals = brokerStats[0]?.deals || 1
+  const maxGuidance = brokerStats[0]?.guidance || 1
+
+  const fmtG = (n: number) => n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : `$${(n/1e6).toFixed(0)}M`
+
+  return (
+    <div style={{ background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden', marginBottom: 16 }}>
+      {/* Header */}
+      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Intelligence</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 1 }}>Broker Leaderboard</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Sort toggle */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: 2, border: '1px solid rgba(201,168,76,0.12)' }}>
+            {(['deals', 'guidance'] as const).map(s => (
+              <button key={s} onClick={() => setSortBy(s)} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: sortBy === s ? 'rgba(201,168,76,0.2)' : 'transparent', color: sortBy === s ? '#C9A84C' : 'rgba(245,244,239,0.4)', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                {s === 'deals' ? '# Deals' : 'Guidance $'}
+              </button>
+            ))}
+          </div>
+          {/* Region filter */}
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {REGIONS.map(r => (
+              <button key={r} onClick={() => setSelectedRegion(r)} style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid', borderColor: selectedRegion === r ? '#C9A84C' : 'rgba(201,168,76,0.15)', background: selectedRegion === r ? 'rgba(201,168,76,0.15)' : 'transparent', color: selectedRegion === r ? '#C9A84C' : 'rgba(245,244,239,0.4)', fontSize: 9, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div>
+        {/* Column headers */}
+        <div style={{ display: 'grid', gridTemplateColumns: '28px 160px 1fr 100px 120px 160px', gap: 0, padding: '8px 20px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+          {['#', 'Broker', 'Deal Volume', 'Deals', 'Guidance', 'Top Markets'].map(h => (
+            <div key={h} style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.45)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{h}</div>
+          ))}
+        </div>
+
+        {brokerStats.length === 0 ? (
+          <div style={{ padding: '24px 20px', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>No broker data for this region</div>
+        ) : brokerStats.map((broker, idx) => {
+          const barWidth = sortBy === 'deals' ? (broker.deals / maxDeals) * 100 : (broker.guidance / maxGuidance) * 100
+          const color = BROKER_COLORS[idx % BROKER_COLORS.length]
+          const isExpanded = expandedBroker === broker.name
+          return (
+            <div key={broker.name}>
+              <div
+                onClick={() => setExpandedBroker(isExpanded ? null : broker.name)}
+                style={{ display: 'grid', gridTemplateColumns: '28px 160px 1fr 100px 120px 160px', gap: 0, padding: '12px 20px', borderBottom: '1px solid rgba(201,168,76,0.06)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s', background: isExpanded ? 'rgba(201,168,76,0.06)' : 'transparent' }}
+                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent' }}
+              >
+                {/* Rank */}
+                <div style={{ fontSize: 11, fontWeight: 700, color: idx < 3 ? '#C9A84C' : 'rgba(245,244,239,0.25)' }}>#{idx+1}</div>
+
+                {/* Broker name */}
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
+                  {broker.name}
+                </div>
+
+                {/* Bar */}
+                <div style={{ paddingRight: 16 }}>
+                  <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${barWidth}%`, background: color, borderRadius: 3, transition: 'width 0.4s ease', opacity: 0.8 }} />
+                  </div>
+                </div>
+
+                {/* Deal count */}
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{broker.deals}</div>
+
+                {/* Guidance */}
+                <div style={{ fontSize: 12, color: 'rgba(245,244,239,0.6)', fontFamily: "'DM Mono',monospace" }}>{fmtG(broker.guidance)}</div>
+
+                {/* Top markets */}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {broker.topMarkets.slice(0,3).map(([mkt, cnt]) => (
+                    <span key={mkt} style={{ fontSize: 9, background: 'rgba(201,168,76,0.1)', color: '#C9A84C', borderRadius: 3, padding: '2px 6px', whiteSpace: 'nowrap' }}>
+                      {shortMarket(mkt)} <span style={{ opacity: 0.6 }}>({cnt})</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Expanded market breakdown */}
+              {isExpanded && (
+                <div style={{ padding: '14px 60px 16px', borderBottom: '1px solid rgba(201,168,76,0.08)', background: 'rgba(201,168,76,0.03)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                    {/* By Market */}
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>All Markets</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {broker.topMarkets.map(([mkt, cnt]) => {
+                          const pct = (cnt / broker.deals) * 100
+                          return (
+                            <div key={mkt}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                                <span style={{ fontSize: 11, color: 'rgba(245,244,239,0.65)' }}>{shortMarket(mkt)}</span>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{cnt} <span style={{ fontSize: 9, opacity: 0.5 }}>({pct.toFixed(0)}%)</span></span>
+                              </div>
+                              <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                                <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, opacity: 0.7 }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    {/* By Region */}
+                    <div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>By Region</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {broker.topRegions.map(([region, cnt]) => (
+                          <div key={region} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, padding: '6px 12px', textAlign: 'center' }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'Cormorant Garamond',serif" }}>{cnt}</div>
+                            <div style={{ fontSize: 8, color: 'rgba(245,244,239,0.4)', marginTop: 1, letterSpacing: '0.08em' }}>{region}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(201,168,76,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.25)', letterSpacing: '0.06em' }}>
+          Click a broker row to expand market breakdown · Showing top 10 of {Object.keys(deals.reduce((a: any, d) => { if(d.broker) a[d.broker]=1; return a }, {})).length} brokers
+        </div>
+        <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.25)' }}>
+          {selectedRegion !== 'All' ? `Filtered: ${selectedRegion}` : `${filtered.length} total deals`}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
 function RateRow({ label, value, change, loading }: { label: string; value: string; change?: string; loading?: boolean }) {
   const up = change ? !change.startsWith('-') : null
   return (
@@ -259,6 +472,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
         </div>
         <div style={{ flex: 1, overflow: 'hidden' }}><DealsMap deals={deals} onOpenDeal={onOpenDeal} /></div>
       </div>
+
+      {/* Broker Leaderboard */}
+      <BrokerLeaderboard deals={deals} />
 
       {/* Status Breakdown */}
       <div style={{ ...card, padding: '16px 20px' }}>
