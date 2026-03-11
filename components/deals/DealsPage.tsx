@@ -90,7 +90,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     { label: 'Owned', value: '10 - Owned Property' },
     { label: 'Comp', value: '11 - Property Comp' },
   ]
-  const REGIONS = ['all','DC','NC','SC','GA','TX','Nashville','Orlando','Tampa','SFL','Misc']
+  const REGIONS = ['all','DC','Carolinas','GA','TX','TN','FL','Misc']
 
   return (
     <div style={{ padding: '24px 28px' }}>
