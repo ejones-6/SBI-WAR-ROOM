@@ -1,7 +1,7 @@
 // app/api/rates/route.ts
 import { NextResponse } from 'next/server'
 
-export const revalidate = 0
+export const revalidate = 3600 // 1 hour — treasuries update daily, SOFR changes ~8x/year
 
 async function fetchStooq(symbol: string): Promise<number | null> {
   try {
