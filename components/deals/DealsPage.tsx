@@ -23,17 +23,41 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [showAdd, setShowAdd] = useState(false)
   const [newDeal, setNewDeal] = useState({ name: '', street: '', city: '', state: '', zip: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
   const [newDealRegion, setNewDealRegion] = useState<Region | ''>('')
+  const [subRegion, setSubRegion] = useState('all')
+
+  const SUB_REGIONS: Record<string, Record<string, string[]>> = {
+    DC: {
+      'DC': ['Washington, DC'],
+      'Maryland': ['Baltimore, MD','Columbia, MD','Owings Mills, MD'],
+      'Virginia': ['Richmond, VA','Charlottesville, VA','Fredericksburg, VA','Waynesboro, VA','Virginia Beach, VA'],
+    },
+    Carolinas: {
+      'North Carolina': ['Charlotte, NC','Raleigh/Durham, NC','Greensboro, NC','Asheville, NC','Wilmington, NC','Cary, NC','Chapel Hill, NC','Durham, NC'],
+      'South Carolina': ['Charleston, SC','Greenville, SC','Myrtle Beach, SC','Summerville, SC','Fort Mill, SC'],
+    },
+    FL: {
+      'Orlando': ['Orlando, FL','Daytona Beach, FL','Ocala, FL','Gainesville, FL','Lakeland, FL','Sanford, FL','Ormond Beach, FL','Space Coast, FL','Palm Bay, FL'],
+      'Tampa': ['Tampa, FL','St. Petersburg, FL','Clearwater, FL','Sarasota, FL','Fort Myers, FL','Naples, FL','Destin, FL'],
+      'South Florida': ['Miami, FL','Fort Lauderdale, FL','West Palm Beach, FL','Boynton Beach, FL','Delray Beach, FL','Coconut Creek, FL','Davie, FL','Pembroke Pines, FL','Jupiter, FL','Palm Beach, FL','Lake Worth, FL','Port St. Lucie, FL','Stuart, FL','Vero Beach, FL','Jacksonville, FL'],
+    },
+  }
 
   const filtered = useMemo(() => {
     let d = deals
     if (filter !== 'all') d = d.filter(x => x.status.includes(filter.split(' - ')[0] + ' -'))
-    if (region !== 'all') d = d.filter(x => getRegion(x.market) === region)
+    if (region !== 'all') {
+      d = d.filter(x => getRegion(x.market) === region)
+      if (subRegion !== 'all' && SUB_REGIONS[region]?.[subRegion]) {
+        const markets = SUB_REGIONS[region][subRegion]
+        d = d.filter(x => markets.includes(x.market))
+      }
+    }
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
     }
     return sortDeals(d, sort)
-  }, [deals, filter, region, sort, search])
+  }, [deals, filter, region, subRegion, sort, search])
 
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -91,6 +115,10 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     { label: 'Comp', value: '11 - Property Comp' },
   ]
   const REGIONS = ['all','DC','Carolinas','GA','TX','TN','FL','Misc']
+  const REGION_DISPLAY: Record<string, string> = {
+    DC: 'Mid-Atlantic', Carolinas: 'Carolinas', GA: 'Georgia',
+    TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
+  }
 
   return (
     <div style={{ padding: '24px 28px' }}>
@@ -131,15 +159,37 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       {/* Region chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {REGIONS.map(r => (
-          <button key={r} onClick={() => { setRegion(r); setPage(1) }} style={{
+          <button key={r} onClick={() => { setRegion(r); setSubRegion('all'); setPage(1) }} style={{
             padding: '3px 10px', borderRadius: 16, border: '1px solid',
             borderColor: region === r ? '#C9A84C' : 'rgba(13,27,46,0.1)',
             background: region === r ? 'rgba(201,168,76,0.12)' : 'transparent',
             color: region === r ? '#8A6500' : '#8A9BB0',
             fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
-          }}>{r === 'all' ? 'All Regions' : (REGION_LABELS as any)[r] || r}</button>
+          }}>{r === 'all' ? 'All Regions' : REGION_DISPLAY[r] || r}</button>
         ))}
       </div>
+
+      {/* Sub-region chips — shown only for DC, Carolinas, FL */}
+      {(region === 'DC' || region === 'Carolinas' || region === 'FL') && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, paddingLeft: 4 }}>
+          <button onClick={() => { setSubRegion('all'); setPage(1) }} style={{
+            padding: '3px 10px', borderRadius: 16, border: '1px solid',
+            borderColor: subRegion === 'all' ? '#0D1B2E' : 'rgba(13,27,46,0.1)',
+            background: subRegion === 'all' ? 'rgba(13,27,46,0.08)' : 'transparent',
+            color: subRegion === 'all' ? '#0D1B2E' : '#8A9BB0',
+            fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+          }}>All</button>
+          {Object.keys(SUB_REGIONS[region] || {}).map(sub => (
+            <button key={sub} onClick={() => { setSubRegion(sub); setPage(1) }} style={{
+              padding: '3px 10px', borderRadius: 16, border: '1px solid',
+              borderColor: subRegion === sub ? '#0D1B2E' : 'rgba(13,27,46,0.1)',
+              background: subRegion === sub ? 'rgba(13,27,46,0.08)' : 'transparent',
+              color: subRegion === sub ? '#0D1B2E' : '#8A9BB0',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+            }}>{sub}</button>
+          ))}
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ background: '#fff', border: '1px solid rgba(13,27,46,0.08)', borderRadius: 10, overflow: 'hidden' }}>
