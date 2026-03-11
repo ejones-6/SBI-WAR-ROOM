@@ -448,7 +448,17 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
           modified:       parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
         }))
         .filter(d => d.name)
-        .filter(d => ['1 - New', '2 - Active', '5 - Dormant'].includes(d.status))
+        .filter(d => {
+          // Always include active pipeline
+          if (['1 - New', '2 - Active', '5 - Dormant'].includes(d.status)) return true
+          // Include recently changed Passed/Lost so status updates flow through (e.g. Active → Passed)
+          if (['6 - Passed', '7 - Lost'].includes(d.status) && d.modified) {
+            const cutoff = new Date()
+            cutoff.setDate(cutoff.getDate() - 7)
+            return new Date(d.modified) >= cutoff
+          }
+          return false
+        })
 
       setPreview(deals)
       setActiveTab('new')
