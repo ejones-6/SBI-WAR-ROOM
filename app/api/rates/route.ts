@@ -18,12 +18,13 @@ async function yahooFetch(symbol: string) {
 
 export async function GET() {
   try {
-    const [sofrData, ust5Data, ust10Data, spxData, djiData, avbData, eqrData, maaData, essData] = await Promise.all([
+    const [sofrData, ust5Data, ust10Data, spxData, djiData, btcData, avbData, eqrData, maaData, essData] = await Promise.all([
       yahooFetch('^SOFR'),
       yahooFetch('^FVX'),
       yahooFetch('^TNX'),
       yahooFetch('^GSPC'),
       yahooFetch('^DJI'),
+      yahooFetch('BTC-USD'),
       yahooFetch('AVB'),
       yahooFetch('EQR'),
       yahooFetch('MAA'),
@@ -46,6 +47,7 @@ export async function GET() {
       // Indices
       { key: 'SPX',   label: 'S&P 500',   ...fromYahoo(spxData) },
       { key: 'DJI',   label: 'Dow Jones', ...fromYahoo(djiData) },
+      { key: 'BTC',   label: 'Bitcoin',   ...fromYahoo(btcData) },
       // REITs
       { key: 'AVB',   label: 'AvalonBay', ...fromYahoo(avbData) },
       { key: 'EQR',   label: 'Equity Res',...fromYahoo(eqrData) },

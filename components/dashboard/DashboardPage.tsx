@@ -118,6 +118,7 @@ function MarketsWidget() {
   const INDICES = [
     { key: 'SPX',  label: 'S&P 500' },
     { key: 'DJI',  label: 'DOW'     },
+    { key: 'BTC',  label: 'Bitcoin' },
   ]
 
   const REITS = [
@@ -182,22 +183,29 @@ function MarketsWidget() {
     </div>
   )
 
-  const tickerRow = (key: string, label: string, sub: string, isPrice = false) => (
-    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(13,27,46,0.05)' }}>
-      <div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.03em' }}>{label}</div>
-        <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em' }}>{sub}</div>
-      </div>
-      <div style={{ textAlign: 'right' }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E' }}>
-          {loading ? '—' : fmt(key, isPrice)}
+  const tickerRow = (key: string, label: string, sub: string, isPrice = false) => {
+    const c = col(key)
+    const isUp = data[key]?.change != null && (data[key]?.change ?? 0) > 0
+    const isDn = data[key]?.change != null && (data[key]?.change ?? 0) < 0
+    const bgColor = isUp ? 'rgba(61,170,114,0.08)' : isDn ? 'rgba(224,92,92,0.08)' : 'rgba(13,27,46,0.02)'
+    const borderColor = isUp ? 'rgba(61,170,114,0.25)' : isDn ? 'rgba(224,92,92,0.25)' : 'rgba(13,27,46,0.06)'
+    return (
+      <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 8, marginBottom: 6, background: bgColor, border: `1px solid ${borderColor}` }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.03em' }}>{label}</div>
+          <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em' }}>{sub}</div>
         </div>
-        {!loading && chg(key, isPrice) && (
-          <div style={{ fontSize: 10, fontWeight: 600, color: col(key) }}>{arr(key)} {chg(key, isPrice)}</div>
-        )}
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E' }}>
+            {loading ? '—' : fmt(key, isPrice)}
+          </div>
+          {!loading && chg(key, isPrice) && (
+            <div style={{ fontSize: 10, fontWeight: 700, color: c }}>{arr(key)} {chg(key, isPrice)}</div>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div style={{ background: '#fff', borderRadius: 14, border: '1px solid rgba(13,27,46,0.08)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 12px rgba(13,27,46,0.06)' }}>
