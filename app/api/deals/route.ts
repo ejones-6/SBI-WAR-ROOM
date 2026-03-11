@@ -60,12 +60,14 @@ export async function POST(req: NextRequest) {
           if (deal.purchase_price) row.purchase_price = deal.purchase_price
           if (deal.price_per_unit) row.price_per_unit = deal.price_per_unit
           if (deal.broker)         row.broker = deal.broker
-        if (deal.address)        row.address = deal.address
+          if (deal.address)        row.address = deal.address
           if (deal.market)         row.market = deal.market
+          if (deal.modified)       row.modified = deal.modified  // sync Rediq's last-modified date
         }
-        // Always sync bid_due_date for active/new deals
-        if (isActive || !isLocked) {
-          row.bid_due_date = deal.bid_due_date ?? null
+        // Only sync bid_due_date when the file actually has a value
+        // Never wipe a date that was manually set in the War Room
+        if ((isActive || !isLocked) && deal.bid_due_date != null) {
+          row.bid_due_date = deal.bid_due_date
         }
         return row
       })

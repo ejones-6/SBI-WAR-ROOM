@@ -400,13 +400,16 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
         return idx >= 0 ? r[idx] : ''
       }
       const parseDate = (v: any): string | null => {
-        if (!v) return null
-        // Handle Excel serial numbers (SheetJS returns dates as numbers e.g. 46462)
+        if (!v && v !== 0) return null
+        // SheetJS with cellDates:true returns actual JS Date objects
+        if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().split('T')[0]
+        // Fallback: Excel serial numbers (cellDates:false)
         if (typeof v === 'number') {
           const d = new Date(Math.round((v - 25569) * 86400 * 1000))
           return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
         }
-        const d = new Date(v)
+        // String dates
+        const d = new Date(String(v))
         return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
       }
 
@@ -426,9 +429,9 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
           broker: String(col(r, 'Broker') || '').trim() || null,
           address: String(col(r, 'Address') || '').trim() || null,
           added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
-          modified: new Date().toISOString().split('T')[0],
+          modified: parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
         }
-      }).filter(d => d.name && !['6','7','8','9'].some(n => d.status.startsWith(n + ' -')))
+      }).filter(d => d.name && !['6', '7'].some(n => d.status.startsWith(n + ' -')))
 
       setPreview(deals)
       setStatus('preview')
