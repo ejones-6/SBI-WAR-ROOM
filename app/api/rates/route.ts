@@ -19,11 +19,11 @@ async function fetchStooq(symbol: string): Promise<number | null> {
 }
 
 export async function GET() {
-  const [sofr, fiveY, sevenY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
-    fetchStooq('sofrrate'),   // SOFR overnight rate
-    fetchStooq('5yusy.b'),    // 5-Year US Treasury yield
-    fetchStooq('7yusy.b'),    // 7-Year US Treasury yield
-    fetchStooq('10yusy.b'),   // 10-Year US Treasury yield
+  const [fedFunds, fiveY, sevenY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+    fetchStooq('fedfunds.b'),  // Fed Funds rate — SOFR proxy, always available on Stooq
+    fetchStooq('5yusy.b'),
+    fetchStooq('7yusy.b'),
+    fetchStooq('10yusy.b'),
     fetchStooq('^spx'),
     fetchStooq('^dji'),
     fetchStooq('btc.v'),
@@ -34,17 +34,17 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    sofr:   sofr   != null ? { rate: sofr }   : null,
-    fiveY:  fiveY  != null ? { rate: fiveY }  : null,
-    sevenY: sevenY != null ? { rate: sevenY } : null,
-    tenY:   tenY   != null ? { rate: tenY }   : null,
-    sp500:  sp500  != null ? { price: sp500 } : null,
-    dow:    dow    != null ? { price: dow }   : null,
-    btc:    btc    != null ? { price: btc }   : null,
-    avb:    avb    != null ? { price: avb }   : null,
-    eqr:    eqr    != null ? { price: eqr }   : null,
-    maa:    maa    != null ? { price: maa }   : null,
-    ess:    ess    != null ? { price: ess }   : null,
+    sofr:   fedFunds != null ? { rate: fedFunds } : null,  // labeled SOFR in UI, fed funds is ~same
+    fiveY:  fiveY    != null ? { rate: fiveY }    : null,
+    sevenY: sevenY   != null ? { rate: sevenY }   : null,
+    tenY:   tenY     != null ? { rate: tenY }      : null,
+    sp500:  sp500    != null ? { price: sp500 }   : null,
+    dow:    dow      != null ? { price: dow }      : null,
+    btc:    btc      != null ? { price: btc }      : null,
+    avb:    avb      != null ? { price: avb }      : null,
+    eqr:    eqr      != null ? { price: eqr }      : null,
+    maa:    maa      != null ? { price: maa }      : null,
+    ess:    ess      != null ? { price: ess }       : null,
   }, {
     headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' }
   })
