@@ -307,7 +307,54 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
   const [newsLoading, setNewsLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/rates').then(r => r.json()).then(d => { setRates(d); setRatesLoading(false) }).catch(() => setRatesLoading(false))
+    async function loadRates() {
+      const SYMBOLS = ['^TNX', '^FVX', '^IRX', '^GSPC', '^DJI', 'BTC-USD', 'AVB', 'EQR', 'MAA', 'ESS']
+      const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${SYMBOLS.join(',')}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`
+
+      // Browser fetches Yahoo via allorigins CORS proxy — no server needed, no auth issues
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`
+
+      try {
+        const res = await fetch(proxyUrl)
+        const wrapper = await res.json()
+        const data = JSON.parse(wrapper.contents)
+        const results: any[] = data?.quoteResponse?.result ?? []
+
+        const m: Record<string, any> = {}
+        for (const r of results) {
+          m[r.symbol] = {
+            price:  r.regularMarketPrice ?? null,
+            change: r.regularMarketChange ?? null,
+            pct:    r.regularMarketChangePercent ?? null,
+          }
+        }
+
+        const fiveY = m['^FVX']?.price ?? null
+        const tenY  = m['^TNX']?.price ?? null
+
+        setRates({
+          sofr:   m['^IRX']    ? { rate: m['^IRX'].price,    change: m['^IRX'].change   } : null,
+          fiveY:  m['^FVX']    ? { rate: m['^FVX'].price,    change: m['^FVX'].change   } : null,
+          sevenY: (fiveY && tenY) ? { rate: +(fiveY * 0.4 + tenY * 0.6).toFixed(3) }    : null,
+          tenY:   m['^TNX']    ? { rate: m['^TNX'].price,    change: m['^TNX'].change   } : null,
+          sp500:  m['^GSPC']   ? { price: m['^GSPC'].price,  change: m['^GSPC'].change,  pct: m['^GSPC'].pct  } : null,
+          dow:    m['^DJI']    ? { price: m['^DJI'].price,   change: m['^DJI'].change,   pct: m['^DJI'].pct   } : null,
+          btc:    m['BTC-USD'] ? { price: m['BTC-USD'].price, change: m['BTC-USD'].change, pct: m['BTC-USD'].pct } : null,
+          avb:    m['AVB']     ? { price: m['AVB'].price,    change: m['AVB'].change,    pct: m['AVB'].pct    } : null,
+          eqr:    m['EQR']     ? { price: m['EQR'].price,    change: m['EQR'].change,    pct: m['EQR'].pct    } : null,
+          maa:    m['MAA']     ? { price: m['MAA'].price,    change: m['MAA'].change,    pct: m['MAA'].pct    } : null,
+          ess:    m['ESS']     ? { price: m['ESS'].price,    change: m['ESS'].change,    pct: m['ESS'].pct    } : null,
+        })
+      } catch {
+        // Last resort: try the server route
+        try {
+          const r = await fetch('/api/rates')
+          if (r.ok) { const d = await r.json(); if (!d.error) setRates(d) }
+        } catch {}
+      }
+      setRatesLoading(false)
+    }
+    loadRates()
   }, [])
 
   useEffect(() => {
