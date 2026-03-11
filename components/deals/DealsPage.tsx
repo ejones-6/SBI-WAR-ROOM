@@ -23,41 +23,17 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [showAdd, setShowAdd] = useState(false)
   const [newDeal, setNewDeal] = useState({ name: '', street: '', city: '', state: '', zip: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
   const [newDealRegion, setNewDealRegion] = useState<Region | ''>('')
-  const [subRegion, setSubRegion] = useState('all')
-
-  const SUB_REGIONS: Record<string, Record<string, string[]>> = {
-    DC: {
-      'DC': ['Washington, DC'],
-      'Maryland': ['Baltimore, MD','Columbia, MD','Owings Mills, MD'],
-      'Virginia': ['Richmond, VA','Charlottesville, VA','Fredericksburg, VA','Waynesboro, VA','Virginia Beach, VA'],
-    },
-    Carolinas: {
-      'North Carolina': ['Charlotte, NC','Raleigh/Durham, NC','Greensboro, NC','Asheville, NC','Wilmington, NC','Cary, NC','Chapel Hill, NC','Durham, NC'],
-      'South Carolina': ['Charleston, SC','Greenville, SC','Myrtle Beach, SC','Summerville, SC','Fort Mill, SC'],
-    },
-    FL: {
-      'Orlando': ['Orlando, FL','Daytona Beach, FL','Ocala, FL','Gainesville, FL','Lakeland, FL','Sanford, FL','Ormond Beach, FL','Space Coast, FL','Palm Bay, FL'],
-      'Tampa': ['Tampa, FL','St. Petersburg, FL','Clearwater, FL','Sarasota, FL','Fort Myers, FL','Naples, FL','Destin, FL'],
-      'South Florida': ['Miami, FL','Fort Lauderdale, FL','West Palm Beach, FL','Boynton Beach, FL','Delray Beach, FL','Coconut Creek, FL','Davie, FL','Pembroke Pines, FL','Jupiter, FL','Palm Beach, FL','Lake Worth, FL','Port St. Lucie, FL','Stuart, FL','Vero Beach, FL','Jacksonville, FL'],
-    },
-  }
 
   const filtered = useMemo(() => {
     let d = deals
     if (filter !== 'all') d = d.filter(x => x.status.includes(filter.split(' - ')[0] + ' -'))
-    if (region !== 'all') {
-      d = d.filter(x => getRegion(x.market) === region)
-      if (subRegion !== 'all' && SUB_REGIONS[region]?.[subRegion]) {
-        const markets = SUB_REGIONS[region][subRegion]
-        d = d.filter(x => markets.includes(x.market))
-      }
-    }
+    if (region !== 'all') d = d.filter(x => getRegion(x.market) === region)
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
     }
     return sortDeals(d, sort)
-  }, [deals, filter, region, subRegion, sort, search])
+  }, [deals, filter, region, sort, search])
 
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -159,7 +135,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       {/* Region chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
         {REGIONS.map(r => (
-          <button key={r} onClick={() => { setRegion(r); setSubRegion('all'); setPage(1) }} style={{
+          <button key={r} onClick={() => { setRegion(r); setPage(1) }} style={{
             padding: '3px 10px', borderRadius: 16, border: '1px solid',
             borderColor: region === r ? '#C9A84C' : 'rgba(13,27,46,0.1)',
             background: region === r ? 'rgba(201,168,76,0.12)' : 'transparent',
@@ -169,27 +145,6 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
         ))}
       </div>
 
-      {/* Sub-region chips — shown only for DC, Carolinas, FL */}
-      {(region === 'DC' || region === 'Carolinas' || region === 'FL') && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16, paddingLeft: 4 }}>
-          <button onClick={() => { setSubRegion('all'); setPage(1) }} style={{
-            padding: '3px 10px', borderRadius: 16, border: '1px solid',
-            borderColor: subRegion === 'all' ? '#0D1B2E' : 'rgba(13,27,46,0.1)',
-            background: subRegion === 'all' ? 'rgba(13,27,46,0.08)' : 'transparent',
-            color: subRegion === 'all' ? '#0D1B2E' : '#8A9BB0',
-            fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
-          }}>All</button>
-          {Object.keys(SUB_REGIONS[region] || {}).map(sub => (
-            <button key={sub} onClick={() => { setSubRegion(sub); setPage(1) }} style={{
-              padding: '3px 10px', borderRadius: 16, border: '1px solid',
-              borderColor: subRegion === sub ? '#0D1B2E' : 'rgba(13,27,46,0.1)',
-              background: subRegion === sub ? 'rgba(13,27,46,0.08)' : 'transparent',
-              color: subRegion === sub ? '#0D1B2E' : '#8A9BB0',
-              fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
-            }}>{sub}</button>
-          ))}
-        </div>
-      )}
 
       {/* Table */}
       <div style={{ background: '#fff', border: '1px solid rgba(13,27,46,0.08)', borderRadius: 10, overflow: 'hidden' }}>
@@ -339,9 +294,85 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                       disabled={!newDealRegion}
                       style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background: newDealRegion ? '#fff' : '#f5f5f5', color: newDeal.market ? '#0D1B2E' : '#8A9BB0' }}>
                       <option value="">{newDealRegion ? 'Select market…' : '— pick region first —'}</option>
-                      {newDealRegion && REGION_MAP[newDealRegion as Region].map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
+                      {newDealRegion === 'DC' && (<>
+                        <option value="Washington, DC">Washington, DC</option>
+                        <optgroup label="Maryland">
+                          <option value="Suburban Maryland">Suburban Maryland</option>
+                          <option value="Baltimore, MD">Baltimore, MD</option>
+                          <option value="Columbia, MD">Columbia, MD</option>
+                          <option value="Owings Mills, MD">Owings Mills, MD</option>
+                        </optgroup>
+                        <optgroup label="Virginia">
+                          <option value="Northern Virginia">Northern Virginia</option>
+                          <option value="Richmond, VA">Richmond, VA</option>
+                          <option value="Charlottesville, VA">Charlottesville, VA</option>
+                          <option value="Virginia Beach, VA">Virginia Beach, VA</option>
+                        </optgroup>
+                        <option value="Misc - Mid-Atlantic">Misc</option>
+                      </>)}
+                      {newDealRegion === 'Carolinas' && (<>
+                        <optgroup label="North Carolina">
+                          <option value="Charlotte, NC">Charlotte, NC</option>
+                          <option value="Raleigh/Durham, NC">Raleigh/Durham, NC</option>
+                          <option value="Greensboro/Winston-Salem, NC">Greensboro/Winston-Salem, NC</option>
+                          <option value="Asheville, NC">Asheville, NC</option>
+                          <option value="Wilmington, NC">Wilmington, NC</option>
+                        </optgroup>
+                        <optgroup label="South Carolina">
+                          <option value="Charleston, SC">Charleston, SC</option>
+                          <option value="Greenville, SC">Greenville, SC</option>
+                          <option value="Myrtle Beach, SC">Myrtle Beach, SC</option>
+                        </optgroup>
+                        <option value="Misc - Carolinas">Misc</option>
+                      </>)}
+                      {newDealRegion === 'GA' && (<>
+                        <option value="Atlanta, GA">Atlanta, GA</option>
+                        <option value="Savannah, GA">Savannah, GA</option>
+                        <option value="Misc - Georgia">Misc</option>
+                      </>)}
+                      {newDealRegion === 'TX' && (<>
+                        <option value="Dallas, TX">Dallas, TX</option>
+                        <option value="Houston, TX">Houston, TX</option>
+                        <option value="Austin, TX">Austin, TX</option>
+                        <option value="San Antonio, TX">San Antonio, TX</option>
+                        <option value="Misc - Texas">Misc</option>
+                      </>)}
+                      {newDealRegion === 'TN' && (<>
+                        <option value="Nashville, TN">Nashville, TN</option>
+                        <option value="Misc - Tennessee">Misc</option>
+                      </>)}
+                      {newDealRegion === 'FL' && (<>
+                        <option value="Jacksonville, FL">Jacksonville, FL</option>
+                        <optgroup label="Orlando">
+                          <option value="Orlando, FL">Orlando, FL</option>
+                          <option value="Gainesville, FL">Gainesville, FL</option>
+                          <option value="Daytona Beach, FL">Daytona Beach, FL</option>
+                          <option value="Ocala, FL">Ocala, FL</option>
+                          <option value="Space Coast, FL">Space Coast, FL</option>
+                          <option value="Sanford, FL">Sanford, FL</option>
+                        </optgroup>
+                        <optgroup label="Tampa">
+                          <option value="Tampa, FL">Tampa, FL</option>
+                          <option value="Sarasota, FL">Sarasota, FL</option>
+                          <option value="Lakeland, FL">Lakeland, FL</option>
+                          <option value="Clearwater, FL">Clearwater, FL</option>
+                          <option value="St. Petersburg, FL">St. Petersburg, FL</option>
+                          <option value="Destin, FL">Destin, FL</option>
+                        </optgroup>
+                        <optgroup label="South Florida">
+                          <option value="South Florida">South Florida (General)</option>
+                          <option value="Miami, FL">Miami, FL</option>
+                          <option value="Fort Lauderdale, FL">Fort Lauderdale, FL</option>
+                          <option value="West Palm Beach, FL">West Palm Beach, FL</option>
+                          <option value="Port St. Lucie, FL">Port St. Lucie, FL</option>
+                        </optgroup>
+                        <optgroup label="Naples / Fort Myers">
+                          <option value="Naples/Fort Myers, FL">Naples/Fort Myers, FL</option>
+                          <option value="Naples, FL">Naples, FL</option>
+                          <option value="Fort Myers, FL">Fort Myers, FL</option>
+                        </optgroup>
+                        <option value="Misc - Florida">Misc</option>
+                      </>)}
                     </select>
                   )}
                 </div>

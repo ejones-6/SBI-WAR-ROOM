@@ -24,61 +24,82 @@ export function fmtCurrency(n: number | null | undefined): string {
 
 export const REGION_MAP: Record<Region, string[]> = {
   DC: [
-    'Washington, DC','Baltimore, MD','Columbia, MD','Owings Mills, MD',
-    'Richmond, VA','Charlottesville, VA','Fredericksburg, VA','Waynesboro, VA','Virginia Beach, VA',
+    'Washington, DC',
+    'Suburban Maryland','Baltimore, MD','Columbia, MD','Owings Mills, MD',
+    'Northern Virginia',
+    'Richmond, VA',
+    'Charlottesville, VA',
+    'Virginia Beach, VA',
+    'Misc - Mid-Atlantic',
   ],
   Carolinas: [
-    'Charlotte, NC','Raleigh/Durham, NC','Greensboro, NC','Asheville, NC','Wilmington, NC','Cary, NC','Chapel Hill, NC','Durham, NC',
-    'Charleston, SC','Greenville, SC','Myrtle Beach, SC','Summerville, SC','Fort Mill, SC',
+    'Charlotte, NC',
+    'Raleigh/Durham, NC','Cary, NC','Chapel Hill, NC','Durham, NC',
+    'Greensboro/Winston-Salem, NC','Asheville, NC','Wilmington, NC',
+    'Charleston, SC','Summerville, SC','Fort Mill, SC',
+    'Greenville, SC','Myrtle Beach, SC',
+    'Misc - Carolinas',
   ],
   GA: [
-    'Atlanta, GA','Savannah, GA','Macon, GA',
+    'Atlanta, GA','Savannah, GA','Misc - Georgia',
   ],
   TX: [
-    'Dallas, TX','Houston, TX',
+    'Dallas, TX','Houston, TX','Austin, TX','San Antonio, TX','Misc - Texas',
   ],
   TN: [
-    'Nashville, TN',
+    'Nashville, TN','Misc - Tennessee',
   ],
   FL: [
-    'Orlando, FL','Tampa, FL','Miami, FL','Fort Lauderdale, FL','West Palm Beach, FL',
-    'Jacksonville, FL','Sarasota, FL','Fort Myers, FL','Naples, FL','Gainesville, FL',
-    'Daytona Beach, FL','Ocala, FL','Lakeland, FL','St. Petersburg, FL','Clearwater, FL',
-    'Boynton Beach, FL','Delray Beach, FL','Coconut Creek, FL','Davie, FL','Pembroke Pines, FL',
-    'Jupiter, FL','Palm Beach, FL','Lake Worth, FL','Port St. Lucie, FL','Stuart, FL','Vero Beach, FL',
-    'Destin, FL','Space Coast, FL','Palm Bay, FL','Sanford, FL','Ormond Beach, FL',
+    'Jacksonville, FL',
+    'Orlando, FL','Gainesville, FL','Daytona Beach, FL','Ocala, FL','Space Coast, FL','Palm Bay, FL','Sanford, FL','Ormond Beach, FL',
+    'Tampa, FL','St. Petersburg, FL','Clearwater, FL','Sarasota, FL','Lakeland, FL','Destin, FL',
+    'South Florida','Miami, FL','Fort Lauderdale, FL','West Palm Beach, FL','Boynton Beach, FL','Delray Beach, FL','Coconut Creek, FL','Davie, FL','Pembroke Pines, FL','Jupiter, FL','Palm Beach, FL','Lake Worth, FL','Port St. Lucie, FL','Stuart, FL','Vero Beach, FL',
+    'Naples/Fort Myers, FL','Fort Myers, FL','Naples, FL',
+    'Misc - Florida',
   ],
   Misc: [],
 }
 
-// Legacy market string aliases — maps old Rediq MSA strings to new clean city names
+// Legacy market string aliases — maps old Rediq MSA strings to new clean market names
 export const MARKET_ALIAS: Record<string, string> = {
-  // DC region
+  // DC / Mid-Atlantic
   'Washington, DC-MD-VA': 'Washington, DC',
   'Richmond-Petersburg, VA': 'Richmond, VA',
   'Norfolk-Virginia Beach-Newport News, VA-NC': 'Virginia Beach, VA',
-  'Lynchburg, VA': 'Waynesboro, VA',
+  'Charlottesville, VA': 'Charlottesville, VA',
+  'Fredericksburg, VA': 'Northern Virginia',
+  'Waynesboro, VA': 'Misc - Mid-Atlantic',
+  'Lynchburg, VA': 'Misc - Mid-Atlantic',
+  'Baltimore, MD': 'Suburban Maryland',
+  'Columbia, MD': 'Suburban Maryland',
+  'Owings Mills, MD': 'Suburban Maryland',
   // Carolinas
   'Raleigh-Durham-Chapel Hill, NC': 'Raleigh/Durham, NC',
   'Raleigh / Durham, NC': 'Raleigh/Durham, NC',
   'Raleigh, NC': 'Raleigh/Durham, NC',
   'Durham, NC': 'Raleigh/Durham, NC',
+  'Cary, NC': 'Raleigh/Durham, NC',
+  'Chapel Hill, NC': 'Raleigh/Durham, NC',
   'Charlotte-Gastonia-Rock Hill, NC-SC': 'Charlotte, NC',
-  'Greensboro--Winston-Salem--High Point, NC': 'Greensboro, NC',
+  'Greensboro--Winston-Salem--High Point, NC': 'Greensboro/Winston-Salem, NC',
+  'Greensboro, NC': 'Greensboro/Winston-Salem, NC',
   'Fayetteville, NC': 'Raleigh/Durham, NC',
-  'Hickory-Morganton-Lenoir, NC': 'Greensboro, NC',
+  'Hickory-Morganton-Lenoir, NC': 'Greensboro/Winston-Salem, NC',
   'Charleston-North Charleston, SC': 'Charleston, SC',
+  'Summerville, SC': 'Charleston, SC',
+  'Fort Mill, SC': 'Charlotte, NC',
   'Greenville-Spartanburg-Anderson, SC': 'Greenville, SC',
+  'Myrtle Beach, SC': 'Myrtle Beach, SC',
+  'Mrytle Beach, SC': 'Myrtle Beach, SC',
   // GA
   'Athens, GA': 'Atlanta, GA',
+  'Macon, GA': 'Atlanta, GA',
   'Chattanooga, TN-GA': 'Atlanta, GA',
   // TX
   'Dallas-Fort Worth, TX': 'Dallas, TX',
   'Dallas / Fort Worth, TX': 'Dallas, TX',
   'Fort Worth, TX': 'Dallas, TX',
-  'San Antonio, TX': 'Dallas, TX',
-  'Austin-San Marcos, TX': 'Dallas, TX',
-  'Austin, TX': 'Dallas, TX',
+  'Austin-San Marcos, TX': 'Austin, TX',
   'Brazoria, TX': 'Houston, TX',
   'Galveston-Texas City, TX': 'Houston, TX',
   // TN
@@ -89,18 +110,33 @@ export const MARKET_ALIAS: Record<string, string> = {
   'DaytonaBeach, FL': 'Daytona Beach, FL',
   'Ormond Beach, FL': 'Daytona Beach, FL',
   'Melbourne-Titusville-Palm Bay, FL': 'Space Coast, FL',
+  'Palm Bay, FL': 'Space Coast, FL',
   'Lakeland-Winter Haven, FL': 'Lakeland, FL',
   'Jacksonville-St. Augustine, FL': 'Jacksonville, FL',
   'Tampa-St. Petersburg-Clearwater, FL': 'Tampa, FL',
+  'St. Petersburg, FL': 'Tampa, FL',
+  'Clearwater, FL': 'Tampa, FL',
   'Sarasota-Bradenton, FL': 'Sarasota, FL',
-  'Fort Myers-Cape Coral, FL': 'Fort Myers, FL',
-  'Punta Gorda, FL': 'Fort Myers, FL',
+  'Fort Myers-Cape Coral, FL': 'Naples/Fort Myers, FL',
+  'Fort Myers, FL': 'Naples/Fort Myers, FL',
+  'Naples, FL': 'Naples/Fort Myers, FL',
+  'Punta Gorda, FL': 'Naples/Fort Myers, FL',
   'Fort Lauderdale-Hollywood, FL': 'Fort Lauderdale, FL',
   'West Palm Beach-Boca Raton, FL': 'West Palm Beach, FL',
   'Fort Pierce-Port St. Lucie, FL': 'Port St. Lucie, FL',
   'Port St Lucie, FL': 'Port St. Lucie, FL',
-  'Mrytle Beach, SC': 'Myrtle Beach, SC',
+  'Coconut Creek, FL': 'South Florida',
+  'Davie, FL': 'South Florida',
+  'Pembroke Pines, FL': 'South Florida',
+  'Boynton Beach, FL': 'South Florida',
+  'Delray Beach, FL': 'South Florida',
+  'Jupiter, FL': 'South Florida',
+  'Palm Beach, FL': 'South Florida',
+  'Lake Worth, FL': 'South Florida',
+  'Stuart, FL': 'South Florida',
+  'Vero Beach, FL': 'South Florida',
 }
+
 
 export function getRegion(market: string): Region {
   // Direct match
@@ -118,7 +154,7 @@ export function getRegion(market: string): Region {
 }
 
 export const REGION_LABELS: Record<Region, string> = {
-  DC: 'DC MSA', Carolinas: 'Carolinas', GA: 'Georgia',
+  DC: 'Mid-Atlantic', Carolinas: 'Carolinas', GA: 'Georgia',
   TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
 }
 
