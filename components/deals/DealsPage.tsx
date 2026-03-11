@@ -70,24 +70,22 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
 
   function crCell(deal: Deal) {
-    // BOE cap rate first
-    const boe = boeMap[deal.name]
-    if (boe && boe.t12 && Object.keys(boe.t12).length > 0 && deal.purchase_price) {
-      // Quick approximate cap rate from stored BOE (PF NOI / PP)
-      // For display we show the stored adj cap rate if available
-      const cr = capRateMap[deal.name]
-      if (cr?.noi_cap_rate) {
-        const pct = Number(cr.noi_cap_rate)
-        return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}<sup style={{fontSize:7,opacity:.5,marginLeft:1}}>BOE</sup></span>
-      }
-    }
     const cr = capRateMap[deal.name]
-    if (cr) {
-      const v = cr.broker_cap_rate ?? cr.noi_cap_rate
-      if (v) {
-        const pct = Number(v)
-        return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}</span>
-      }
+    const boe = boeMap[deal.name]
+    const badge = (boe as any)?.noi_badge ?? 'BOE'
+
+    if (cr?.noi_cap_rate) {
+      const pct = Number(cr.noi_cap_rate)
+      return (
+        <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>
+          {fmtPct(pct)}
+          <sup style={{fontSize:7,opacity:.5,marginLeft:1}}>{badge}</sup>
+        </span>
+      )
+    }
+    if (cr?.broker_cap_rate) {
+      const pct = Number(cr.broker_cap_rate)
+      return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}</span>
     }
     return <span className="cr-none">—</span>
   }

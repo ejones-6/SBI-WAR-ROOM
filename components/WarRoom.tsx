@@ -125,21 +125,12 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
 
   const refreshDeals = useCallback(async () => {
     const sb = createClient()
-    // Fetch ALL deals paginated — no limit, so nothing gets missed after upload
-    let allDeals: any[] = []
-    let pg = 0
-    while (true) {
-      const { data } = await sb.from('deals').select('*').order('modified', { ascending: false }).range(pg * 1000, (pg + 1) * 1000 - 1)
-      if (!data || data.length === 0) break
-      allDeals = [...allDeals, ...data]
-      if (data.length < 1000) break
-      pg++
-    }
-    const [boeRes, crRes] = await Promise.all([
+    const [dealsRes, boeRes, crRes] = await Promise.all([
+      sb.from('deals').select('*').order('modified', { ascending: false }).limit(2500),
       sb.from('boe_data').select('*'),
       sb.from('cap_rates').select('*'),
     ])
-    if (allDeals.length > 0) setDeals(allDeals)
+    if (dealsRes.data && dealsRes.data.length > 0) setDeals(dealsRes.data)
     if (boeRes.data) setBoeMap(Object.fromEntries(boeRes.data.map((b: any) => [b.deal_name, b])))
     if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
   }, [])
@@ -181,7 +172,9 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     })
     if (res.ok) {
       const saved: BoeData = await res.json()
-      setBoeMap(prev => ({ ...prev, [saved.deal_name]: saved }))
+      // Merge in fields that may not round-trip through API (noi_badge, pf_noi_override)
+      const merged = { ...saved, noi_badge: boe.noi_badge, pf_noi_override: boe.pf_noi_override }
+      setBoeMap(prev => ({ ...prev, [merged.deal_name]: merged }))
       // Also refresh cap rates after BOE save to pick up any new value
       setTimeout(async () => {
         const crRes = await fetch('/api/cap-rates')
@@ -190,7 +183,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           if (Array.isArray(crData)) setCapRateMap(Object.fromEntries(crData.map((c: any) => [c.deal_name, c])))
         }
       }, 800)
-      return saved
+      return merged
     }
   }, [])
 
@@ -349,7 +342,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
           {page === 'upload' && (
-            <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} onGoToDeals={() => setPage('deals')} />
+            <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
           )}
         </div>
       </main>
@@ -379,26 +372,17 @@ function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
 // Upload Pipeline Page
-function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDealsImported: () => Promise<void>, addDeal: (deal: any) => Promise<any>, onGoToDeals: () => void }) {
+function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () => void, addDeal: (deal: any) => Promise<any> }) {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
+  const [imported, setImported] = useState(0)
   const [insertedCount, setInsertedCount] = useState(0)
   const [updatedCount, setUpdatedCount] = useState(0)
-  const [skippedCount, setSkippedCount] = useState(0)
-  const [importProgress, setImportProgress] = useState('')
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'new'|'active'|'passed'|'all'>('new')
-
-  function reset() {
-    setStatus('idle'); setPreview([]); setInsertedCount(0); setUpdatedCount(0); setSkippedCount(0)
-    setImportProgress(''); setError(''); setActiveTab('new')
-  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    // Reset input so same file can be re-uploaded
-    e.target.value = ''
     setStatus('parsing')
     setError('')
     try {
@@ -406,9 +390,10 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { cellDates: true })
       const ws = wb.Sheets['Deal Log'] ?? wb.Sheets[wb.SheetNames[0]]
+      // Find the header row — look for row containing 'Deal Name'
       const allRows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
       const headerRowIdx = allRows.findIndex(r => r.some((c: any) => String(c).trim() === 'Deal Name'))
-      if (headerRowIdx < 0) throw new Error('Could not find "Deal Name" column — is this a Rediq Deal Log?')
+      if (headerRowIdx < 0) throw new Error('Could not find Deal Name column in file')
       const headers: string[] = allRows[headerRowIdx].map((c: any) => String(c).trim())
       const dataRows = allRows.slice(headerRowIdx + 1)
 
@@ -416,53 +401,38 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
         const idx = headers.indexOf(name)
         return idx >= 0 ? r[idx] : ''
       }
-
-      // Handles JS Date objects (SheetJS cellDates:true), Excel serials, and strings
       const parseDate = (v: any): string | null => {
-        if (!v && v !== 0) return null
-        if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().split('T')[0]
+        if (!v) return null
+        // Handle Excel serial numbers (SheetJS returns dates as numbers e.g. 46462)
         if (typeof v === 'number') {
           const d = new Date(Math.round((v - 25569) * 86400 * 1000))
           return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
         }
-        const s = String(v).trim()
-        if (!s) return null
-        const d = new Date(s)
+        const d = new Date(v)
         return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
       }
 
-      // Send ALL deals — API mirrors Rediq fields, preserves War Room fields
-      const deals = dataRows
-        .map((r: any[]) => ({
-          name:           String(col(r, 'Deal Name') || '').trim(),
-          status:         String(col(r, 'Status') || '1 - New').trim(),
-          market:         String(col(r, 'Market') || '').trim(),
-          units:          parseInt(String(col(r, 'Units'))) || null,
-          year_built:     parseInt(String(col(r, 'Year Built'))) || null,
+      const deals = dataRows.map((r: any[]) => {
+        const name = String(col(r, 'Deal Name') || '').trim()
+        const status = String(col(r, 'Status') || '1 - New').trim()
+        return {
+          name,
+          status,
+          market: String(col(r, 'Market') || '').trim(),
+          units: parseInt(String(col(r, 'Units'))) || null,
+          year_built: parseInt(String(col(r, 'Year Built'))) || null,
           purchase_price: parseFloat(String(col(r, 'Purchase Price') || '').replace(/[,$]/g, '')) || null,
           price_per_unit: parseFloat(String(col(r, '$ / Unit') || '').replace(/[,$]/g, '')) || null,
-          bid_due_date:   parseDate(col(r, 'Bid Due Date')),
-          broker:         String(col(r, 'Broker') || '').trim() || null,
-          address:        String(col(r, 'Address') || '').trim() || null,
-          added:          parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
-          modified:       parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
-        }))
-        .filter(d => d.name)
-        .filter(d => {
-          // Always include active pipeline — these can be inserted or updated
-          if (['1 - New', '2 - Active', '5 - Dormant'].includes(d.status)) return true
-          // Passed/Lost: only include if modified in last 30 days
-          // Prevents re-sending 1800 stale deals but catches recent status changes like Active → Passed
-          if (['6 - Passed', '7 - Lost'].includes(d.status) && d.modified) {
-            const cutoff = new Date()
-            cutoff.setDate(cutoff.getDate() - 30)
-            return new Date(d.modified) >= cutoff
-          }
-          return false
-        })
+          bid_due_date: parseDate(col(r, 'Bid Due Date')),
+          comments: String(col(r, 'Comments') || '').trim() || null,
+          broker: String(col(r, 'Broker') || '').trim() || null,
+          address: String(col(r, 'Address') || '').trim() || null,
+          added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
+          modified: new Date().toISOString().split('T')[0],
+        }
+      }).filter(d => d.name && !['6','7','8','9'].some(n => d.status.startsWith(n + ' -')))
 
       setPreview(deals)
-      setActiveTab('new')
       setStatus('preview')
     } catch (err: any) {
       setError('Failed to parse file: ' + err.message)
@@ -472,7 +442,6 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
 
   async function handleImport() {
     setStatus('importing')
-    setImportProgress('Comparing ' + preview.length + ' deals against database…')
     try {
       const res = await fetch('/api/deals', {
         method: 'POST',
@@ -483,175 +452,90 @@ function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDeals
         const result = await res.json()
         setInsertedCount(result.inserted ?? 0)
         setUpdatedCount(result.updated ?? 0)
-        setImportProgress('')
-        await onDealsImported()
-        setStatus('done')
-      } else {
-        const err = await res.json()
-        setError('Import failed: ' + (err.error ?? res.status))
-        setStatus('preview')
+        setImported((result.inserted ?? 0) + (result.updated ?? 0))
+        onDealsImported()
       }
-    } catch (e: any) {
-      setError('Import failed: ' + e.message)
-      setStatus('preview')
-    }
+    } catch {}
+    setStatus('done')
   }
 
-  // Preview breakdown
-  const newDeals     = preview.filter(d => d.status.startsWith('1 -'))
-  const activeDeals  = preview.filter(d => d.status.startsWith('2 -'))
-  const passedDeals  = preview.filter(d => d.status.startsWith('6 -') || d.status.startsWith('7 -'))
-  const otherDeals   = preview.filter(d => !d.status.startsWith('1 -') && !d.status.startsWith('2 -') && !d.status.startsWith('6 -') && !d.status.startsWith('7 -'))
-
-  const tabDeals = activeTab === 'new' ? newDeals : activeTab === 'active' ? activeDeals : activeTab === 'passed' ? passedDeals : preview
-
-  const card: React.CSSProperties = { background: '#fff', borderRadius: 12, padding: 32, border: '1px solid rgba(13,27,46,0.08)' }
-
-  const statusColor = (s: string) => {
-    if (s.startsWith('1 -')) return { bg: 'rgba(46,125,80,0.1)', color: '#1E7A4A' }
-    if (s.startsWith('2 -')) return { bg: 'rgba(201,168,76,0.15)', color: '#8A6500' }
-    if (s.startsWith('6 -') || s.startsWith('7 -')) return { bg: 'rgba(192,57,43,0.08)', color: '#C0392B' }
-    return { bg: 'rgba(13,27,46,0.06)', color: '#8A9BB0' }
-  }
+  const cardStyle = { background: '#fff', borderRadius: 12, padding: 32, border: '1px solid rgba(13,27,46,0.08)' }
+  const labelStyle: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }
 
   return (
-    <div style={{ padding: 32, maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding: 32, maxWidth: 800, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: '#0D1B2E' }}>Upload Pipeline from Rediq</div>
-        <div style={{ fontSize: 13, color: '#8A9BB0', marginTop: 4 }}>
-          Mirrors your Rediq Deal Log exactly — status, bid dates, new deals. Preserves all BOE, comments, buyer/seller info.
-        </div>
+        <div style={{ fontSize: 13, color: '#8A9BB0', marginTop: 4 }}>Drop your latest Deal Log Excel file to import new deals into the War Room</div>
       </div>
 
-      {/* ── Drop zone ── */}
-      {(status === 'idle' || status === 'parsing') && (
-        <div style={card}>
+      {status === 'idle' || status === 'parsing' ? (
+        <div style={cardStyle}>
           <label style={{ display: 'block', border: '2px dashed rgba(13,27,46,0.15)', borderRadius: 10, padding: '48px 32px', textAlign: 'center', cursor: 'pointer', transition: 'border-color .2s' }}
             onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(13,27,46,0.15)')}>
             <input type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: 'none' }} />
-            <div style={{ fontSize: 32, marginBottom: 12 }}>{status === 'parsing' ? '⏳' : '📊'}</div>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
             <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', marginBottom: 6 }}>
-              {status === 'parsing' ? 'Reading file…' : 'Click to select your Rediq Deal Log'}
+              {status === 'parsing' ? 'Parsing file…' : 'Drop your Rediq Deal Log here'}
             </div>
-            <div style={{ fontSize: 12, color: '#8A9BB0' }}>Supports .xlsx and .xls · All 2,000+ deals synced in one shot</div>
+            <div style={{ fontSize: 12, color: '#8A9BB0' }}>Supports .xlsx and .xls files from Rediq</div>
           </label>
-          {error && <div style={{ marginTop: 16, padding: '10px 14px', background: 'rgba(192,57,43,0.07)', borderRadius: 8, color: '#C0392B', fontSize: 13 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, color: '#C0392B', fontSize: 13 }}>{error}</div>}
         </div>
-      )}
-
-      {/* ── Preview ── */}
-      {status === 'preview' && (
-        <div style={card}>
-          {/* Summary stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
-            {[
-              { label: 'New', count: newDeals.length, color: '#1E7A4A', bg: 'rgba(46,125,80,0.08)', tab: 'new' as const },
-              { label: 'Active', count: activeDeals.length, color: '#8A6500', bg: 'rgba(201,168,76,0.12)', tab: 'active' as const },
-              { label: 'Passed / Lost', count: passedDeals.length, color: '#C0392B', bg: 'rgba(192,57,43,0.06)', tab: 'passed' as const },
-              { label: 'Total in file', count: preview.length, color: '#0D1B2E', bg: 'rgba(13,27,46,0.04)', tab: 'all' as const },
-            ].map(s => (
-              <button key={s.tab} onClick={() => setActiveTab(s.tab)} style={{
-                padding: '14px 16px', borderRadius: 10, border: `2px solid ${activeTab === s.tab ? s.color : 'transparent'}`,
-                background: s.bg, cursor: 'pointer', textAlign: 'left',
-              }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums' }}>{s.count}</div>
-                <div style={{ fontSize: 11, color: s.color, fontWeight: 600, marginTop: 2, opacity: 0.8 }}>{s.label}</div>
-              </button>
-            ))}
-          </div>
-
-          {/* Tab label + actions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: '#8A9BB0' }}>
-              Showing <strong style={{ color: '#0D1B2E' }}>{tabDeals.length}</strong> {activeTab === 'all' ? 'total' : activeTab} deals
-              {otherDeals.length > 0 && activeTab !== 'all' && <span> · {otherDeals.length} dormant/owned/exited also included</span>}
+      ) : status === 'preview' ? (
+        <div style={cardStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>{preview.length} deals found</div>
+              <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 2 }}>Review before importing</div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={reset} style={{ padding: '8px 18px', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 7, background: '#fff', color: '#8A9BB0', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleImport} style={{ padding: '8px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' }}>
-                Sync {preview.length} Deals to War Room →
+              <button onClick={() => setStatus('idle')} style={{ padding: '8px 18px', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 7, background: '#fff', color: '#8A9BB0', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleImport} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                Import {preview.length} Deals →
               </button>
             </div>
           </div>
-
-          {error && <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(192,57,43,0.07)', borderRadius: 8, color: '#C0392B', fontSize: 13 }}>{error}</div>}
-
-          {/* Deals table */}
-          <div style={{ overflowX: 'auto', maxHeight: 420, overflowY: 'auto', borderRadius: 8, border: '1px solid rgba(13,27,46,0.07)' }}>
+          <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <thead>
                 <tr style={{ background: '#0D1B2E' }}>
-                  {['Deal Name', 'Status', 'Market', 'Units', 'Bid Date', 'Price', 'Broker'].map(h => (
-                    <th key={h} style={{ padding: '9px 12px', textAlign: 'left', color: '#F0B429', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  {['Deal Name', 'Status', 'Market', 'Units', 'Year', 'Price', 'Broker'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#F0B429', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tabDeals.map((d, i) => {
-                  const sc = statusColor(d.status)
-                  return (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)' }}>
-                      <td style={{ padding: '7px 12px', fontWeight: 500, color: '#0D1B2E', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</td>
-                      <td style={{ padding: '7px 12px' }}>
-                        <span style={{ background: sc.bg, color: sc.color, borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{d.status}</span>
-                      </td>
-                      <td style={{ padding: '7px 12px', color: '#8A9BB0', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.market || '—'}</td>
-                      <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.units?.toLocaleString() ?? '—'}</td>
-                      <td style={{ padding: '7px 12px', color: d.bid_due_date ? '#0D1B2E' : '#8A9BB0', fontWeight: d.bid_due_date ? 500 : 400 }}>{d.bid_due_date ?? '—'}</td>
-                      <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.purchase_price ? `$${(d.purchase_price/1e6).toFixed(1)}M` : '—'}</td>
-                      <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.broker || '—'}</td>
-                    </tr>
-                  )
-                })}
+                {preview.slice(0, 20).map((d, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)' }}>
+                    <td style={{ padding: '7px 12px', fontWeight: 500, color: '#0D1B2E', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.status}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.market}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.units ?? '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.year_built ?? '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.purchase_price ? `$${(d.purchase_price/1e6).toFixed(1)}M` : '—'}</td>
+                    <td style={{ padding: '7px 12px', color: '#8A9BB0' }}>{d.broker || '—'}</td>
+                  </tr>
+                ))}
+                {preview.length > 20 && (
+                  <tr><td colSpan={7} style={{ padding: '8px 12px', color: '#8A9BB0', fontSize: 11, textAlign: 'center' }}>…and {preview.length - 20} more deals</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
-      )}
-
-      {/* ── Importing ── */}
-      {status === 'importing' && (
-        <div style={{ ...card, textAlign: 'center', padding: 64 }}>
-          <div style={{ fontSize: 28, marginBottom: 16 }}>⏳</div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', marginBottom: 8 }}>Syncing with Supabase…</div>
-          <div style={{ fontSize: 13, color: '#8A9BB0' }}>{importProgress}</div>
-          <div style={{ width: 200, height: 3, background: 'rgba(13,27,46,0.08)', borderRadius: 2, margin: '20px auto 0', overflow: 'hidden' }}>
-            <div style={{ width: '60%', height: '100%', background: '#C9A84C', borderRadius: 2, animation: 'pulse 1.2s ease-in-out infinite' }} />
-          </div>
+      ) : status === 'importing' ? (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
+          <div style={{ fontSize: 13, color: '#8A9BB0' }}>Importing deals into Supabase…</div>
         </div>
-      )}
-
-      {/* ── Done ── */}
-      {status === 'done' && (
-        <div style={{ ...card, padding: 40 }}>
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>✅</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#0D1B2E', marginBottom: 8 }}>War Room synced with Rediq</div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 16 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#1E7A4A' }}>{insertedCount}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>New deals added</div>
-              </div>
-              <div style={{ width: 1, background: 'rgba(13,27,46,0.1)' }} />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#C9A84C' }}>{updatedCount}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Deals updated</div>
-              </div>
-              <div style={{ width: 1, background: 'rgba(13,27,46,0.1)' }} />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#8A9BB0' }}>{skippedCount}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Unchanged</div>
-              </div>
-            </div>
-          </div>
-          <div style={{ background: 'rgba(13,27,46,0.02)', border: '1px solid rgba(13,27,46,0.07)', borderRadius: 10, padding: '14px 20px', fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>
-            ✓ &nbsp;BOE underwriting data preserved &nbsp;·&nbsp; ✓ Comments preserved &nbsp;·&nbsp; ✓ Buyer / Seller / Sold Price preserved
-          </div>
-          <div style={{ textAlign: 'center', display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button onClick={reset} style={{ padding: '10px 24px', background: '#fff', color: '#0D1B2E', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Upload Another</button>
-            <button onClick={onGoToDeals} style={{ padding: '10px 28px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>View Deals →</button>
-          </div>
+      ) : (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>Done! {imported} deals processed</div>
+          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new deals added</span> · <span style={{color:'#F0B429',fontWeight:600}}>{updatedCount} existing deals updated</span></div>
+          <div style={{ fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>BOE data, comments, seller/buyer info preserved on all existing deals</div>
+          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0); setInsertedCount(0); setUpdatedCount(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
         </div>
       )}
     </div>
