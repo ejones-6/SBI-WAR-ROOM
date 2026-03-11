@@ -135,16 +135,19 @@ export async function POST(req: NextRequest) {
         if (data) inserted += data.length
       }
 
-      // Update only changed fields on changed deals — targeted, no risk of overwriting anything
+      // Update only changed fields — run in parallel batches of 10 (fast, no rate limits)
       let updated = 0
-      for (const { name, changes } of toUpdate) {
-        const { data, error } = await supabase
-          .from('deals')
-          .update(changes)
-          .eq('name', name)
-          .select('id')
-        if (error) console.error('Update error for', name, ':', error.message)
-        if (data && data.length > 0) updated++
+      for (let i = 0; i < toUpdate.length; i += 10) {
+        const batch = toUpdate.slice(i, i + 10)
+        const results = await Promise.all(
+          batch.map(({ name, changes }) =>
+            supabase.from('deals').update(changes).eq('name', name).select('id')
+          )
+        )
+        for (const { data, error } of results) {
+          if (error) console.error('Update error:', error.message)
+          if (data && data.length > 0) updated++
+        }
       }
 
       const skipped = incoming.length - toInsert.length - toUpdate.length

@@ -125,12 +125,21 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
 
   const refreshDeals = useCallback(async () => {
     const sb = createClient()
-    const [dealsRes, boeRes, crRes] = await Promise.all([
-      sb.from('deals').select('*').order('modified', { ascending: false }).limit(2500),
+    // Fetch ALL deals paginated — no limit, so nothing gets missed after upload
+    let allDeals: any[] = []
+    let pg = 0
+    while (true) {
+      const { data } = await sb.from('deals').select('*').order('modified', { ascending: false }).range(pg * 1000, (pg + 1) * 1000 - 1)
+      if (!data || data.length === 0) break
+      allDeals = [...allDeals, ...data]
+      if (data.length < 1000) break
+      pg++
+    }
+    const [boeRes, crRes] = await Promise.all([
       sb.from('boe_data').select('*'),
       sb.from('cap_rates').select('*'),
     ])
-    if (dealsRes.data && dealsRes.data.length > 0) setDeals(dealsRes.data)
+    if (allDeals.length > 0) setDeals(allDeals)
     if (boeRes.data) setBoeMap(Object.fromEntries(boeRes.data.map((b: any) => [b.deal_name, b])))
     if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
   }, [])
@@ -340,7 +349,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
           {page === 'upload' && (
-            <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
+            <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} onGoToDeals={() => setPage('deals')} />
           )}
         </div>
       </main>
@@ -370,17 +379,18 @@ function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
 // Upload Pipeline Page
-function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () => void, addDeal: (deal: any) => Promise<any> }) {
+function UploadPipelinePage({ onDealsImported, addDeal, onGoToDeals }: { onDealsImported: () => Promise<void>, addDeal: (deal: any) => Promise<any>, onGoToDeals: () => void }) {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
   const [insertedCount, setInsertedCount] = useState(0)
   const [updatedCount, setUpdatedCount] = useState(0)
+  const [skippedCount, setSkippedCount] = useState(0)
   const [importProgress, setImportProgress] = useState('')
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'new'|'active'|'passed'|'all'>('new')
 
   function reset() {
-    setStatus('idle'); setPreview([]); setInsertedCount(0); setUpdatedCount(0)
+    setStatus('idle'); setPreview([]); setInsertedCount(0); setUpdatedCount(0); setSkippedCount(0)
     setImportProgress(''); setError(''); setActiveTab('new')
   }
 
@@ -450,7 +460,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
 
   async function handleImport() {
     setStatus('importing')
-    setImportProgress('Sending ' + preview.length + ' deals to database…')
+    setImportProgress('Comparing ' + preview.length + ' deals against database…')
     try {
       const res = await fetch('/api/deals', {
         method: 'POST',
@@ -462,7 +472,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
         setInsertedCount(result.inserted ?? 0)
         setUpdatedCount(result.updated ?? 0)
         setImportProgress('')
-        onDealsImported()
+        await onDealsImported()
         setStatus('done')
       } else {
         const err = await res.json()
@@ -618,16 +628,17 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
               </div>
               <div style={{ width: 1, background: 'rgba(13,27,46,0.1)' }} />
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: '#0D1B2E' }}>{insertedCount + updatedCount}</div>
-                <div style={{ fontSize: 11, color: '#8A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total processed</div>
+                <div style={{ fontSize: 28, fontWeight: 700, color: '#8A9BB0' }}>{skippedCount}</div>
+                <div style={{ fontSize: 11, color: '#8A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Unchanged</div>
               </div>
             </div>
           </div>
           <div style={{ background: 'rgba(13,27,46,0.02)', border: '1px solid rgba(13,27,46,0.07)', borderRadius: 10, padding: '14px 20px', fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>
             ✓ &nbsp;BOE underwriting data preserved &nbsp;·&nbsp; ✓ Comments preserved &nbsp;·&nbsp; ✓ Buyer / Seller / Sold Price preserved
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <button onClick={reset} style={{ padding: '10px 28px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another Log</button>
+          <div style={{ textAlign: 'center', display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <button onClick={reset} style={{ padding: '10px 24px', background: '#fff', color: '#0D1B2E', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Upload Another</button>
+            <button onClick={onGoToDeals} style={{ padding: '10px 28px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>View Deals →</button>
           </div>
         </div>
       )}
