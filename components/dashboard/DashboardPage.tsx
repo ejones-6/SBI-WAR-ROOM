@@ -308,31 +308,18 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
   useEffect(() => {
     async function loadRates() {
+      // Try multiple CORS proxies + direct in parallel, take first success
       const SYMBOLS = ['^TNX', '^FVX', '^IRX', '^GSPC', '^DJI', 'BTC-USD', 'AVB', 'EQR', 'MAA', 'ESS']
-      const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${SYMBOLS.join(',')}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`
+      const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(SYMBOLS.join(','))}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`
 
-      // Browser fetches Yahoo via allorigins CORS proxy — no server needed, no auth issues
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`
-
-      try {
-        const res = await fetch(proxyUrl)
-        const wrapper = await res.json()
-        const data = JSON.parse(wrapper.contents)
-        const results: any[] = data?.quoteResponse?.result ?? []
-
+      function parseYahooResults(results: any[]) {
         const m: Record<string, any> = {}
         for (const r of results) {
-          m[r.symbol] = {
-            price:  r.regularMarketPrice ?? null,
-            change: r.regularMarketChange ?? null,
-            pct:    r.regularMarketChangePercent ?? null,
-          }
+          m[r.symbol] = { price: r.regularMarketPrice ?? null, change: r.regularMarketChange ?? null, pct: r.regularMarketChangePercent ?? null }
         }
-
         const fiveY = m['^FVX']?.price ?? null
         const tenY  = m['^TNX']?.price ?? null
-
-        setRates({
+        return {
           sofr:   m['^IRX']    ? { rate: m['^IRX'].price,    change: m['^IRX'].change   } : null,
           fiveY:  m['^FVX']    ? { rate: m['^FVX'].price,    change: m['^FVX'].change   } : null,
           sevenY: (fiveY && tenY) ? { rate: +(fiveY * 0.4 + tenY * 0.6).toFixed(3) }    : null,
@@ -344,13 +331,54 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           eqr:    m['EQR']     ? { price: m['EQR'].price,    change: m['EQR'].change,    pct: m['EQR'].pct    } : null,
           maa:    m['MAA']     ? { price: m['MAA'].price,    change: m['MAA'].change,    pct: m['MAA'].pct    } : null,
           ess:    m['ESS']     ? { price: m['ESS'].price,    change: m['ESS'].change,    pct: m['ESS'].pct    } : null,
-        })
+        }
+      }
+
+      async function tryProxy(proxyUrl: string) {
+        const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) })
+        if (!r.ok) throw new Error(`${r.status}`)
+        const wrapper = await r.json()
+        const raw = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper
+        const results: any[] = raw?.quoteResponse?.result ?? []
+        if (!results.length) throw new Error('empty')
+        return parseYahooResults(results)
+      }
+
+      async function tryDirect() {
+        const r = await fetch(yahooUrl, { signal: AbortSignal.timeout(6000) })
+        if (!r.ok) throw new Error(`${r.status}`)
+        const raw = await r.json()
+        const results: any[] = raw?.quoteResponse?.result ?? []
+        if (!results.length) throw new Error('empty')
+        return parseYahooResults(results)
+      }
+
+      async function tryServerRoute() {
+        const r = await fetch('/api/rates', { signal: AbortSignal.timeout(10000) })
+        if (!r.ok) throw new Error(`${r.status}`)
+        const d = await r.json()
+        if (d.error || !d.sp500) throw new Error('no data')
+        return d
+      }
+
+      const proxies = [
+        'https://api.allorigins.win/get?url=' + encodeURIComponent(yahooUrl),
+        'https://corsproxy.io/?' + encodeURIComponent(yahooUrl),
+        'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(yahooUrl),
+      ]
+
+      // Race all sources — take first winner
+      const attempts = [
+        tryDirect(),
+        ...proxies.map(p => tryProxy(p)),
+        tryServerRoute(),
+      ]
+
+      try {
+        const result = await Promise.any(attempts)
+        setRates(result)
       } catch {
-        // Last resort: try the server route
-        try {
-          const r = await fetch('/api/rates')
-          if (r.ok) { const d = await r.json(); if (!d.error) setRates(d) }
-        } catch {}
+        console.warn('All rate sources failed')
       }
       setRatesLoading(false)
     }
