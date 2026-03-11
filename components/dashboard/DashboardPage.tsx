@@ -51,183 +51,137 @@ const MARKET_SHORT: Record<string, string> = {
 function shortMarket(m: string) { return MARKET_SHORT[m] || m.split(',')[0].replace(/--/g, '/') }
 
 function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
-  const [selectedRegion, setSelectedRegion] = useState<string>('All')
-  const [sortBy, setSortBy] = useState<'deals' | 'guidance'>('deals')
-  const [expandedBroker, setExpandedBroker] = useState<string | null>(null)
+  // Only 2026 deals
+  const deals2026 = useMemo(() => deals.filter(d => d.added && new Date(d.added).getFullYear() === 2026), [deals])
 
-  const REGIONS = ['All', 'DC MSA', 'N. Carolina', 'S. Carolina', 'Georgia', 'Texas', 'Nashville', 'Florida', 'Misc']
+  // Build market list sorted by deal count (only markets with broker data)
+  const marketList = useMemo(() => {
+    const counts: Record<string, number> = {}
+    deals2026.forEach(d => { if (d.broker && d.market) counts[d.market] = (counts[d.market] || 0) + 1 })
+    return [
+      { market: 'All Markets', count: deals2026.filter(d => d.broker).length },
+      ...Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([market, count]) => ({ market, count }))
+    ]
+  }, [deals2026])
 
-  const filtered = useMemo(() => {
-    if (selectedRegion === 'All') return deals
-    return deals.filter(d => {
-      const region = getRegion(d.market || '')
-      return (REGION_LABELS as any)[region] === selectedRegion
-    })
-  }, [deals, selectedRegion])
+  const [selectedMarket, setSelectedMarket] = useState<string>('All Markets')
 
-  const brokerStats = useMemo(() => {
-    const stats: Record<string, { deals: number; guidance: number; markets: Record<string, number>; regions: Record<string, number> }> = {}
-    filtered.forEach(d => {
-      if (!d.broker) return
-      const b = d.broker.trim()
-      if (!stats[b]) stats[b] = { deals: 0, guidance: 0, markets: {}, regions: {} }
-      stats[b].deals++
-      if (d.purchase_price) stats[b].guidance += d.purchase_price
-      const mkt = d.market || 'Unknown'
-      stats[b].markets[mkt] = (stats[b].markets[mkt] || 0) + 1
-      const region = (REGION_LABELS as any)[getRegion(mkt)] || 'Misc'
-      stats[b].regions[region] = (stats[b].regions[region] || 0) + 1
-    })
-    return Object.entries(stats)
-      .map(([name, s]) => ({ name, ...s, topMarkets: Object.entries(s.markets).sort((a,b) => b[1]-a[1]).slice(0, 5), topRegions: Object.entries(s.regions).sort((a,b) => b[1]-a[1]) }))
-      .sort((a, b) => sortBy === 'deals' ? b.deals - a.deals : b.guidance - a.guidance)
-      .slice(0, 10)
-  }, [filtered, sortBy])
+  const brokerRanking = useMemo(() => {
+    const src = selectedMarket === 'All Markets' ? deals2026 : deals2026.filter(d => d.market === selectedMarket)
+    const counts: Record<string, number> = {}
+    src.forEach(d => { if (d.broker) { const b = d.broker.trim(); counts[b] = (counts[b] || 0) + 1 } })
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count], i) => ({ name, count, color: BROKER_COLORS[i % BROKER_COLORS.length] }))
+  }, [deals2026, selectedMarket])
 
-  const maxDeals = brokerStats[0]?.deals || 1
-  const maxGuidance = brokerStats[0]?.guidance || 1
+  const maxCount = brokerRanking[0]?.count || 1
+  const totalDeals = selectedMarket === 'All Markets'
+    ? deals2026.filter(d => d.broker).length
+    : deals2026.filter(d => d.market === selectedMarket && d.broker).length
 
-  const fmtG = (n: number) => n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : `$${(n/1e6).toFixed(0)}M`
+  const regionLabel = selectedMarket === 'All Markets' ? '' : ((REGION_LABELS as any)[getRegion(selectedMarket)] || 'Misc')
 
   return (
     <div style={{ background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden', marginBottom: 16 }}>
       {/* Header */}
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Intelligence</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 1 }}>Broker Leaderboard</div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* Sort toggle */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: 2, border: '1px solid rgba(201,168,76,0.12)' }}>
-            {(['deals', 'guidance'] as const).map(s => (
-              <button key={s} onClick={() => setSortBy(s)} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: sortBy === s ? 'rgba(201,168,76,0.2)' : 'transparent', color: sortBy === s ? '#C9A84C' : 'rgba(245,244,239,0.4)', fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                {s === 'deals' ? '# Deals' : 'Guidance $'}
-              </button>
-            ))}
-          </div>
-          {/* Region filter */}
-          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {REGIONS.map(r => (
-              <button key={r} onClick={() => setSelectedRegion(r)} style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid', borderColor: selectedRegion === r ? '#C9A84C' : 'rgba(201,168,76,0.15)', background: selectedRegion === r ? 'rgba(201,168,76,0.15)' : 'transparent', color: selectedRegion === r ? '#C9A84C' : 'rgba(245,244,239,0.4)', fontSize: 9, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
-                {r}
-              </button>
-            ))}
-          </div>
+      <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>2026 · Intelligence</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 2 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>Broker Leaderboard</div>
+          <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>Click a market → see top brokers by deal count</div>
         </div>
       </div>
 
-      {/* Table */}
-      <div>
-        {/* Column headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: '28px 160px 1fr 100px 120px 160px', gap: 0, padding: '8px 20px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-          {['#', 'Broker', 'Deal Volume', 'Deals', 'Guidance', 'Top Markets'].map(h => (
-            <div key={h} style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.45)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>{h}</div>
-          ))}
-        </div>
-
-        {brokerStats.length === 0 ? (
-          <div style={{ padding: '24px 20px', color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>No broker data for this region</div>
-        ) : brokerStats.map((broker, idx) => {
-          const barWidth = sortBy === 'deals' ? (broker.deals / maxDeals) * 100 : (broker.guidance / maxGuidance) * 100
-          const color = BROKER_COLORS[idx % BROKER_COLORS.length]
-          const isExpanded = expandedBroker === broker.name
-          return (
-            <div key={broker.name}>
-              <div
-                onClick={() => setExpandedBroker(isExpanded ? null : broker.name)}
-                style={{ display: 'grid', gridTemplateColumns: '28px 160px 1fr 100px 120px 160px', gap: 0, padding: '12px 20px', borderBottom: '1px solid rgba(201,168,76,0.06)', cursor: 'pointer', alignItems: 'center', transition: 'background 0.1s', background: isExpanded ? 'rgba(201,168,76,0.06)' : 'transparent' }}
-                onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'transparent' }}
+      <div style={{ display: 'flex' }}>
+        {/* ── Market sidebar ── */}
+        <div style={{ width: 220, borderRight: '1px solid rgba(201,168,76,0.1)', overflowY: 'auto' as const, maxHeight: 500, flexShrink: 0 }}>
+          {marketList.map(({ market, count }) => {
+            const active = selectedMarket === market
+            const isAll = market === 'All Markets'
+            const region = isAll ? null : ((REGION_LABELS as any)[getRegion(market)] || null)
+            return (
+              <button key={market} onClick={() => setSelectedMarket(market)} style={{
+                width: '100%', textAlign: 'left' as const, padding: '9px 14px',
+                background: active ? 'rgba(201,168,76,0.1)' : 'transparent',
+                borderLeft: `3px solid ${active ? '#C9A84C' : 'transparent'}`,
+                border: 'none', borderBottom: '1px solid rgba(255,255,255,0.03)',
+                cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6
+              }}
+                onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
+                onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
               >
-                {/* Rank */}
-                <div style={{ fontSize: 11, fontWeight: 700, color: idx < 3 ? '#C9A84C' : 'rgba(245,244,239,0.25)' }}>#{idx+1}</div>
-
-                {/* Broker name */}
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ width: 6, height: 6, borderRadius: 2, background: color, flexShrink: 0 }} />
-                  {broker.name}
-                </div>
-
-                {/* Bar */}
-                <div style={{ paddingRight: 16 }}>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${barWidth}%`, background: color, borderRadius: 3, transition: 'width 0.4s ease', opacity: 0.8 }} />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: active ? '#C9A84C' : '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>
+                    {isAll ? 'All Markets' : shortMarket(market)}
                   </div>
+                  {region && <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.28)', marginTop: 1 }}>{region}</div>}
                 </div>
-
-                {/* Deal count */}
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{broker.deals}</div>
-
-                {/* Guidance */}
-                <div style={{ fontSize: 12, color: 'rgba(245,244,239,0.6)', fontFamily: "'DM Mono',monospace" }}>{fmtG(broker.guidance)}</div>
-
-                {/* Top markets */}
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {broker.topMarkets.slice(0,3).map(([mkt, cnt]) => (
-                    <span key={mkt} style={{ fontSize: 9, background: 'rgba(201,168,76,0.1)', color: '#C9A84C', borderRadius: 3, padding: '2px 6px', whiteSpace: 'nowrap' }}>
-                      {shortMarket(mkt)} <span style={{ opacity: 0.6 }}>({cnt})</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Expanded market breakdown */}
-              {isExpanded && (
-                <div style={{ padding: '14px 60px 16px', borderBottom: '1px solid rgba(201,168,76,0.08)', background: 'rgba(201,168,76,0.03)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                    {/* By Market */}
-                    <div>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>All Markets</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                        {broker.topMarkets.map(([mkt, cnt]) => {
-                          const pct = (cnt / broker.deals) * 100
-                          return (
-                            <div key={mkt}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                                <span style={{ fontSize: 11, color: 'rgba(245,244,239,0.65)' }}>{shortMarket(mkt)}</span>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{cnt} <span style={{ fontSize: 9, opacity: 0.5 }}>({pct.toFixed(0)}%)</span></span>
-                              </div>
-                              <div style={{ height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
-                                <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 2, opacity: 0.7 }} />
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                    {/* By Region */}
-                    <div>
-                      <div style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 10 }}>By Region</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {broker.topRegions.map(([region, cnt]) => (
-                          <div key={region} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, padding: '6px 12px', textAlign: 'center' }}>
-                            <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'Cormorant Garamond',serif" }}>{cnt}</div>
-                            <div style={{ fontSize: 8, color: 'rgba(245,244,239,0.4)', marginTop: 1, letterSpacing: '0.08em' }}>{region}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(201,168,76,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.25)', letterSpacing: '0.06em' }}>
-          Click a broker row to expand market breakdown · Showing top 10 of {Object.keys(deals.reduce((a: any, d) => { if(d.broker) a[d.broker]=1; return a }, {})).length} brokers
+                <span style={{ fontSize: 11, fontWeight: 700, color: active ? '#C9A84C' : 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", flexShrink: 0 }}>{count}</span>
+              </button>
+            )
+          })}
         </div>
-        <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.25)' }}>
-          {selectedRegion !== 'All' ? `Filtered: ${selectedRegion}` : `${filtered.length} total deals`}
+
+        {/* ── Broker rankings ── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' as const }}>
+          {/* Sub-header */}
+          <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(201,168,76,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>
+                {selectedMarket === 'All Markets' ? 'All 2026 Deals' : shortMarket(selectedMarket)}
+              </span>
+              {regionLabel && <span style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', marginLeft: 8 }}>{regionLabel}</span>}
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>
+              {totalDeals} deals · {brokerRanking.length} brokers
+            </div>
+          </div>
+
+          {/* Rankings */}
+          <div style={{ overflowY: 'auto' as const, maxHeight: 456 }}>
+            {brokerRanking.length === 0 ? (
+              <div style={{ padding: '28px 20px', color: 'rgba(255,255,255,0.25)', fontSize: 12, textAlign: 'center' as const }}>No broker data</div>
+            ) : brokerRanking.map((b, i) => {
+              const pct = (b.count / maxCount) * 100
+              const share = ((b.count / totalDeals) * 100).toFixed(0)
+              const medal = i === 0 ? '#C9A84C' : i === 1 ? '#A8A9AD' : i === 2 ? '#CD7F32' : null
+              return (
+                <div key={b.name} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 120px 48px 40px', alignItems: 'center', gap: 12, padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.1s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.025)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  {/* Rank badge */}
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: medal ? medal + '22' : 'rgba(255,255,255,0.04)', border: `1px solid ${medal || 'rgba(255,255,255,0.06)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: medal || 'rgba(245,244,239,0.25)' }}>{i + 1}</span>
+                  </div>
+
+                  {/* Name */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: 2, background: b.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{b.name}</span>
+                  </div>
+
+                  {/* Bar */}
+                  <div style={{ height: 5, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: b.color, borderRadius: 3, opacity: 0.7 }} />
+                  </div>
+
+                  {/* Count */}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace", textAlign: 'right' as const }}>{b.count}</div>
+
+                  {/* Market share */}
+                  <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.28)', fontFamily: "'DM Mono',monospace", textAlign: 'right' as const }}>{share}%</div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
   )
 }
+
 
 
 function RateRow({ label, value, change, loading }: { label: string; value: string; change?: string; loading?: boolean }) {
@@ -310,7 +264,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
     async function loadRates() {
       // Try multiple CORS proxies + direct in parallel, take first success
       const SYMBOLS = ['^TNX', '^FVX', '^IRX', '^GSPC', '^DJI', 'BTC-USD', 'AVB', 'EQR', 'MAA', 'ESS']
-      const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(SYMBOLS.join(','))}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`
+      const yahooUrl = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${SYMBOLS.join(',')}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`
 
       function parseYahooResults(results: any[]) {
         const m: Record<string, any> = {}
@@ -334,17 +288,22 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
         }
       }
 
-      async function tryProxy(proxyUrl: string) {
+      async function tryProxy(proxyUrl: string, wrapped = true) {
         const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) })
         if (!r.ok) throw new Error(`${r.status}`)
-        const wrapper = await r.json()
-        const raw = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper
+        let raw: any
+        if (wrapped) {
+          const wrapper = await r.json()
+          raw = typeof wrapper.contents === 'string' ? JSON.parse(wrapper.contents) : wrapper.contents
+        } else {
+          raw = await r.json()
+        }
         const results: any[] = raw?.quoteResponse?.result ?? []
         if (!results.length) throw new Error('empty')
         return parseYahooResults(results)
       }
 
-      async function tryDirect() {
+            async function tryDirect() {
         const r = await fetch(yahooUrl, { signal: AbortSignal.timeout(6000) })
         if (!r.ok) throw new Error(`${r.status}`)
         const raw = await r.json()
@@ -361,16 +320,13 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
         return d
       }
 
-      const proxies = [
-        'https://api.allorigins.win/get?url=' + encodeURIComponent(yahooUrl),
-        'https://corsproxy.io/?' + encodeURIComponent(yahooUrl),
-        'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(yahooUrl),
-      ]
-
       // Race all sources — take first winner
       const attempts = [
         tryDirect(),
-        ...proxies.map(p => tryProxy(p)),
+        // allorigins wraps response in {contents: "..."}
+        tryProxy('https://api.allorigins.win/get?url=' + encodeURIComponent(yahooUrl), true),
+        // corsproxy.io returns the JSON directly
+        tryProxy('https://corsproxy.io/?' + encodeURIComponent(yahooUrl), false),
         tryServerRoute(),
       ]
 
