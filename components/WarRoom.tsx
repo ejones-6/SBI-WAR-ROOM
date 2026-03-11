@@ -399,39 +399,39 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
         const idx = headers.indexOf(name)
         return idx >= 0 ? r[idx] : ''
       }
+      // Handles JS Date objects (SheetJS cellDates:true), Excel serials, and strings
       const parseDate = (v: any): string | null => {
         if (!v && v !== 0) return null
-        // SheetJS with cellDates:true returns actual JS Date objects
         if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString().split('T')[0]
-        // Fallback: Excel serial numbers (cellDates:false)
         if (typeof v === 'number') {
           const d = new Date(Math.round((v - 25569) * 86400 * 1000))
           return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
         }
-        // String dates
-        const d = new Date(String(v))
+        const s = String(v).trim()
+        if (!s) return null
+        const d = new Date(s)
         return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
       }
 
-      const deals = dataRows.map((r: any[]) => {
-        const name = String(col(r, 'Deal Name') || '').trim()
-        const status = String(col(r, 'Status') || '1 - New').trim()
-        return {
-          name,
-          status,
-          market: String(col(r, 'Market') || '').trim(),
-          units: parseInt(String(col(r, 'Units'))) || null,
-          year_built: parseInt(String(col(r, 'Year Built'))) || null,
+      // Send ALL deals to the API — no client-side status filtering.
+      // The API mirrors Rediq fields and preserves War Room fields (comments, buyer, seller, BOE).
+      const deals = dataRows
+        .map((r: any[]) => ({
+          name:           String(col(r, 'Deal Name') || '').trim(),
+          status:         String(col(r, 'Status') || '1 - New').trim(),
+          market:         String(col(r, 'Market') || '').trim(),
+          units:          parseInt(String(col(r, 'Units'))) || null,
+          year_built:     parseInt(String(col(r, 'Year Built'))) || null,
           purchase_price: parseFloat(String(col(r, 'Purchase Price') || '').replace(/[,$]/g, '')) || null,
           price_per_unit: parseFloat(String(col(r, '$ / Unit') || '').replace(/[,$]/g, '')) || null,
-          bid_due_date: parseDate(col(r, 'Bid Due Date')),
-          comments: String(col(r, 'Comments') || '').trim() || null,
-          broker: String(col(r, 'Broker') || '').trim() || null,
-          address: String(col(r, 'Address') || '').trim() || null,
-          added: parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
-          modified: parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
-        }
-      }).filter(d => d.name && !['6', '7'].some(n => d.status.startsWith(n + ' -')))
+          bid_due_date:   parseDate(col(r, 'Bid Due Date')),   // null = don't overwrite DB value
+          broker:         String(col(r, 'Broker') || '').trim() || null,
+          address:        String(col(r, 'Address') || '').trim() || null,
+          added:          parseDate(col(r, 'Added')) ?? new Date().toISOString().split('T')[0],
+          modified:       parseDate(col(r, 'Modified')) ?? new Date().toISOString().split('T')[0],
+          // comments intentionally excluded — API preserves existing DB comments
+        }))
+        .filter(d => d.name) // only skip truly blank rows
 
       setPreview(deals)
       setStatus('preview')
