@@ -43,20 +43,26 @@ export async function POST(req: NextRequest) {
       const incoming: any[] = body.deals
       if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0, skipped: 0 })
 
-      // Fetch ALL existing deals so we can diff
+      // Fetch ALL existing deals — Supabase default page size is 1000, must paginate
       let allExisting: any[] = []
-      let pg = 0
+      let from = 0
+      const PAGE = 500
       while (true) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('deals')
-          .select('*')
-          .range(pg * 1000, (pg + 1) * 1000 - 1)
+          .select('name, status, market, units, year_built, purchase_price, price_per_unit, broker, address, added, modified, bid_due_date, comments, buyer, seller, sold_price')
+          .range(from, from + PAGE - 1)
+        if (error) {
+          console.error('Fetch error at', from, ':', error.message)
+          return NextResponse.json({ error: 'Failed to fetch existing deals: ' + error.message }, { status: 500 })
+        }
         if (!data || data.length === 0) break
         allExisting = [...allExisting, ...data]
-        if (data.length < 1000) break
-        pg++
+        if (data.length < PAGE) break
+        from += PAGE
       }
 
+      console.log('Fetched', allExisting.length, 'existing deals from DB')
       const existingMap = new Map(allExisting.map((d: any) => [d.name.trim(), d]))
 
       const toInsert: any[] = []
@@ -92,7 +98,10 @@ export async function POST(req: NextRequest) {
           // Build a partial update with only fields that changed
           const changes: any = {}
 
-          // Simple string/number fields — direct comparison
+          // Normalize a DB value to string for safe comparison
+          // Supabase returns dates as strings like '2026-03-10', numbers as numbers
+          const norm = (v: any) => (v == null ? '' : String(v).trim())
+
           const rediqFields: [string, any][] = [
             ['status',         deal.status         ?? null],
             ['market',         deal.market         ?? null],
@@ -106,18 +115,14 @@ export async function POST(req: NextRequest) {
           ]
 
           for (const [field, newVal] of rediqFields) {
-            // Use loose comparison to handle number/string type differences from DB
-            // eslint-disable-next-line eqeqeq
-            if (newVal != (ex[field] ?? null)) {
+            if (norm(newVal) !== norm(ex[field])) {
               changes[field] = newVal
             }
           }
 
-          // bid_due_date: only update if file has a value AND it differs from DB
+          // bid_due_date: ALWAYS write if file has a value — no conditions, no diff
           if (deal.bid_due_date && deal.bid_due_date !== '') {
-            if (deal.bid_due_date !== (ex.bid_due_date ?? null)) {
-              changes.bid_due_date = deal.bid_due_date
-            }
+            changes.bid_due_date = deal.bid_due_date
           }
 
           if (Object.keys(changes).length > 0) {
@@ -126,13 +131,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Insert new deals in chunks of 100
+      // Insert new deals — only send known columns, never surprise fields
       let inserted = 0
-      for (let i = 0; i < toInsert.length; i += 100) {
-        const chunk = toInsert.slice(i, i + 100)
-        const { data, error } = await supabase.from('deals').insert(chunk).select('id')
-        if (error) console.error('Insert error:', error.message)
-        if (data) inserted += data.length
+      const insertErrors: string[] = []
+      const SAFE_COLS = ['name','status','market','units','year_built','purchase_price','price_per_unit','broker','address','added','modified','bid_due_date','flagged','hot','comments','buyer','seller','sold_price']
+      for (const deal of toInsert) {
+        const safe: any = {}
+        for (const col of SAFE_COLS) if (col in deal) safe[col] = deal[col]
+        const { data, error } = await supabase.from('deals').insert(safe).select('id')
+        if (error) {
+          console.error('Insert error for', deal.name, ':', error.message)
+          insertErrors.push(deal.name + ': ' + error.message)
+        }
+        if (data && data.length > 0) inserted++
       }
 
       // Update only changed fields — run in parallel batches of 10 (fast, no rate limits)
@@ -151,7 +162,21 @@ export async function POST(req: NextRequest) {
       }
 
       const skipped = incoming.length - toInsert.length - toUpdate.length
-      return NextResponse.json({ inserted, updated, skipped })
+      // Debug: check specific deals
+      const debugDeals = ['Yardly Crossings', 'Avenue 33 Apartments']
+      const debugInfo: any = {}
+      for (const dn of debugDeals) {
+        const inFile = incoming.find((d:any) => d.name?.trim() === dn)
+        const inDb = allExisting.find((d:any) => d.name?.trim() === dn)
+        const inInsert = toInsert.find((d:any) => d.name?.trim() === dn)
+        const inUpdate = toUpdate.find((d:any) => d.name?.trim() === dn)
+        debugInfo[dn] = {
+          inFile: inFile ? { bid_due_date: inFile.bid_due_date, modified: inFile.modified } : null,
+          inDb: inDb ? { bid_due_date: inDb.bid_due_date, modified: inDb.modified } : 'NOT IN DB FETCH',
+          action: inInsert ? 'INSERT' : inUpdate ? { UPDATE: inUpdate.changes } : 'SKIPPED'
+        }
+      }
+      return NextResponse.json({ inserted, updated, skipped, insertErrors, dbFetched: allExisting.length, debug: debugInfo })
     }
 
     // ── Single deal insert (Add Deal button in UI) ────────────────────────────
