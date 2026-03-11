@@ -84,7 +84,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       seller: form.seller || null,
       sold_price: soldP,
       comments: form.comments || null,
-      market: editMarket || null,
+      market: editMarket || undefined,
     })
     setSaving(false)
     setSaved(true)
