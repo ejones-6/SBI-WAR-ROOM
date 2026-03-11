@@ -113,21 +113,14 @@ function RatesWidget() {
 
   async function fetchRates() {
     try {
-      const results: Record<string, { rate: number | null; change: number | null }> = {}
-      await Promise.all(RATES.map(async ({ key, seriesId }) => {
-        const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=b1a5cb8e99b546eb01d5c67e3c3bc2ef&sort_order=desc&limit=2&file_type=json`
-        const res = await fetch(url)
-        const data = await res.json()
-        const obs = data.observations?.filter((o: any) => o.value !== '.') ?? []
-        const latest = obs[0] ? parseFloat(obs[0].value) : null
-        const prev   = obs[1] ? parseFloat(obs[1].value) : null
-        results[key] = {
-          rate:   latest,
-          change: latest != null && prev != null ? parseFloat((latest - prev).toFixed(3)) : null,
-        }
-      }))
-      setRates(results)
-      setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
+      const res = await fetch('/api/rates')
+      const data = await res.json()
+      if (data.rates) {
+        const results: Record<string, { rate: number | null; change: number | null }> = {}
+        for (const r of data.rates) results[r.key] = { rate: r.rate, change: r.change }
+        setRates(results)
+        setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
+      }
     } catch (e) {
       console.error('Rates fetch error:', e)
     } finally {
