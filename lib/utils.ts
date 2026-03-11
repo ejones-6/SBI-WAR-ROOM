@@ -29,7 +29,7 @@ export const REGION_MAP: Record<Region, string[]> = {
   GA: ['Atlanta, GA','Athens, GA','Savannah, GA','Macon, GA','Chattanooga, TN-GA'],
   TX: ['Dallas-Fort Worth, TX','Fort Worth, TX','Houston, TX','San Antonio, TX','Austin-San Marcos, TX','Brazoria, TX','Galveston-Texas City, TX'],
   Nashville: ['Nashville, TN','Knoxville, TN'],
-  Orlando: ['Orlando, FL','Daytona Beach, FL','Gainesville, FL','Ocala, FL','Melbourne-Titusville-Palm Bay, FL','Lakeland-Winter Haven, FL'],
+  Orlando: ['Orlando, FL','Daytona Beach, FL','DaytonaBeach, FL','Gainesville, FL','Ocala, FL','Melbourne-Titusville-Palm Bay, FL','Lakeland-Winter Haven, FL','Jacksonville, FL','Jacksonville-St. Augustine, FL'],
   Tampa: ['Tampa-St. Petersburg-Clearwater, FL','Sarasota-Bradenton, FL','Fort Myers-Cape Coral, FL','Punta Gorda, FL'],
   SFL: ['Miami, FL','Fort Lauderdale-Hollywood, FL','West Palm Beach-Boca Raton, FL','Naples, FL','Fort Pierce-Port St. Lucie, FL'],
   Misc: [],
