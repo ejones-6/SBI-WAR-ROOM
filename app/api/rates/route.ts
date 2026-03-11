@@ -1,27 +1,12 @@
 // app/api/rates/route.ts
 import { NextResponse } from 'next/server'
 
-export const revalidate = 0 // no cache — always fresh
+export const revalidate = 0
 
-// Stooq provides free quote data, no auth, no IP blocking
-// Format: https://stooq.com/q/l/?s=SYMBOL&f=sd2t2ohlcv&h&e=csv
-const STOOQ_MAP: Record<string, string> = {
-  '^TNX': '^tnx',   // 10Y treasury yield
-  '^FVX': '^fvx',   // 5Y treasury yield  
-  '^IRX': '^irx',   // 13-week T-bill (SOFR proxy)
-  '^GSPC': '^spx',  // S&P 500
-  '^DJI': '^dji',   // DOW
-  'AVB': 'avb.us',
-  'EQR': 'eqr.us',
-  'MAA': 'maa.us',
-  'ESS': 'ess.us',
-  'BTC-USD': 'btc.v', // BTC/USD on Stooq
-}
-
+// Stooq CSV for equities/REITs — works great from Vercel
 async function fetchStooq(symbol: string): Promise<number | null> {
   try {
-    const url = `https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`
-    const res = await fetch(url, {
+    const res = await fetch(`https://stooq.com/q/l/?s=${symbol}&f=sd2t2ohlcv&h&e=csv`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
       next: { revalidate: 0 }
     })
@@ -29,46 +14,62 @@ async function fetchStooq(symbol: string): Promise<number | null> {
     const text = await res.text()
     const lines = text.trim().split('\n')
     if (lines.length < 2) return null
-    const cols = lines[1].split(',')
-    // CSV: Symbol,Date,Time,Open,High,Low,Close,Volume
-    const close = parseFloat(cols[6])
+    const close = parseFloat(lines[1].split(',')[6])
     return isNaN(close) ? null : close
-  } catch {
+  } catch { return null }
+}
+
+// FRED public graph CSV — no API key needed, authoritative Fed data
+// URL: https://fred.stlouisfed.org/graph/fredgraph.csv?id=SERIES_ID
+async function fetchFRED(seriesId: string): Promise<number | null> {
+  try {
+    const res = await fetch(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      next: { revalidate: 0 }
+    })
+    if (!res.ok) return null
+    const text = await res.text()
+    const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE'))
+    // Walk backwards to find last non-missing value
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const val = parseFloat(lines[i].split(',')[1])
+      if (!isNaN(val)) return val
+    }
     return null
-  }
+  } catch { return null }
 }
 
 export async function GET() {
-  // Fetch all symbols in parallel
-  const symbols = Object.keys(STOOQ_MAP)
-  const values = await Promise.all(symbols.map(s => fetchStooq(STOOQ_MAP[s])))
-  
-  const m: Record<string, number | null> = {}
-  symbols.forEach((s, i) => { m[s] = values[i] })
-
-  const fiveY = m['^FVX']
-  const tenY  = m['^TNX']
+  // Fetch rates from FRED + equities/REITs from Stooq in parallel
+  const [sofr, fiveY, sevenY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+    fetchFRED('SOFR'),      // Secured Overnight Financing Rate
+    fetchFRED('DGS5'),      // 5-Year Treasury
+    fetchFRED('DGS7'),      // 7-Year Treasury
+    fetchFRED('DGS10'),     // 10-Year Treasury
+    fetchStooq('^spx'),     // S&P 500
+    fetchStooq('^dji'),     // DOW
+    fetchStooq('btc.v'),    // BTC/USD
+    fetchStooq('avb.us'),
+    fetchStooq('eqr.us'),
+    fetchStooq('maa.us'),
+    fetchStooq('ess.us'),
+  ])
 
   const rates = {
-    sofr:   m['^IRX']  != null ? { rate: m['^IRX'] }  : null,
-    fiveY:  m['^FVX']  != null ? { rate: m['^FVX'] }  : null,
-    sevenY: fiveY && tenY      ? { rate: +(fiveY! * 0.4 + tenY! * 0.6).toFixed(3) } : null,
-    tenY:   m['^TNX']  != null ? { rate: m['^TNX'] }  : null,
-    sp500:  m['^GSPC'] != null ? { price: m['^GSPC'] } : null,
-    dow:    m['^DJI']  != null ? { price: m['^DJI'] }  : null,
-    btc:    m['BTC-USD'] != null ? { price: m['BTC-USD'] } : null,
-    avb:    m['AVB']   != null ? { price: m['AVB'] }   : null,
-    eqr:    m['EQR']   != null ? { price: m['EQR'] }   : null,
-    maa:    m['MAA']   != null ? { price: m['MAA'] }   : null,
-    ess:    m['ESS']   != null ? { price: m['ESS'] }   : null,
-  }
-
-  const hasData = Object.values(rates).some(v => v !== null)
-  if (!hasData) {
-    return NextResponse.json({ error: 'rates_unavailable' }, { status: 500 })
+    sofr:   sofr   != null ? { rate: sofr }   : null,
+    fiveY:  fiveY  != null ? { rate: fiveY }  : null,
+    sevenY: sevenY != null ? { rate: sevenY } : null,
+    tenY:   tenY   != null ? { rate: tenY }   : null,
+    sp500:  sp500  != null ? { price: sp500 } : null,
+    dow:    dow    != null ? { price: dow }   : null,
+    btc:    btc    != null ? { price: btc }   : null,
+    avb:    avb    != null ? { price: avb }   : null,
+    eqr:    eqr    != null ? { price: eqr }   : null,
+    maa:    maa    != null ? { price: maa }   : null,
+    ess:    ess    != null ? { price: ess }   : null,
   }
 
   return NextResponse.json(rates, {
-    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' }
+    headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=300' }
   })
 }
