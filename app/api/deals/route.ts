@@ -41,15 +41,15 @@ export async function POST(req: NextRequest) {
     //
     if (body._batch) {
       const incoming: any[] = body.deals
-      if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0 })
+      if (!incoming?.length) return NextResponse.json({ inserted: 0, updated: 0, skipped: 0 })
 
-      // Fetch ALL existing deals (paginated — DB may have 2000+ rows)
+      // Fetch ALL existing deals so we can diff
       let allExisting: any[] = []
       let pg = 0
       while (true) {
         const { data } = await supabase
           .from('deals')
-          .select('name, comments, buyer, seller, sold_price')
+          .select('*')
           .range(pg * 1000, (pg + 1) * 1000 - 1)
         if (!data || data.length === 0) break
         allExisting = [...allExisting, ...data]
@@ -60,52 +60,69 @@ export async function POST(req: NextRequest) {
       const existingMap = new Map(allExisting.map((d: any) => [d.name.trim(), d]))
 
       const toInsert: any[] = []
-      const toUpdate: any[] = []
+      const toUpdate: any[] = []  // { name, fields } — only the fields that changed
 
       for (const deal of incoming) {
         const name = deal.name.trim()
-        const existing = existingMap.get(name)
+        const ex = existingMap.get(name)
 
-        // Always mirror these from Rediq
-        const rediqFields: any = {
-          name,
-          status:         deal.status         ?? null,
-          market:         deal.market         ?? null,
-          units:          deal.units          ?? null,
-          year_built:     deal.year_built     ?? null,
-          purchase_price: deal.purchase_price ?? null,
-          price_per_unit: deal.price_per_unit ?? null,
-          broker:         deal.broker         ?? null,
-          address:        deal.address        ?? null,
-          added:          deal.added          ?? null,
-          modified:       deal.modified       ?? null,
-        }
-
-        // bid_due_date: only write if the file has a value — never wipe a date
-        if (deal.bid_due_date != null && deal.bid_due_date !== '') {
-          rediqFields.bid_due_date = deal.bid_due_date
-        }
-
-        if (!existing) {
-          // New deal — insert with blank War Room fields
+        if (!ex) {
+          // Brand new — insert with all fields
           toInsert.push({
-            ...rediqFields,
-            flagged:    false,
-            hot:        false,
-            comments:   null,
-            buyer:      null,
-            seller:     null,
-            sold_price: null,
+            name,
+            status:         deal.status         ?? null,
+            market:         deal.market         ?? null,
+            units:          deal.units          ?? null,
+            year_built:     deal.year_built     ?? null,
+            purchase_price: deal.purchase_price ?? null,
+            price_per_unit: deal.price_per_unit ?? null,
+            broker:         deal.broker         ?? null,
+            address:        deal.address        ?? null,
+            added:          deal.added          ?? null,
+            modified:       deal.modified       ?? null,
+            bid_due_date:   (deal.bid_due_date && deal.bid_due_date !== '') ? deal.bid_due_date : null,
+            flagged:        false,
+            hot:            false,
+            comments:       null,
+            buyer:          null,
+            seller:         null,
+            sold_price:     null,
           })
         } else {
-          // Existing deal — mirror Rediq fields, preserve War Room fields
-          toUpdate.push({
-            ...rediqFields,
-            comments:   existing.comments   ?? null,
-            buyer:      existing.buyer      ?? null,
-            seller:     existing.seller     ?? null,
-            sold_price: existing.sold_price ?? null,
-          })
+          // Build a partial update with only fields that changed
+          const changes: any = {}
+
+          // Simple string/number fields — direct comparison
+          const rediqFields: [string, any][] = [
+            ['status',         deal.status         ?? null],
+            ['market',         deal.market         ?? null],
+            ['units',          deal.units          ?? null],
+            ['year_built',     deal.year_built     ?? null],
+            ['purchase_price', deal.purchase_price ?? null],
+            ['price_per_unit', deal.price_per_unit ?? null],
+            ['broker',         deal.broker         ?? null],
+            ['address',        deal.address        ?? null],
+            ['modified',       deal.modified       ?? null],
+          ]
+
+          for (const [field, newVal] of rediqFields) {
+            // Use loose comparison to handle number/string type differences from DB
+            // eslint-disable-next-line eqeqeq
+            if (newVal != (ex[field] ?? null)) {
+              changes[field] = newVal
+            }
+          }
+
+          // bid_due_date: only update if file has a value AND it differs from DB
+          if (deal.bid_due_date && deal.bid_due_date !== '') {
+            if (deal.bid_due_date !== (ex.bid_due_date ?? null)) {
+              changes.bid_due_date = deal.bid_due_date
+            }
+          }
+
+          if (Object.keys(changes).length > 0) {
+            toUpdate.push({ name, changes })
+          }
         }
       }
 
@@ -114,24 +131,24 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < toInsert.length; i += 100) {
         const chunk = toInsert.slice(i, i + 100)
         const { data, error } = await supabase.from('deals').insert(chunk).select('id')
-        if (error) console.error('Batch insert error:', error.message)
+        if (error) console.error('Insert error:', error.message)
         if (data) inserted += data.length
       }
 
-      // Update existing deals using upsert on name column — single bulk operation per chunk
-      // Much faster and more reliable than individual updates
+      // Update only changed fields on changed deals — targeted, no risk of overwriting anything
       let updated = 0
-      for (let i = 0; i < toUpdate.length; i += 200) {
-        const chunk = toUpdate.slice(i, i + 200)
+      for (const { name, changes } of toUpdate) {
         const { data, error } = await supabase
           .from('deals')
-          .upsert(chunk, { onConflict: 'name', ignoreDuplicates: false })
+          .update(changes)
+          .eq('name', name)
           .select('id')
-        if (error) console.error('Batch upsert error:', error.message, 'chunk:', i)
-        if (data) updated += data.length
+        if (error) console.error('Update error for', name, ':', error.message)
+        if (data && data.length > 0) updated++
       }
 
-      return NextResponse.json({ inserted, updated })
+      const skipped = incoming.length - toInsert.length - toUpdate.length
+      return NextResponse.json({ inserted, updated, skipped })
     }
 
     // ── Single deal insert (Add Deal button in UI) ────────────────────────────
