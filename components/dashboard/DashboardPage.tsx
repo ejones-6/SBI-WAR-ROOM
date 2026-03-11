@@ -1,7 +1,7 @@
 'use client'
 import { useMemo, useState, useEffect } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
-import { fmtShort, statusClass, statusLabel, formatBidDate, bidDateClass, getRegion, REGION_LABELS } from '@/lib/utils'
+import { fmtShort, statusLabel, formatBidDate, bidDateClass, getRegion, REGION_LABELS } from '@/lib/utils'
 import dynamic from 'next/dynamic'
 const DealsMap = dynamic(() => import('./DealsMap'), { ssr: false })
 
@@ -12,368 +12,262 @@ interface Props {
   onOpenDeal: (d: Deal) => void
 }
 
-const MARKET_COLORS: Record<string, string> = {
-  'Georgia': '#C84B31', 'N. Carolina': '#2E7D50', 'Orlando': '#E67E22',
-  'DC MSA': '#1565A0', 'Texas': '#6B3FA0', 'S. Florida': '#C0922A',
-  'Nashville': '#2C8C8C', 'Tampa': '#2E5BAD', 'Other': '#8A9BB0', 'S. Carolina': '#B85C8A'
+const REGION_COLORS: Record<string, string> = {
+  'Mid-Atlantic': '#C9A84C', 'Carolinas': '#2E6B9E', 'Georgia': '#2E7D50',
+  'Texas': '#8B4513', 'Tennessee': '#6B3FA0', 'Florida': '#1E7A6E', 'Misc': '#8A9BB0'
+}
+
+function RateRow({ label, value, change, loading }: { label: string; value: string; change?: string; loading?: boolean }) {
+  const up = change ? !change.startsWith('-') : null
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+      <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.5)', letterSpacing: '0.05em' }}>{label}</div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        {change && up !== null && <span style={{ fontSize: 10, color: up ? '#2E7D50' : '#C0392B', fontWeight: 600 }}>{change}</span>}
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</span>
+      </div>
+    </div>
+  )
+}
+
+function TickerRow({ label, value, change, pct, loading }: { label: string; value: string; change: string; pct: string; loading?: boolean }) {
+  const up = !change.startsWith('-')
+  const color = loading ? '#8A9BB0' : up ? '#2E7D50' : '#C0392B'
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto auto', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(201,168,76,0.08)', gap: 8 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.06em' }}>{label}</div>
+      <div />
+      <div style={{ fontSize: 12, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</div>
+      <div style={{ fontSize: 10, fontWeight: 600, color, minWidth: 90, textAlign: 'right' }}>{loading ? '—' : `${change} (${pct})`}</div>
+    </div>
+  )
 }
 
 function DonutChart({ data }: { data: { label: string; value: number; color: string }[] }) {
-  const [tooltip, setTooltip] = useState<{ label: string; value: number; x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = useState<any>(null)
   const total = data.reduce((s, d) => s + d.value, 0)
   if (total === 0) return null
-  let cumulative = 0
-  const r = 60, cx = 80, cy = 80, stroke = 22
+  let cum = 0
+  const r = 56, cx = 74, cy = 74, sw = 20
   const slices = data.map(d => {
-    const pct = d.value / total
-    const start = cumulative
-    cumulative += pct
-    const startAngle = start * 2 * Math.PI - Math.PI / 2
-    const endAngle = cumulative * 2 * Math.PI - Math.PI / 2
-    const midAngle = (startAngle + endAngle) / 2
-    const x1 = cx + r * Math.cos(startAngle)
-    const y1 = cy + r * Math.sin(startAngle)
-    const x2 = cx + r * Math.cos(endAngle)
-    const y2 = cy + r * Math.sin(endAngle)
-    const large = pct > 0.5 ? 1 : 0
-    const tx = cx + r * Math.cos(midAngle)
-    const ty = cy + r * Math.sin(midAngle)
-    return { ...d, path: `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`, pct, tx, ty }
+    const pct = d.value / total, start = cum; cum += pct
+    const sa = start * 2 * Math.PI - Math.PI / 2, ea = cum * 2 * Math.PI - Math.PI / 2
+    const ma = (sa + ea) / 2
+    return { ...d, path: `M ${cx + r * Math.cos(sa)} ${cy + r * Math.sin(sa)} A ${r} ${r} 0 ${pct > 0.5 ? 1 : 0} 1 ${cx + r * Math.cos(ea)} ${cy + r * Math.sin(ea)}`, pct, tx: cx + r * Math.cos(ma), ty: cy + r * Math.sin(ma) }
   })
   return (
-    <div style={{ position: 'relative' }}>
-      <svg width={160} height={160} viewBox="0 0 160 160">
-        {slices.map((s, i) => (
-          <path key={i} d={s.path} fill="none" stroke={s.color} strokeWidth={stroke} strokeLinecap="butt"
-            style={{ cursor: 'pointer', transition: 'stroke-width 0.15s' }}
-            onMouseEnter={e => {
-              const rect = (e.target as SVGElement).closest('svg')!.getBoundingClientRect()
-              setTooltip({ label: s.label, value: s.value, x: s.tx, y: s.ty })
-              ;(e.target as SVGPathElement).setAttribute('stroke-width', '28')
-            }}
-            onMouseLeave={e => {
-              setTooltip(null)
-              ;(e.target as SVGPathElement).setAttribute('stroke-width', String(stroke))
-            }}
-          />
-        ))}
-        <text x={cx} y={cy - 6} textAnchor="middle" style={{ fontSize: 18, fontWeight: 700, fill: '#0D1B2E', fontFamily: "'Cormorant Garamond',serif" }}>{total}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" style={{ fontSize: 9, fill: '#8A9BB0', letterSpacing: '0.08em' }}>DEALS IN 2026</text>
-        {tooltip && (
-          <g>
-            <rect x={tooltip.x - 36} y={tooltip.y - 22} width={72} height={36} rx={4} fill="rgba(13,27,46,0.92)" />
-            <text x={tooltip.x} y={tooltip.y - 6} textAnchor="middle" style={{ fontSize: 13, fontWeight: 700, fill: '#fff', fontFamily: "'Cormorant Garamond',serif" }}>{tooltip.value}</text>
-            <text x={tooltip.x} y={tooltip.y + 9} textAnchor="middle" style={{ fontSize: 8, fill: '#C9A84C', letterSpacing: '0.05em' }}>{tooltip.label.toUpperCase()}</text>
-          </g>
-        )}
-      </svg>
-    </div>
-  )
-}
-
-function BarChart({ data }: { data: { label: string; value: number; current?: boolean }[] }) {
-  const [hovered, setHovered] = useState<number | null>(null)
-  const max = Math.max(...data.map(d => d.value), 1)
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, paddingBottom: 24, position: 'relative' }}>
-      {data.map((d, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, position: 'relative' }}
-          onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)}>
-          {hovered === i && (
-            <div style={{ position: 'absolute', bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: 4, background: 'rgba(13,27,46,0.92)', color: '#fff', borderRadius: 4, padding: '3px 8px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 10 }}>
-              {d.value} deals
-            </div>
-          )}
-          <div style={{
-            width: '100%', height: Math.max((d.value / max) * 80, 2),
-            background: d.current ? '#C9A84C' : hovered === i ? '#1565A0' : '#0D1B2E',
-            borderRadius: '3px 3px 0 0',
-            opacity: d.current ? 1 : hovered === i ? 1 : 0.65,
-            transition: 'all 0.15s ease', cursor: 'pointer'
-          }} />
-          <div style={{ fontSize: 9, color: '#8A9BB0', whiteSpace: 'nowrap', transform: 'rotate(-30deg)', transformOrigin: 'top center', marginTop: 4 }}>{d.label}</div>
-        </div>
+    <svg width={148} height={148}>
+      {slices.map((s, i) => (
+        <path key={i} d={s.path} fill="none" stroke={s.color} strokeWidth={sw}
+          style={{ cursor: 'pointer', transition: 'stroke-width 0.15s' }}
+          onMouseEnter={e => { setTooltip(s); (e.target as any).setAttribute('stroke-width', '26') }}
+          onMouseLeave={e => { setTooltip(null); (e.target as any).setAttribute('stroke-width', String(sw)) }} />
       ))}
-    </div>
-  )
-}
-
-
-
-// ── PASTE THIS ENTIRE BLOCK replacing the existing RatesWidget function ──────
-// Lines ~102–171 in DashboardPage.tsx
-
-function MarketsWidget() {
-  const [data, setData]           = useState<Record<string, { rate: number | null; change: number | null }>>({})
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null)
-  const [loading, setLoading]     = useState(true)
-
-  const RATES = [
-    { key: 'SOFR',  label: 'SOFR'    },
-    { key: 'DGS5',  label: '5Y UST'  },
-    { key: 'DGS7',  label: '7Y UST'  },
-    { key: 'DGS10', label: '10Y UST' },
-  ]
-
-  const INDICES = [
-    { key: 'SPX',  label: 'S&P 500' },
-    { key: 'DJI',  label: 'DOW'     },
-    { key: 'BTC',  label: 'Bitcoin' },
-  ]
-
-  const REITS = [
-    { key: 'AVB', label: 'AvalonBay',  sub: 'AVB'  },
-    { key: 'EQR', label: 'Equity Res', sub: 'EQR'  },
-    { key: 'MAA', label: 'MAA',        sub: 'MAA'  },
-    { key: 'ESS', label: 'Essex Prop', sub: 'ESS'  },
-  ]
-
-  async function fetchAll() {
-    try {
-      const res  = await fetch('/api/rates')
-      const json = await res.json()
-      if (json.rates) {
-        const map: Record<string, { rate: number | null; change: number | null }> = {}
-        for (const r of json.rates) map[r.key] = { rate: r.rate, change: r.change }
-        setData(map)
-        setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
-      }
-    } catch (e) { console.error(e) }
-    finally { setLoading(false) }
-  }
-
-  useEffect(() => { fetchAll(); const t = setInterval(fetchAll, 60 * 60 * 1000); return () => clearInterval(t) }, [])
-
-  const col = (key: string) => {
-    const d = data[key]
-    if (!d) return '#8A9BB0'
-    return d.change == null ? '#8A9BB0' : d.change > 0 ? '#E05C5C' : d.change < 0 ? '#3DAA72' : '#8A9BB0'
-  }
-  const arr = (key: string) => {
-    const d = data[key]
-    if (!d || d.change == null) return ''
-    return d.change > 0 ? '▲' : d.change < 0 ? '▼' : ''
-  }
-  const fmt = (key: string, isPrice = false) => {
-    const d = data[key]
-    if (!d || d.rate == null) return '—'
-    return isPrice ? d.rate.toLocaleString('en-US', { maximumFractionDigits: 2 }) : d.rate.toFixed(2) + '%'
-  }
-  const chg = (key: string, isPrice = false) => {
-    const d = data[key]
-    if (!d || d.change == null) return null
-    return isPrice
-      ? (d.change > 0 ? '+' : '') + d.change.toLocaleString('en-US', { maximumFractionDigits: 2 })
-      : (d.change > 0 ? '+' : '') + d.change.toFixed(3) + ' bps'
-  }
-
-  const sectionHead = (title: string) => (
-    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.13em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 5, borderBottom: '1px solid rgba(13,27,46,0.07)' }}>{title}</div>
-  )
-
-  const rateCard = (key: string, label: string) => (
-    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 14px', background: 'rgba(13,27,46,0.025)', borderRadius: 8, borderLeft: `2px solid ${col(key)}` }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: '#0D1B2E', lineHeight: 1 }}>
-        {loading ? <span style={{ color: '#ccc' }}>—</span> : fmt(key)}
-      </div>
-      {!loading && chg(key) && (
-        <div style={{ fontSize: 10, fontWeight: 600, color: col(key) }}>{arr(key)} {chg(key)}</div>
+      <text x={cx} y={cy - 4} textAnchor="middle" style={{ fontSize: 20, fontWeight: 700, fill: '#0D1B2E', fontFamily: "'Cormorant Garamond',serif" }}>{total}</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" style={{ fontSize: 8, fill: '#8A9BB0', letterSpacing: '0.1em' }}>DEALS</text>
+      {tooltip && (
+        <g>
+          <rect x={tooltip.tx - 38} y={tooltip.ty - 22} width={76} height={34} rx={4} fill="rgba(13,27,46,0.95)" />
+          <text x={tooltip.tx} y={tooltip.ty - 5} textAnchor="middle" style={{ fontSize: 14, fontWeight: 700, fill: '#fff', fontFamily: "'Cormorant Garamond',serif" }}>{tooltip.value}</text>
+          <text x={tooltip.tx} y={tooltip.ty + 9} textAnchor="middle" style={{ fontSize: 8, fill: '#C9A84C', letterSpacing: '0.06em' }}>{tooltip.label.toUpperCase()}</text>
+        </g>
       )}
-    </div>
-  )
-
-  const tickerRow = (key: string, label: string, sub: string, isPrice = false) => {
-    const c = col(key)
-    const isUp = data[key]?.change != null && (data[key]?.change ?? 0) > 0
-    const isDn = data[key]?.change != null && (data[key]?.change ?? 0) < 0
-    const bgColor = isUp ? 'rgba(61,170,114,0.08)' : isDn ? 'rgba(224,92,92,0.08)' : 'rgba(13,27,46,0.02)'
-    const borderColor = isUp ? 'rgba(61,170,114,0.25)' : isDn ? 'rgba(224,92,92,0.25)' : 'rgba(13,27,46,0.06)'
-    return (
-      <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: 8, marginBottom: 6, background: bgColor, border: `1px solid ${borderColor}` }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.03em' }}>{label}</div>
-          <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em' }}>{sub}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E' }}>
-            {loading ? '—' : fmt(key, isPrice)}
-          </div>
-          {!loading && chg(key, isPrice) && (
-            <div style={{ fontSize: 10, fontWeight: 700, color: c }}>{arr(key)} {chg(key, isPrice)}</div>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid rgba(13,27,46,0.08)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 12px rgba(13,27,46,0.06)' }}>
-      {/* Header bar */}
-      <div style={{ background: '#0D1B2E', padding: '10px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3DAA72', boxShadow: '0 0 6px #3DAA72' }} />
-          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>Market Intelligence</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {lastUpdated && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>UPDATED {lastUpdated}</span>}
-          <button onClick={fetchAll} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '3px 10px', fontSize: 9, color: '#C9A84C', cursor: 'pointer', letterSpacing: '0.08em', fontWeight: 700 }}>↻ REFRESH</button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 24 }}>
-
-        {/* LEFT: Rates grid */}
-        <div>
-          {sectionHead('Reference Rates')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {RATES.map(({ key, label }) => rateCard(key, label))}
-          </div>
-        </div>
-
-        {/* MIDDLE: Equity Indices */}
-        <div>
-          {sectionHead('Equity Markets')}
-          {INDICES.map(({ key, label }) => tickerRow(key, label, key, true))}
-        </div>
-
-        {/* RIGHT: MF REITs */}
-        <div>
-          {sectionHead('Multifamily REITs')}
-          {REITS.map(({ key, label, sub }) => tickerRow(key, label, sub, true))}
-        </div>
-
-      </div>
-    </div>
+    </svg>
   )
 }
-
-
 
 export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }: Props) {
   const now = new Date()
-  const currentMonth = now.getMonth()
-  const currentYear = now.getFullYear()
+  const [rates, setRates] = useState<any>(null)
+  const [ratesLoading, setRatesLoading] = useState(true)
+  const [news, setNews] = useState<{ title: string; url: string; date: string; summary: string }[]>([])
+  const [newsLoading, setNewsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/rates').then(r => r.json()).then(d => { setRates(d); setRatesLoading(false) }).catch(() => setRatesLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/mhn-news').then(r => r.json()).then(d => { setNews(d); setNewsLoading(false) }).catch(() => setNewsLoading(false))
+  }, [])
 
   const active = deals.filter(d => d.status.includes('2 -'))
   const newDeals = deals.filter(d => d.status.includes('1 -'))
   const owned = deals.filter(d => d.status.includes('10 -'))
-  const avgPrice = useMemo(() => {
-    const priced = deals.filter(d => d.purchase_price)
-    return priced.length ? priced.reduce((s, d) => s + d.purchase_price!, 0) / priced.length : 0
-  }, [deals])
+  const passed = deals.filter(d => d.status.includes('6 -') || d.status.includes('7 -'))
 
-  const monthlyData = useMemo(() => {
-    const months = []
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(currentYear, currentMonth - i, 1)
-      const m = d.getMonth(), y = d.getFullYear()
-      const count = deals.filter(deal => {
-        if (!deal.added) return false
-        const a = new Date(deal.added)
-        return a.getMonth() === m && a.getFullYear() === y
-      }).length
-      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).replace(' ', " '")
-      months.push({ label, value: count, current: m === currentMonth && y === currentYear })
-    }
-    return months
-  }, [deals, currentMonth, currentYear])
+  const totalGuidance = useMemo(() => [...newDeals, ...active].filter(d => d.purchase_price).reduce((s, d) => s + d.purchase_price!, 0), [newDeals, active])
+  const avgCapRate = useMemo(() => { const crs = Object.values(capRateMap).filter(c => c.noi_cap_rate).map(c => Number(c.noi_cap_rate)); return crs.length ? crs.reduce((s, v) => s + v, 0) / crs.length : 0 }, [capRateMap])
 
+  const upcomingBids = [...newDeals, ...active].filter(d => d.bid_due_date && d.bid_due_date >= now.toISOString().split('T')[0]).sort((a, b) => a.bid_due_date!.localeCompare(b.bid_due_date!)).slice(0, 6)
   const marketData = useMemo(() => {
     const counts: Record<string, number> = {}
-    deals.filter(d => {
-      if (!d.added) return false
-      return new Date(d.added).getFullYear() === 2026
-    }).forEach(d => {
-      const region = getRegion ? getRegion(d.market || '') : (d.market || 'Other')
-      const label = (REGION_LABELS && (REGION_LABELS as Record<string, string>)[region]) || region || 'Other'
+    deals.filter(d => d.added && new Date(d.added).getFullYear() === 2026).forEach(d => {
+      const label = (REGION_LABELS as any)[getRegion(d.market || '')] || 'Other'
       counts[label] = (counts[label] || 0) + 1
     })
-    return Object.entries(counts)
-      .sort((a, b) => b[1] - a[1])
-      .map(([label, value]) => ({ label, value, color: MARKET_COLORS[label] || '#8A9BB0' }))
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value, color: REGION_COLORS[label] || '#8A9BB0' }))
   }, [deals])
+  const statusCounts = deals.reduce((acc: Record<string, number>, d) => { acc[d.status] = (acc[d.status] || 0) + 1; return acc }, {})
 
-  const upcomingBids = [...newDeals, ...active]
-    .filter(d => d.bid_due_date && d.bid_due_date >= now.toISOString().split('T')[0])
-    .sort((a, b) => a.bid_due_date!.localeCompare(b.bid_due_date!))
-    .slice(0, 8)
+  const fmtBig = (n: number) => n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : '—'
+  const fmtR = (v: any, d = 2) => v != null ? `${Number(v).toFixed(d)}%` : '—'
+  const fmtDelta = (v: any) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}` : '—'
+  const fmtPct = (v: any) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—'
+  const fmtPrice = (v: any, decimals = 2) => v != null ? Number(v).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : '—'
 
-  const statusCounts = deals.reduce((acc: Record<string, number>, d) => {
-    acc[d.status] = (acc[d.status] || 0) + 1
-    return acc
-  }, {})
-
-  const STAT_CARDS = [
-    { label: 'Total Deals', value: deals.length.toLocaleString(), sub: 'all time', color: '#0D1B2E' },
-    { label: 'New / Active', value: `${newDeals.length} / ${active.length}`, sub: 'current pipeline', color: '#1565A0' },
-    { label: 'Owned Properties', value: owned.length.toString(), sub: 'portfolio', color: '#6B3FA0' },
-    { label: 'Avg Ask Price', value: fmtShort(avgPrice), sub: 'across priced deals', color: '#2E7D50' },
-  ]
+  const card = { background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden' as const }
+  const dark = { background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden' as const }
+  const secLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }
 
   return (
-    <div style={{ padding: '28px 32px' }}>
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
-        {STAT_CARDS.map(s => (
-          <div key={s.label} style={{ background: '#fff', borderRadius: 12, padding: '20px 22px', border: '1px solid rgba(13,27,46,0.07)', borderLeft: `4px solid ${s.color}` }}>
-            <div style={{ fontSize: 11, color: '#8A9BB0', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 3 }}>{s.sub}</div>
+    <div style={{ padding: '24px 28px', background: '#EEEDE7', minHeight: '100%' }}>
+
+      {/* KPI Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
+        {[
+          { label: 'Active Pipeline', value: `${newDeals.length + active.length}`, sub: `${newDeals.length} new · ${active.length} active`, accent: '#C9A84C' },
+          { label: 'Pipeline Guidance', value: fmtBig(totalGuidance), sub: 'active + new deals', accent: '#2E6B9E' },
+          { label: 'Portfolio', value: owned.length.toString(), sub: 'owned properties', accent: '#2E7D50' },
+          { label: 'Avg BOE Cap Rate', value: avgCapRate ? `${avgCapRate.toFixed(2)}%` : '—', sub: 'underwritten deals', accent: '#6B3FA0' },
+          { label: 'Not Pursued', value: passed.length.toString(), sub: 'passed or lost', accent: '#8A9BB0' },
+        ].map(s => (
+          <div key={s.label} style={{ ...card, padding: '18px 20px', borderTop: `3px solid ${s.accent}` }}>
+            <div style={{ fontSize: 10, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{s.label}</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: '#0D1B2E', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* Rates widget */}
-      <MarketsWidget />
+      {/* Main Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16 }}>
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginBottom: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '20px 26px' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 16 }}>Monthly Deal Flow — Last 12 Months</div>
-          <BarChart data={monthlyData} />
-        </div>
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '20px 26px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, alignSelf: 'flex-start' }}>2026 Deal Allocation by Market</div>
-          <DonutChart data={marketData} />
-        </div>
-      </div>
-
-      {/* Interactive Deal Map */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden', height: 500, marginBottom: 20, display: 'flex', flexDirection: 'column' }}>
-        <DealsMap deals={deals} onOpenDeal={onOpenDeal} />
-      </div>
-
-      {/* Upcoming bids */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden', marginBottom: 20 }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(13,27,46,0.07)' }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Upcoming Bids</div>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)' }}>
-          {upcomingBids.length === 0 ? (
-            <div style={{ padding: 24, color: '#8A9BB0', fontSize: 13, gridColumn: '1/-1' }}>No upcoming bids</div>
-          ) : upcomingBids.map(deal => (
-            <div key={deal.id} onClick={() => onOpenDeal(deal)} style={{ padding: '12px 20px', borderRight: '1px solid rgba(13,27,46,0.05)', borderBottom: '1px solid rgba(13,27,46,0.05)', cursor: 'pointer' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
-              onMouseLeave={e => (e.currentTarget.style.background = '')}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#0D1B2E', marginBottom: 2 }}>{deal.name}</div>
-              <div style={{ fontSize: 11, color: '#8A9BB0', marginBottom: 6 }}>{deal.market}</div>
-              <div style={{ fontSize: 12, fontWeight: 600 }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
-              <div style={{ fontSize: 11, color: '#8A9BB0' }}>{fmtShort(deal.purchase_price)}</div>
+        {/* Market Intelligence */}
+        <div style={{ ...dark, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 1 }}>Market Intelligence</div>
+            <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>
+              {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · Live Data
             </div>
-          ))}
+          </div>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+            <div style={secLabel}>Reference Rates</div>
+            <RateRow label="SOFR" value={fmtR(rates?.sofr?.rate)} change={fmtDelta(rates?.sofr?.change)} loading={ratesLoading} />
+            <RateRow label="5Y Treasury" value={fmtR(rates?.fiveY?.rate)} change={fmtDelta(rates?.fiveY?.change)} loading={ratesLoading} />
+            <RateRow label="7Y Treasury" value={fmtR(rates?.sevenY?.rate)} loading={ratesLoading} />
+            <RateRow label="10Y Treasury" value={fmtR(rates?.tenY?.rate)} change={fmtDelta(rates?.tenY?.change)} loading={ratesLoading} />
+          </div>
+          <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
+            <div style={secLabel}>Equity Markets</div>
+            <TickerRow label="S&P 500" value={fmtPrice(rates?.sp500?.price)} change={fmtDelta(rates?.sp500?.change)} pct={fmtPct(rates?.sp500?.pct)} loading={ratesLoading} />
+            <TickerRow label="DOW" value={fmtPrice(rates?.dow?.price, 0)} change={fmtDelta(rates?.dow?.change)} pct={fmtPct(rates?.dow?.pct)} loading={ratesLoading} />
+            <TickerRow label="BTC" value={rates?.btc?.price != null ? `$${Number(rates.btc.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} change={fmtDelta(rates?.btc?.change)} pct={fmtPct(rates?.btc?.pct)} loading={ratesLoading} />
+          </div>
+          <div style={{ padding: '12px 18px' }}>
+            <div style={secLabel}>Multifamily REITs</div>
+            {['avb','eqr','maa','ess'].map(t => (
+              <TickerRow key={t} label={t.toUpperCase()} value={rates?.[t]?.price != null ? `$${Number(rates[t].price).toFixed(2)}` : '—'} change={fmtDelta(rates?.[t]?.change)} pct={fmtPct(rates?.[t]?.pct)} loading={ratesLoading} />
+            ))}
+          </div>
+        </div>
+
+        {/* Right side */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Donut + Bids */}
+          <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: 16 }}>
+            <div style={{ ...card, padding: '16px 18px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>2026 by Market</div>
+              <div style={{ display: 'flex', justifyContent: 'center' }}><DonutChart data={marketData} /></div>
+              <div style={{ marginTop: 6 }}>
+                {marketData.slice(0, 5).map(d => (
+                  <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: '#8A9BB0' }}>{d.label}</span>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: '#0D1B2E' }}>{d.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={card}>
+              <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(13,27,46,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Upcoming Bids</div>
+                <div style={{ fontSize: 10, color: '#8A9BB0' }}>{upcomingBids.length} deals</div>
+              </div>
+              {upcomingBids.length === 0 ? (
+                <div style={{ padding: 20, color: '#8A9BB0', fontSize: 12 }}>No upcoming bids</div>
+              ) : upcomingBids.map((deal, i) => (
+                <div key={deal.id} onClick={() => onOpenDeal(deal)}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, padding: '10px 18px', borderBottom: i < upcomingBids.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#0D1B2E' }}>{deal.name}</div>
+                    <div style={{ fontSize: 10, color: '#8A9BB0', marginTop: 1 }}>{deal.market}</div>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#8A9BB0' }}>{fmtShort(deal.purchase_price)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, minWidth: 110, textAlign: 'right' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* MHN News Feed */}
+          <div style={dark}>
+            <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence Feed</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', marginTop: 2 }}>Multifamily Housing News</div>
+              </div>
+              <a href="https://www.multihousingnews.com" target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 9, color: '#C9A84C', textDecoration: 'none', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '4px 10px', letterSpacing: '0.08em' }}>
+                MHN ↗
+              </a>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
+              {newsLoading ? [1,2,3].map(i => (
+                <div key={i} style={{ padding: '16px 18px', borderRight: i < 3 ? '1px solid rgba(201,168,76,0.07)' : 'none' }}>
+                  {[60,100,80].map((w, j) => <div key={j} style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 3, marginBottom: 8, width: `${w}%` }} />)}
+                </div>
+              )) : news.length === 0 ? (
+                <div style={{ padding: 20, color: 'rgba(255,255,255,0.3)', fontSize: 12, gridColumn: '1/-1' }}>Unable to load news</div>
+              ) : news.slice(0, 3).map((item, i) => (
+                <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
+                  style={{ padding: '16px 18px', borderRight: i < 2 ? '1px solid rgba(201,168,76,0.07)' : 'none', textDecoration: 'none', display: 'block', transition: 'background 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.05)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                  <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>{item.date}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', lineHeight: 1.45, marginBottom: 8, fontFamily: "'Cormorant Garamond',serif" }}>{item.title}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.4)', lineHeight: 1.55 }}>{item.summary}</div>
+                  <div style={{ marginTop: 10, fontSize: 9, color: '#C9A84C', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Read Full Article ↗</div>
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Status breakdown */}
-      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '18px 22px' }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E', marginBottom: 14 }}>Deal Flow by Status</div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      {/* Deal Map */}
+      <div style={{ ...card, height: 400, marginBottom: 16, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(13,27,46,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Deal Activity Map</div>
+          <div style={{ fontSize: 10, color: '#8A9BB0' }}>{deals.length} deals tracked</div>
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden' }}><DealsMap deals={deals} onOpenDeal={onOpenDeal} /></div>
+      </div>
+
+      {/* Status Breakdown */}
+      <div style={{ ...card, padding: '16px 20px' }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E', marginBottom: 12 }}>Pipeline by Status</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' as const }}>
           {Object.entries(statusCounts).sort((a, b) => b[1] - a[1]).map(([status, count]) => (
-            <div key={status} style={{ background: 'rgba(13,27,46,0.03)', borderRadius: 8, padding: '8px 16px', textAlign: 'center' }}>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 20, fontWeight: 700, color: '#0D1B2E' }}>{count}</div>
-              <div style={{ fontSize: 10, color: '#8A9BB0', marginTop: 1 }}>{statusLabel(status)}</div>
+            <div key={status} style={{ background: 'rgba(13,27,46,0.03)', borderRadius: 8, padding: '10px 16px', textAlign: 'center' as const, border: '1px solid rgba(13,27,46,0.06)' }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: '#0D1B2E' }}>{count}</div>
+              <div style={{ fontSize: 9, color: '#8A9BB0', marginTop: 2, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>{statusLabel(status)}</div>
             </div>
           ))}
         </div>

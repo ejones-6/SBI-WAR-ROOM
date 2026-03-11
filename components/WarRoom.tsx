@@ -261,17 +261,20 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
         flexShrink: 0, position: 'relative', zIndex: 10
       }}>
         {/* Logo */}
-        <div style={{ padding: '20px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <img
               src="https://www.stonebridgeinvestments.com/wp-content/themes/stonebridge/img/menu/logoyellow.svg"
               alt="StoneBridge"
-              style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }}
+              style={{ width: 38, height: 38, objectFit: 'contain', flexShrink: 0 }}
             />
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#C9A84C', fontSize: 13, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.2 }}>StoneBridge</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 2 }}>Acquisitions War Room</div>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#C9A84C', fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.1 }}>StoneBridge</div>
+              <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>Investments</div>
             </div>
+          </div>
+          <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '5px 10px', textAlign: 'center' }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Acquisitions War Room</div>
           </div>
         </div>
 
