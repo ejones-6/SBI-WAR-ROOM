@@ -20,7 +20,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
-  const [newDeal, setNewDeal] = useState({ name: '', market: '', units: '', purchasePrice: '', status: '1 - New', broker: '' })
+  const [newDeal, setNewDeal] = useState({ name: '', market: '', units: '', yearBuilt: '', purchasePrice: '', status: '1 - New', broker: '' })
 
   const filtered = useMemo(() => {
     let d = deals
@@ -64,6 +64,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     await onAddDeal({
       name: newDeal.name, market: newDeal.market,
       units: newDeal.units ? parseInt(newDeal.units) : null,
+      year_built: newDeal.yearBuilt ? parseInt(newDeal.yearBuilt) : null,
       purchase_price: newDeal.purchasePrice ? parseFloat(newDeal.purchasePrice) : null,
       price_per_unit: (newDeal.purchasePrice && newDeal.units) ? Math.round(parseFloat(newDeal.purchasePrice) / parseInt(newDeal.units)) : null,
       status: newDeal.status, broker: newDeal.broker || null,
@@ -71,7 +72,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       flagged: false, hot: false,
     })
     setShowAdd(false)
-    setNewDeal({ name:'',market:'',units:'',purchasePrice:'',status:'1 - New',broker:'' })
+    setNewDeal({ name:'',market:'',units:'',yearBuilt:'',purchasePrice:'',status:'1 - New',broker:'' })
   }
 
   const FILTER_CHIPS = [
@@ -223,6 +224,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                 { label:'Deal Name', key:'name', span:2 },
                 { label:'Market', key:'market', span:2 },
                 { label:'Units', key:'units', type:'number' },
+                { label:'Year Built', key:'yearBuilt', type:'number' },
                 { label:'Purchase Price ($)', key:'purchasePrice', type:'number' },
                 { label:'Broker', key:'broker' },
               ].map(f => (
