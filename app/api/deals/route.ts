@@ -109,25 +109,26 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Insert new deals in chunks of 200
+      // Insert new deals in chunks of 100
       let inserted = 0
-      for (let i = 0; i < toInsert.length; i += 200) {
-        const chunk = toInsert.slice(i, i + 200)
+      for (let i = 0; i < toInsert.length; i += 100) {
+        const chunk = toInsert.slice(i, i + 100)
         const { data, error } = await supabase.from('deals').insert(chunk).select('id')
         if (error) console.error('Batch insert error:', error.message)
         if (data) inserted += data.length
       }
 
-      // Update existing deals in parallel batches of 100
+      // Update existing deals using upsert on name column — single bulk operation per chunk
+      // Much faster and more reliable than individual updates
       let updated = 0
-      for (let i = 0; i < toUpdate.length; i += 100) {
-        const batch = toUpdate.slice(i, i + 100)
-        const results = await Promise.all(
-          batch.map(({ name, ...fields }) =>
-            supabase.from('deals').update(fields).eq('name', name).select('id')
-          )
-        )
-        updated += results.filter(r => r.data && r.data.length > 0).length
+      for (let i = 0; i < toUpdate.length; i += 200) {
+        const chunk = toUpdate.slice(i, i + 200)
+        const { data, error } = await supabase
+          .from('deals')
+          .upsert(chunk, { onConflict: 'name', ignoreDuplicates: false })
+          .select('id')
+        if (error) console.error('Batch upsert error:', error.message, 'chunk:', i)
+        if (data) updated += data.length
       }
 
       return NextResponse.json({ inserted, updated })
