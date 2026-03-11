@@ -5,14 +5,29 @@ function fromYahoo(data: any): { rate: number | null; change: number | null } {
   if (!meta) return { rate: null, change: null }
   const rate = meta.regularMarketPrice ?? null
   const prev = meta.previousClose ?? null
-  return { rate, change: rate != null && prev != null ? parseFloat((rate - prev).toFixed(3)) : null }
+  return { rate, change: rate != null && prev != null ? parseFloat((rate - prev).toFixed(2)) : null }
+}
+
+async function yahooFetch(symbol: string) {
+  const res = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+    { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }
+  )
+  return res.json()
 }
 
 export async function GET() {
   try {
-    const [ust5Data, ust10Data] = await Promise.all([
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EFVX?interval=1d&range=5d', { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }).then(r => r.json()),
-      fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5ETNX?interval=1d&range=5d', { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store' }).then(r => r.json()),
+    const [sofrData, ust5Data, ust10Data, spxData, djiData, avbData, eqrData, maaData, essData] = await Promise.all([
+      yahooFetch('^SOFR'),
+      yahooFetch('^FVX'),
+      yahooFetch('^TNX'),
+      yahooFetch('^GSPC'),
+      yahooFetch('^DJI'),
+      yahooFetch('AVB'),
+      yahooFetch('EQR'),
+      yahooFetch('MAA'),
+      yahooFetch('ESS'),
     ])
 
     const ust5  = fromYahoo(ust5Data)
@@ -20,24 +35,22 @@ export async function GET() {
 
     // Interpolate 7Y linearly between 5Y and 10Y
     const ust7Rate   = ust5.rate   != null && ust10.rate   != null ? parseFloat((ust5.rate   + (ust10.rate   - ust5.rate)   * 0.4).toFixed(3)) : null
-    const ust7Change = ust5.change != null && ust10.change != null ? parseFloat((ust5.change + (ust10.change - ust5.change) * 0.4).toFixed(3)) : null
-
-    // SOFR from NY Fed — try both endpoints
-    let sofrRate: number | null = null
-    let sofrPrev: number | null = null
-    try {
-      const sofrRes = await fetch('https://markets.newyorkfed.org/api/rates/all/last/2.json', { cache: 'no-store' })
-      const sofrJson = await sofrRes.json()
-      const sofrObs = (sofrJson.refRates ?? []).filter((r: any) => r.type === 'SOFR')
-      sofrRate = sofrObs[0]?.percentRate ?? null
-      sofrPrev = sofrObs[1]?.percentRate ?? null
-    } catch {}
+    const ust7Change = ust5.change != null && ust10.change != null ? parseFloat((ust5.change + (ust10.change - ust5.change) * 0.4).toFixed(2)) : null
 
     const rates = [
-      { key: 'SOFR',  label: 'SOFR',    rate: sofrRate, change: sofrRate != null && sofrPrev != null ? parseFloat((sofrRate - sofrPrev).toFixed(3)) : null },
-      { key: 'DGS5',  label: '5Y UST',  ...ust5  },
-      { key: 'DGS7',  label: '7Y UST',  rate: ust7Rate,  change: ust7Change  },
-      { key: 'DGS10', label: '10Y UST', ...ust10 },
+      // Rates
+      { key: 'SOFR',  label: 'SOFR',      ...fromYahoo(sofrData) },
+      { key: 'DGS5',  label: '5Y UST',    ...ust5  },
+      { key: 'DGS7',  label: '7Y UST',    rate: ust7Rate, change: ust7Change },
+      { key: 'DGS10', label: '10Y UST',   ...ust10 },
+      // Indices
+      { key: 'SPX',   label: 'S&P 500',   ...fromYahoo(spxData) },
+      { key: 'DJI',   label: 'Dow Jones', ...fromYahoo(djiData) },
+      // REITs
+      { key: 'AVB',   label: 'AvalonBay', ...fromYahoo(avbData) },
+      { key: 'EQR',   label: 'Equity Res',...fromYahoo(eqrData) },
+      { key: 'MAA',   label: 'MAA',       ...fromYahoo(maaData) },
+      { key: 'ESS',   label: 'Essex Prop',...fromYahoo(essData) },
     ]
 
     return NextResponse.json({ rates })

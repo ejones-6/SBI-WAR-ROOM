@@ -99,76 +99,149 @@ function BarChart({ data }: { data: { label: string; value: number; current?: bo
 }
 
 
-function RatesWidget() {
-  const [rates, setRates] = useState<Record<string, { rate: number | null; change: number | null }>>({})
+
+// ── PASTE THIS ENTIRE BLOCK replacing the existing RatesWidget function ──────
+// Lines ~102–171 in DashboardPage.tsx
+
+function MarketsWidget() {
+  const [data, setData]           = useState<Record<string, { rate: number | null; change: number | null }>>({})
   const [lastUpdated, setLastUpdated] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading]     = useState(true)
 
   const RATES = [
-    { key: 'SOFR',  label: 'SOFR',    seriesId: 'SOFR'   },
-    { key: 'DGS5',  label: '5Y UST',  seriesId: 'DGS5'   },
-    { key: 'DGS7',  label: '7Y UST',  seriesId: 'DGS7'   },
-    { key: 'DGS10', label: '10Y UST', seriesId: 'DGS10'  },
+    { key: 'SOFR',  label: 'SOFR'    },
+    { key: 'DGS5',  label: '5Y UST'  },
+    { key: 'DGS7',  label: '7Y UST'  },
+    { key: 'DGS10', label: '10Y UST' },
   ]
 
-  async function fetchRates() {
+  const INDICES = [
+    { key: 'SPX',  label: 'S&P 500' },
+    { key: 'DJI',  label: 'DOW'     },
+  ]
+
+  const REITS = [
+    { key: 'AVB', label: 'AvalonBay',  sub: 'AVB'  },
+    { key: 'EQR', label: 'Equity Res', sub: 'EQR'  },
+    { key: 'MAA', label: 'MAA',        sub: 'MAA'  },
+    { key: 'ESS', label: 'Essex Prop', sub: 'ESS'  },
+  ]
+
+  async function fetchAll() {
     try {
-      const res = await fetch('/api/rates')
-      const data = await res.json()
-      if (data.rates) {
-        const results: Record<string, { rate: number | null; change: number | null }> = {}
-        for (const r of data.rates) results[r.key] = { rate: r.rate, change: r.change }
-        setRates(results)
+      const res  = await fetch('/api/rates')
+      const json = await res.json()
+      if (json.rates) {
+        const map: Record<string, { rate: number | null; change: number | null }> = {}
+        for (const r of json.rates) map[r.key] = { rate: r.rate, change: r.change }
+        setData(map)
         setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }))
       }
-    } catch (e) {
-      console.error('Rates fetch error:', e)
-    } finally {
-      setLoading(false)
-    }
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
   }
 
-  // Fetch on mount, refresh every 60 minutes
-  useEffect(() => { fetchRates(); const t = setInterval(fetchRates, 60 * 60 * 1000); return () => clearInterval(t) }, [])
-  
+  useEffect(() => { fetchAll(); const t = setInterval(fetchAll, 60 * 60 * 1000); return () => clearInterval(t) }, [])
+
+  const col = (key: string) => {
+    const d = data[key]
+    if (!d) return '#8A9BB0'
+    return d.change == null ? '#8A9BB0' : d.change > 0 ? '#E05C5C' : d.change < 0 ? '#3DAA72' : '#8A9BB0'
+  }
+  const arr = (key: string) => {
+    const d = data[key]
+    if (!d || d.change == null) return ''
+    return d.change > 0 ? '▲' : d.change < 0 ? '▼' : ''
+  }
+  const fmt = (key: string, isPrice = false) => {
+    const d = data[key]
+    if (!d || d.rate == null) return '—'
+    return isPrice ? d.rate.toLocaleString('en-US', { maximumFractionDigits: 2 }) : d.rate.toFixed(2) + '%'
+  }
+  const chg = (key: string, isPrice = false) => {
+    const d = data[key]
+    if (!d || d.change == null) return null
+    return isPrice
+      ? (d.change > 0 ? '+' : '') + d.change.toLocaleString('en-US', { maximumFractionDigits: 2 })
+      : (d.change > 0 ? '+' : '') + d.change.toFixed(3) + ' bps'
+  }
+
+  const sectionHead = (title: string) => (
+    <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.13em', color: '#C9A84C', textTransform: 'uppercase', marginBottom: 8, paddingBottom: 5, borderBottom: '1px solid rgba(13,27,46,0.07)' }}>{title}</div>
+  )
+
+  const rateCard = (key: string, label: string) => (
+    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '10px 14px', background: 'rgba(13,27,46,0.025)', borderRadius: 8, borderLeft: `2px solid ${col(key)}` }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: '#0D1B2E', lineHeight: 1 }}>
+        {loading ? <span style={{ color: '#ccc' }}>—</span> : fmt(key)}
+      </div>
+      {!loading && chg(key) && (
+        <div style={{ fontSize: 10, fontWeight: 600, color: col(key) }}>{arr(key)} {chg(key)}</div>
+      )}
+    </div>
+  )
+
+  const tickerRow = (key: string, label: string, sub: string, isPrice = false) => (
+    <div key={key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(13,27,46,0.05)' }}>
+      <div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.03em' }}>{label}</div>
+        <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em' }}>{sub}</div>
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E' }}>
+          {loading ? '—' : fmt(key, isPrice)}
+        </div>
+        {!loading && chg(key, isPrice) && (
+          <div style={{ fontSize: 10, fontWeight: 600, color: col(key) }}>{arr(key)} {chg(key, isPrice)}</div>
+        )}
+      </div>
+    </div>
+  )
+
   return (
-    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', padding: '18px 22px', marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Market Rates</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {lastUpdated && <div style={{ fontSize: 10, color: '#8A9BB0' }}>Updated {lastUpdated}</div>}
-          <button onClick={fetchRates} style={{ background: 'none', border: '1px solid rgba(13,27,46,0.1)', borderRadius: 6, padding: '3px 10px', fontSize: 10, color: '#8A9BB0', cursor: 'pointer', fontFamily: "'DM Sans',sans-serif" }}>↻ Refresh</button>
+    <div style={{ background: '#fff', borderRadius: 14, border: '1px solid rgba(13,27,46,0.08)', overflow: 'hidden', marginBottom: 20, boxShadow: '0 1px 12px rgba(13,27,46,0.06)' }}>
+      {/* Header bar */}
+      <div style={{ background: '#0D1B2E', padding: '10px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3DAA72', boxShadow: '0 0 6px #3DAA72' }} />
+          <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#fff', letterSpacing: '0.04em' }}>Market Intelligence</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {lastUpdated && <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em' }}>UPDATED {lastUpdated}</span>}
+          <button onClick={fetchAll} style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 5, padding: '3px 10px', fontSize: 9, color: '#C9A84C', cursor: 'pointer', letterSpacing: '0.08em', fontWeight: 700 }}>↻ REFRESH</button>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-        {RATES.map(({ key, label }) => {
-          const r = rates[key]
-          const up = r?.change != null && r.change > 0
-          const dn = r?.change != null && r.change < 0
-          return (
-            <div key={key} style={{ background: 'rgba(13,27,46,0.02)', borderRadius: 10, padding: '14px 18px', borderLeft: `3px solid ${up ? '#C0392B' : dn ? '#2E7D50' : '#8A9BB0'}` }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
-              {loading ? (
-                <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A84C', fontFamily: "'Cormorant Garamond',serif" }}>—</div>
-              ) : (
-                <>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, fontWeight: 700, color: '#0D1B2E' }}>
-                    {r?.rate != null ? r.rate.toFixed(2) + '%' : '—'}
-                  </div>
-                  {r?.change != null && (
-                    <div style={{ fontSize: 11, fontWeight: 600, color: up ? '#C0392B' : dn ? '#2E7D50' : '#8A9BB0', marginTop: 4 }}>
-                      {up ? '▲' : dn ? '▼' : '—'} {Math.abs(r.change).toFixed(3)} bps
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )
-        })}
+
+      {/* Body */}
+      <div style={{ padding: '18px 22px', display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 24 }}>
+
+        {/* LEFT: Rates grid */}
+        <div>
+          {sectionHead('Reference Rates')}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {RATES.map(({ key, label }) => rateCard(key, label))}
+          </div>
+        </div>
+
+        {/* MIDDLE: Equity Indices */}
+        <div>
+          {sectionHead('Equity Markets')}
+          {INDICES.map(({ key, label }) => tickerRow(key, label, key, true))}
+        </div>
+
+        {/* RIGHT: MF REITs */}
+        <div>
+          {sectionHead('Multifamily REITs')}
+          {REITS.map(({ key, label, sub }) => tickerRow(key, label, sub, true))}
+        </div>
+
       </div>
     </div>
   )
 }
+
+
 
 export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }: Props) {
   const now = new Date()
@@ -245,7 +318,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       </div>
 
       {/* Rates widget */}
-      <RatesWidget />
+      <MarketsWidget />
 
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, marginBottom: 20 }}>
