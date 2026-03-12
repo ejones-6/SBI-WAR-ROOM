@@ -8,6 +8,7 @@ import DealModal from './deals/DealModal'
 import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
+import AnalyticsPage from './analytics/AnalyticsPage'
 
 type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
@@ -341,7 +342,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
           {page === 'analytics' && (
-            <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
+            <AnalyticsPage deals={deals} boeMap={boeMap} capRateMap={capRateMap} />
           )}
           {page === 'upload' && (
             <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
