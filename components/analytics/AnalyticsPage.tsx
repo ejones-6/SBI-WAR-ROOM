@@ -191,7 +191,7 @@ function BrokerHeatmap({ deals }: { deals: Deal[] }) {
         name,
         count: v.count,
         markets: v.markets.size,
-        topMarkets: [...v.markets].slice(0, 3).join(', '),
+        topMarkets: Array.from(v.markets).slice(0, 3).join(', '),
         avgPpu: v.avgPpu.length ? Math.round(v.avgPpu.reduce((a, b) => a + b, 0) / v.avgPpu.length) : null,
         y2024: v.years['2024'] || 0,
         y2025: v.years['2025'] || 0,
@@ -625,7 +625,7 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
       .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime())
   , [deals, capRateMap])
 
-  const markets = useMemo(() => ['all', ...new Set(soldDeals.map(d => d.market))], [soldDeals])
+  const markets = useMemo(() => ['all', ...Array.from(new Set(soldDeals.map(d => d.market)))], [soldDeals])
 
   const filtered = marketFilter === 'all' ? soldDeals : soldDeals.filter(d => d.market === marketFilter)
 
