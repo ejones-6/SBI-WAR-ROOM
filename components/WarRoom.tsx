@@ -244,10 +244,10 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   if (deals.length === 0) {
     return (
       <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0D1B2E', flexDirection:'column', gap:16 }}>
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, fontWeight:700, color:'#C9A84C', letterSpacing:'0.08em' }}>STONEBRIDGE</div>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:28, fontWeight:700, color:'#E8A020', letterSpacing:'0.08em' }}>STONEBRIDGE</div>
         <div style={{ fontSize:13, color:'rgba(255,255,255,0.4)', letterSpacing:'0.12em', textTransform:'uppercase' }}>Loading War Room…</div>
         <div style={{ width:200, height:3, background:'rgba(255,255,255,0.08)', borderRadius:2, marginTop:8, overflow:'hidden' }}>
-          <div style={{ width:'40%', height:'100%', background:'#C9A84C', borderRadius:2 }}/>
+          <div style={{ width:'40%', height:'100%', background:'#E8A020', borderRadius:2 }}/>
         </div>
       </div>
     )
@@ -269,12 +269,12 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
               style={{ width: 38, height: 38, objectFit: 'contain', flexShrink: 0 }}
             />
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#C9A84C', fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.1 }}>StoneBridge</div>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", color: '#E8A020', fontSize: 15, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', lineHeight: 1.1 }}>StoneBridge</div>
               <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>Investments</div>
             </div>
           </div>
           <div style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, padding: '5px 10px', textAlign: 'center' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Acquisitions War Room</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#E8A020', letterSpacing: '0.2em', textTransform: 'uppercase' }}>Acquisitions War Room</div>
           </div>
         </div>
 
@@ -284,15 +284,15 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <button key={n.id} onClick={() => setPage(n.id)} style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 20px', border: 'none', background: page === n.id ? 'rgba(201,168,76,0.12)' : 'transparent',
-              borderLeft: page === n.id ? '3px solid #C9A84C' : '3px solid transparent',
-              color: page === n.id ? '#F0B429' : 'rgba(255,255,255,0.55)',
+              borderLeft: page === n.id ? '3px solid #E8A020' : '3px solid transparent',
+              color: page === n.id ? '#E8A020' : 'rgba(255,255,255,0.55)',
               fontSize: 13, fontWeight: page === n.id ? 600 : 400, cursor: 'pointer',
               fontFamily: "'DM Sans',sans-serif", textAlign: 'left', transition: 'all .15s'
             }}>
               <span style={{ opacity: page === n.id ? 1 : 0.6 }}>{n.icon}</span>
               <span style={{ flex: 1 }}>{n.label}</span>
               {n.badgeKey && (statusCounts[n.badgeKey] ?? 0) > 0 && (
-                <span style={{ background: '#C9A84C', color: '#0D1B2E', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
+                <span style={{ background: '#E8A020', color: '#0D1B2E', borderRadius: 10, padding: '1px 7px', fontSize: 10, fontWeight: 700 }}>
                   {statusCounts[n.badgeKey]}
                 </span>
               )}
@@ -317,14 +317,14 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {/* Top bar */}
         <div style={{
-          height: 52, background: '#fff', borderBottom: '3px solid #C9A84C',
+          height: 52, background: '#fff', borderBottom: '3px solid #E8A020',
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
         }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>
             {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline' }[page]}
           </h1>
           <div style={{ fontSize: 12, color: '#8A9BB0', display:'flex', alignItems:'center', gap:8 }}>
-            {loadingAll && <span style={{ fontSize:10, color:'#C9A84C', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
+            {loadingAll && <span style={{ fontSize:10, color:'#E8A020', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
             {deals.length.toLocaleString()} deals{!allDealsLoaded ? ' (active)' : ''}
           </div>
         </div>
@@ -474,7 +474,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
       {status === 'idle' || status === 'parsing' ? (
         <div style={cardStyle}>
           <label style={{ display: 'block', border: '2px dashed rgba(13,27,46,0.15)', borderRadius: 10, padding: '48px 32px', textAlign: 'center', cursor: 'pointer', transition: 'border-color .2s' }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = '#C9A84C')}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = '#E8A020')}
             onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(13,27,46,0.15)')}>
             <input type="file" accept=".xlsx,.xls" onChange={handleFile} style={{ display: 'none' }} />
             <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
@@ -494,7 +494,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setStatus('idle')} style={{ padding: '8px 18px', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 7, background: '#fff', color: '#8A9BB0', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleImport} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+              <button onClick={handleImport} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#E8A020', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 Import {preview.length} Deals →
               </button>
             </div>
@@ -504,7 +504,7 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
               <thead>
                 <tr style={{ background: '#0D1B2E' }}>
                   {['Deal Name', 'Status', 'Market', 'Units', 'Year', 'Price', 'Broker'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#F0B429', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#E8A020', fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -535,9 +535,9 @@ function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () 
         <div style={{ ...cardStyle, textAlign: 'center', padding: 64 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#0D1B2E', marginBottom: 6 }}>Done! {imported} deals processed</div>
-          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new deals added</span> · <span style={{color:'#F0B429',fontWeight:600}}>{updatedCount} existing deals updated</span></div>
+          <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 4 }}><span style={{color:'#27AE60',fontWeight:600}}>{insertedCount} new deals added</span> · <span style={{color:'#E8A020',fontWeight:600}}>{updatedCount} existing deals updated</span></div>
           <div style={{ fontSize: 12, color: '#8A9BB0', marginBottom: 24 }}>BOE data, comments, seller/buyer info preserved on all existing deals</div>
-          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0); setInsertedCount(0); setUpdatedCount(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
+          <button onClick={() => { setStatus('idle'); setPreview([]); setImported(0); setInsertedCount(0); setUpdatedCount(0) }} style={{ padding: '9px 22px', background: '#0D1B2E', color: '#E8A020', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Upload Another</button>
         </div>
       )}
     </div>
