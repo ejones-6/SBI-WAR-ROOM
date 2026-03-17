@@ -77,7 +77,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [rmi, setRmi] = useState<Record<string,string>>(boe?.rmi ?? { 'rmi-rm':'750','rmi-ct':'420','rmi-tu':'350' })
   const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'','tx-sf':'100' })
 
-  // Load from saved boe on deal change
+  // Load from saved boe on deal change or whenever boe data changes
+  // Use JSON snapshot as dependency so T12 always reflects latest saved data
+  const boeKey = boe ? JSON.stringify({ t12: boe.t12, adjs: boe.adjs, period: boe.period }) : null
   useEffect(() => {
     if (boe) {
       setT12(boe.t12 && Object.keys(boe.t12).length ? boe.t12 : EMPTY_T12)
@@ -90,7 +92,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
       setNoiBadge(boe?.noi_badge ?? 'BOE')
     }
-  }, [deal.name, boe?.updated_at])
+  }, [deal.name, boeKey])
 
   const v = (k: keyof BoeAdjs) => { const raw = adjs[k]; if (raw === undefined || raw === '') return null; const num = parseFloat(String(raw).replace(/[%,\$\s]/g, '')); return isNaN(num) ? null : num }
 
@@ -144,7 +146,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   async function handleSave() {
     setSaving(true)
-    await onSave({ deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge } as any)
+    // Snapshot current T12 so we can restore it if parent re-renders boe as null
+    const savedT12 = { ...t12 }
+    const savedAdjs = { ...adjs }
+    const savedPeriod = period
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge }
+    await onSave(payload as any)
+    // Re-apply local state after save so T12 is never wiped waiting for parent refresh
+    setT12(savedT12)
+    setAdjs(savedAdjs)
+    setPeriod(savedPeriod)
     // Save cap rate directly
     if (pp && cap_adj) {
       try {
