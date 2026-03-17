@@ -154,6 +154,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   })
   const [rmi, setRmi] = useState<Record<string,string>>(boe?.rmi ?? { 'rmi-rm':'750','rmi-ct':'420','rmi-tu':'350' })
   const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'','tx-sf':'100' })
+  const [taxMode, setTaxMode] = useState<'pp'|'av'>(boe?.tax_mode ?? 'pp')
+  const [currentAV, setCurrentAV] = useState<string>(boe?.current_av?.toString() ?? '')
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -171,6 +173,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         if (boe.payroll && Object.keys(boe.payroll).length) setPayroll(boe.payroll as any)
         if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
         if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper({...{'tx-sf':'100'}, ...boe.tax_helper as any})
+      if ((boe as any).tax_mode) setTaxMode((boe as any).tax_mode)
+      if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
         setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
         setNoiBadge(boe?.noi_badge ?? 'BOE')
       } else {
@@ -190,6 +194,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if (boe.payroll && Object.keys(boe.payroll).length) setPayroll(boe.payroll as any)
       if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
       if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper({...{'tx-sf':'100'}, ...boe.tax_helper as any})
+      if ((boe as any).tax_mode) setTaxMode((boe as any).tax_mode)
+      if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
       setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
       setNoiBadge(boe?.noi_badge ?? 'BOE')
       justSaved.current = true // After first load, don't reload again until deal changes
@@ -220,7 +226,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rmCalc = (rv('rmi-rm')+rv('rmi-ct')+rv('rmi-tu'))*units
 
   const tv = (k: string) => parseFloat(taxHelper[k] ?? '0') || 0
-  const taxCalc = pp * (tv('tx-mil')/100) * (tv('tx-rat')/100) * (tv('tx-sf')/100) + tv('tx-nad')
+  const taxBase = taxMode === 'av' ? (parseFloat(currentAV.replace(/[,$]/g,'')) || 0) : pp
+  const taxCalc = taxBase * (tv('tx-mil')/100) * (tv('tx-rat')/100) * (tv('tx-sf')/100) + tv('tx-nad')
 
   const ga_t  = t12.ga;  const ga_p  = ga_t  + (v('ga')??0)
   const mkt_t = t12.mkt; const mkt_p = mkt_t + (v('mkt')??0)
@@ -246,7 +253,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   async function handleSave() {
     setSaving(true)
     justSaved.current = true
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge }
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null }
     await onSave(payload as any)
     if (pp && cap_adj) {
       try {
@@ -569,7 +576,27 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
       {showTax && (
         <div style={{ background:'rgba(13,27,46,0.02)', padding:'10px 14px 12px', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', marginBottom:8 }}>TAX BUILD-UP</div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em' }}>TAX BUILD-UP</div>
+            <div style={{ display:'flex', borderRadius:6, overflow:'hidden', border:'1px solid rgba(13,27,46,0.15)' }}>
+              {(['pp','av'] as const).map(mode => (
+                <button key={mode} onClick={() => setTaxMode(mode)}
+                  style={{ padding:'3px 12px', fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:"'DM Sans',sans-serif",
+                    background: taxMode===mode ? '#0D1B2E' : 'transparent',
+                    color: taxMode===mode ? '#F0B429' : '#8A9BB0' }}>
+                  {mode==='pp' ? 'Reassess to PP' : 'Current Cycle'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {taxMode === 'av' && (
+            <div style={{ marginBottom:8 }}>
+              <label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>Current Assessed Value ($)</label>
+              <input type="text" value={currentAV} placeholder="e.g. 42500000"
+                onChange={e => setCurrentAV(e.target.value)}
+                style={{ width:'100%', padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)' }} />
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
             {[['Millage %','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
@@ -580,7 +607,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               </div>
             ))}
           </div>
-          {taxCalc > 0 && <div style={{ marginTop:8, fontSize:11, color:'#0D1B2E', fontWeight:600 }}>Est. Tax: {fmt(taxCalc)}</div>}
+          {taxCalc > 0 && <div style={{ marginTop:8, fontSize:11, color:'#0D1B2E', fontWeight:600 }}>Est. Tax: {fmt(taxCalc)} {taxMode==='av' ? '(Current Cycle)' : '(Reassess to PP)'}</div>}
         </div>
       )}
 
