@@ -113,6 +113,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     { label: 'All', value: 'all' },
     { label: 'New', value: '1 - New' },
     { label: 'Active', value: '2 - Active' },
+    { label: 'Bid Placed', value: '3 - Bid Placed' },
     { label: 'Dormant', value: '5 - Dormant' },
     { label: 'Passed', value: '6 - Passed' },
     { label: 'Lost', value: '7 - Lost' },
