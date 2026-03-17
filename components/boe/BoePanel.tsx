@@ -220,7 +220,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rmCalc = (rv('rmi-rm')+rv('rmi-ct')+rv('rmi-tu'))*units
 
   const tv = (k: string) => parseFloat(taxHelper[k] ?? '0') || 0
-  const taxCalc = pp * (tv('tx-rat')/100) * (tv('tx-mil')/1000) * (tv('tx-sf')/100) + tv('tx-nad')
+  const taxCalc = pp * tv('tx-mil') * tv('tx-rat') * tv('tx-sf') + tv('tx-nad')
 
   const ga_t  = t12.ga;  const ga_p  = ga_t  + (v('ga')??0)
   const mkt_t = t12.mkt; const mkt_p = mkt_t + (v('mkt')??0)
@@ -571,7 +571,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ background:'rgba(13,27,46,0.02)', padding:'10px 14px 12px', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
           <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', marginBottom:8 }}>TAX BUILD-UP</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-            {[['Millage Rate (per $1K)','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
+            {[['Millage Rate (e.g. 0.0183)','tx-mil',''],['Assessment Ratio (e.g. 0.85)','tx-rat',''],['State Factor (e.g. 0.96)','tx-sf','1'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} value={taxHelper[k]??''} placeholder={ph}
                   onChange={e => setTaxHelper(p=>({...p,[k]:e.target.value}))}
