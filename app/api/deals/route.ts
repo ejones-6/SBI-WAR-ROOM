@@ -194,17 +194,28 @@ export async function PATCH(req: NextRequest) {
   try {
     const supabase = getSupabase()
     const body = await req.json()
-    const { name, id, ...updates } = body
+    const { name, id, _oldName, ...updates } = body
     if (!name && !id) return NextResponse.json({ error: 'name or id required' }, { status: 400 })
     updates.modified = new Date().toISOString().slice(0, 10)
+
+    // Determine the old name for cascading renames
+    const oldName = _oldName ?? name
+
     let data, error
     if (id) {
       ({ data, error } = await supabase.from('deals').update(updates).eq('id', id).select())
     } else {
-      ({ data, error } = await supabase.from('deals').update(updates).eq('name', name).select())
+      ({ data, error } = await supabase.from('deals').update(updates).eq('name', oldName).select())
     }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!data || data.length === 0) return NextResponse.json({ error: 'no rows updated' }, { status: 404 })
+
+    // If name changed, cascade to boe_data
+    const newName = updates.name ?? name
+    if (newName && oldName && newName !== oldName) {
+      await supabase.from('boe_data').update({ deal_name: newName }).eq('deal_name', oldName)
+    }
+
     return NextResponse.json(data[0])
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'unknown' }, { status: 500 })
