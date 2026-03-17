@@ -414,7 +414,7 @@ function PricingTrends({ deals }: { deals: Deal[] }) {
 }
 
 // ── 4. Vintage & Asset Profile ────────────────────────────────────────────────
-function VintageProfile({ deals }: { deals: Deal[] }) {
+function VintageProfile({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
   const [yearFilter, setYearFilter] = useState<'all' | '2025' | '2026'>('all')
 
   const filtered = useMemo(() =>
@@ -422,30 +422,31 @@ function VintageProfile({ deals }: { deals: Deal[] }) {
   , [deals, yearFilter])
 
   const vintageData = useMemo(() => {
-    const buckets: Record<string, { count: number; ppus: number[]; units: number[] }> = {
-      'Pre-1970': { count: 0, ppus: [], units: [] },
-      '1970–1979': { count: 0, ppus: [], units: [] },
-      '1980–1989': { count: 0, ppus: [], units: [] },
-      '1990–1999': { count: 0, ppus: [], units: [] },
-      '2000–2009': { count: 0, ppus: [], units: [] },
-      '2010–2019': { count: 0, ppus: [], units: [] },
-      '2020+': { count: 0, ppus: [], units: [] },
+    const buckets: Record<string, { count: number; capRates: number[]; units: number[] }> = {
+      'Pre-1970': { count: 0, capRates: [], units: [] },
+      '1970–1979': { count: 0, capRates: [], units: [] },
+      '1980–1989': { count: 0, capRates: [], units: [] },
+      '1990–1999': { count: 0, capRates: [], units: [] },
+      '2000–2009': { count: 0, capRates: [], units: [] },
+      '2010–2019': { count: 0, capRates: [], units: [] },
+      '2020+': { count: 0, capRates: [], units: [] },
     }
     filtered.filter(d => d.year_built).forEach(d => {
       const yr = d.year_built!
       const key = yr < 1970 ? 'Pre-1970' : yr < 1980 ? '1970–1979' : yr < 1990 ? '1980–1989'
         : yr < 2000 ? '1990–1999' : yr < 2010 ? '2000–2009' : yr < 2020 ? '2010–2019' : '2020+'
       buckets[key].count++
-      if (d.price_per_unit) buckets[key].ppus.push(d.price_per_unit)
+      const cr = capRateMap[d.name]
+      if (cr?.noi_cap_rate) buckets[key].capRates.push(Number(cr.noi_cap_rate))
       if (d.units) buckets[key].units.push(d.units)
     })
     return Object.entries(buckets).map(([era, v]) => ({
       era,
       count: v.count,
-      avgPpu: v.ppus.length ? Math.round(v.ppus.reduce((a, b) => a + b, 0) / v.ppus.length) : null,
+      avgCapRate: v.capRates.length ? v.capRates.reduce((a, b) => a + b, 0) / v.capRates.length : null,
       avgUnits: v.units.length ? Math.round(v.units.reduce((a, b) => a + b, 0) / v.units.length) : null,
     })).filter(v => v.count > 0)
-  }, [filtered])
+  }, [filtered, capRateMap])
 
   const unitSizes = useMemo(() => {
     const buckets = { 'Under 100': 0, '100–199': 0, '200–299': 0, '300–399': 0, '400+': 0 }
@@ -488,7 +489,7 @@ function VintageProfile({ deals }: { deals: Deal[] }) {
             <HorizBar
               key={v.era} label={v.era} value={v.count} max={maxVintage}
               color={CHART_COLORS[i % CHART_COLORS.length]}
-              sub={v.avgPpu ? `$${(v.avgPpu / 1000).toFixed(0)}K/unit avg` : undefined}
+              sub={v.avgCapRate ? `${v.avgCapRate.toFixed(2)}% avg cap` : undefined}
             />
           ))}
         </div>
@@ -720,7 +721,7 @@ export default function AnalyticsPage({ deals, boeMap, capRateMap }: Props) {
       {/* Row 2: Pricing Trends + Vintage Profile */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <PricingTrends deals={deals} />
-        <VintageProfile deals={deals} />
+        <VintageProfile deals={deals} capRateMap={capRateMap} />
       </div>
 
       {/* Row 3: BOE Benchmarking + Market Comp Tracker */}
