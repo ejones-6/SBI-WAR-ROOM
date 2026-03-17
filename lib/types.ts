@@ -50,10 +50,12 @@ export interface BoeData {
   notes: Record<string, string>
   payroll: BoePayroll
   rmi: { 'rmi-rm'?: string; 'rmi-ct'?: string; 'rmi-tu'?: string }
-  tax_helper: { 'tx-mil'?: string; 'tx-rat'?: string; 'tx-nad'?: string }
+  tax_helper: { 'tx-mil'?: string; 'tx-rat'?: string; 'tx-nad'?: string; 'tx-sf'?: string }
   period: string
   pf_noi_override?: number | null
   noi_badge?: string
+  tax_mode?: 'pp' | 'av'
+  current_av?: number | null
   updated_at?: string
 }
 
