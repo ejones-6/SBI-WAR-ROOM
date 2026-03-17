@@ -36,7 +36,7 @@ const BOE_MAP: Record<string, string[]> = {
   pay:  ['pay'],
   mgt:  ['mgt'],
   utl:  ['elec','wat','gas','utl','trash'],
-  tax:  ['tax','tax_c','tax_o','tax_p'],
+  tax:  ['tax'],
   taxm: [],
   ins:  ['ins'],
 }
@@ -275,20 +275,22 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type:'array', cellDates:true })
-      const sheetName = wb.SheetNames.find(n => !/overview|about/i.test(n) && wb.SheetNames.indexOf(n) > 0) ?? wb.SheetNames[0]
+      // Always use Overview tab — it has the correct aggregated OI subtotal row
+      const sheetName = wb.SheetNames.find(n => /overview/i.test(n)) ?? wb.SheetNames[0]
       const ws = wb.Sheets[sheetName]
       const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' })
       const hdrIdx = rows.findIndex(r => String(r[0]).trim().toLowerCase() === 'code')
       if (hdrIdx < 0) { setStatus('⚠ Could not find header row'); return }
       const hdr = rows[hdrIdx]
+      // In Overview: cols 2,3,4 are annual totals — skip them, use monthly cols (col 5+)
       const monthlyCols: number[] = []
       hdr.forEach((h: any, i: number) => {
-        if (i >= 3) {
+        if (i >= 5) {
           if (typeof h === 'object' && h !== null) monthlyCols.push(i)
           else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(String(h))) monthlyCols.push(i)
         }
       })
-      const useCols = monthlyCols.length > 0 ? monthlyCols : Array.from({length:12},(_,i)=>i+3)
+      const useCols = monthlyCols.length > 0 ? monthlyCols : Array.from({length:12},(_,i)=>i+5)
       const sumRow = (row: any[]) => useCols.reduce((s, c) => s + (parseFloat(String(row[c] ?? '').replace(/[,$]/g,'')) || 0), 0)
       const codeMap: Record<string, number> = {}
       const labelMap: Record<string, number> = {}
@@ -308,7 +310,14 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       newT12.conc = codeMap['conc'] ?? 0
       newT12.mod  = codeMap['mod']  ?? 0
       newT12.emp  = codeMap['emp']  ?? 0
-      newT12.oi = labelMap['TOTAL OTHER INCOME'] ?? BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
+      // OI: find the row with blank code and label 'Other Income' in Overview — this is the correct subtotal
+      let oiVal = 0
+      for (let i = hdrIdx+1; i < rows.length; i++) {
+        const c = String(rows[i][0] ?? '').trim()
+        const l = String(rows[i][1] ?? '').trim().toLowerCase()
+        if (!c && l === 'other income') { oiVal = sumRow(rows[i]); break }
+      }
+      newT12.oi = oiVal || BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
       newT12.ga   = (codeMap['ga']  ?? 0) + (codeMap['lic'] ?? 0)
       newT12.mkt  = codeMap['adv']  ?? 0
       newT12.rm   = (codeMap['rm']  ?? 0) + (codeMap['cont'] ?? 0) + (codeMap['turn'] ?? 0) + (codeMap['ls'] ?? 0)
