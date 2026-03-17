@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, fmtUnit, ALL_STATUSES, REGION_MAP, REGION_LABELS } from '@/lib/utils'
 import type { Region } from '@/lib/types'
@@ -30,7 +30,12 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     seller: deal.seller ?? '',
     sold_price: deal.sold_price?.toString() ?? '',
     comments: deal.comments ?? '',
+    address: (deal as any).address ?? '',
   })
+  const [editingName, setEditingName] = useState(false)
+  const [editName, setEditName] = useState(deal.name)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -56,10 +61,17 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       seller: deal.seller ?? '',
       sold_price: deal.sold_price?.toString() ?? '',
       comments: deal.comments ?? '',
+      address: (deal as any).address ?? '',
     })
+    setEditName(deal.name)
+    setEditingName(false)
     setEditRegion(regionFromMarket(deal.market))
     setEditMarket(deal.market ?? '')
     setTab('details')
+    // Fetch property photo
+    const query = encodeURIComponent(`${deal.name} ${deal.market ?? ''} apartment`)
+    fetch(\`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=\${query}&inputtype=textquery&fields=photos&key=\${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}\`)
+      .catch(() => null)
   }, [deal.name, deal.comments, deal.status, deal.purchase_price, deal.units, deal.buyer, deal.seller, deal.sold_price, deal.market])
 
   const pp = parseFloat(form.purchase_price) || null
@@ -72,7 +84,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     setSaving(true)
     await onSave({
       id: deal.id,
-      name: deal.name,
+      name: editName.trim() || deal.name,
       status: form.status,
       purchase_price: pp,
       units: u,
@@ -85,7 +97,8 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       sold_price: soldP,
       comments: form.comments || null,
       market: editMarket || undefined,
-    })
+      address: form.address || null,
+    } as any)
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -114,21 +127,67 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
         {/* Header */}
         <div style={{ padding:'20px 28px 0', borderBottom:'1px solid rgba(13,27,46,0.08)', flexShrink:0 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
-            <div>
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(deal.name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Search on Google Maps"
-                style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E', textDecoration:'none', display:'inline-block' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#0D1B2E')}
-              >
-                {deal.name} <span style={{ fontSize:14, verticalAlign:'middle' }}>↗</span>
-              </a>
-              <div style={{ fontSize:12, color:'#8A9BB0', marginTop:3 }}>📍 {deal.market}</div>
+            <div style={{ flex:1, minWidth:0, paddingRight:16 }}>
+              {/* Editable deal name */}
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  onBlur={() => setEditingName(false)}
+                  onKeyDown={e => { if (e.key==='Enter'||e.key==='Escape') setEditingName(false) }}
+                  style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E',
+                    border:'none', borderBottom:'2px solid #C9A84C', outline:'none', background:'transparent',
+                    width:'100%', padding:'0 0 2px 0' }}
+                  autoFocus
+                />
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'text' }} onClick={() => setEditingName(true)}>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((form as any).address || editName + ' ' + (deal.market ?? ''))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Search on Google Maps"
+                    onClick={e => e.stopPropagation()}
+                    style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E', textDecoration:'none', display:'inline-block' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
+                    onMouseLeave={e => (e.currentTarget.style.color = '#0D1B2E')}
+                  >
+                    {editName} <span style={{ fontSize:14, verticalAlign:'middle' }}>↗</span>
+                  </a>
+                  <span title="Edit name" style={{ fontSize:11, color:'#C9A84C', opacity:0.6, userSelect:'none' }}>✎</span>
+                </div>
+              )}
+              <div style={{ fontSize:12, color:'#8A9BB0', marginTop:3 }}>
+                📍 {(form as any).address ? `${(form as any).address}` : deal.market}
+              </div>
             </div>
-            <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#8A9BB0', fontSize:20, padding:4, lineHeight:1 }}>✕</button>
+            <div style={{ display:'flex', alignItems:'flex-start', gap:12, flexShrink:0 }}>
+              {/* Property photo */}
+              <div style={{ width:160, height:100, borderRadius:10, overflow:'hidden', background:'rgba(13,27,46,0.08)', flexShrink:0, position:'relative' }}>
+                <img
+                  src={`https://maps.googleapis.com/maps/api/streetview?size=320x200&location=${encodeURIComponent((form as any).address || editName + ' ' + (deal.market ?? ''))}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ''}&source=outdoor`}
+                  alt={editName}
+                  style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                  onError={e => {
+                    const el = e.currentTarget
+                    el.style.display = 'none'
+                    const parent = el.parentElement
+                    if (parent) {
+                      parent.style.background = '#0D1B2E'
+                      parent.style.display = 'flex'
+                      parent.style.alignItems = 'center'
+                      parent.style.justifyContent = 'center'
+                      const txt = document.createElement('span')
+                      txt.textContent = editName.charAt(0).toUpperCase()
+                      txt.style.cssText = 'color:#C9A84C;font-size:36px;font-family:Cormorant Garamond,serif;font-weight:700'
+                      parent.appendChild(txt)
+                    }
+                  }}
+                />
+              </div>
+              <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer', color:'#8A9BB0', fontSize:20, padding:4, lineHeight:1 }}>✕</button>
+            </div>
           </div>
 
           {/* Tabs */}
@@ -218,6 +277,10 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
                 <div><label style={labelStyle}>Date Added</label>
                   <div style={{...inputStyle, background:'rgba(13,27,46,.03)', color:'#8A9BB0', display:'flex', alignItems:'center'}}>{deal.added ?? '—'}</div>
+                </div>
+
+                <div style={{ gridColumn:'span 3' }}><label style={labelStyle}>Address</label>
+                  <input style={inputStyle} type="text" placeholder="e.g. 4200 Lake Como Dr, Orlando, FL 32808" value={form.address} onChange={e => setForm(p => ({...p, address:e.target.value}))} />
                 </div>
 
                 {/* Region + Market */}

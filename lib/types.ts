@@ -8,6 +8,7 @@ export interface Deal {
   year_built: number | null
   price_per_unit: number | null
   purchase_price: number | null
+  address?: string | null
   bid_due_date: string | null
   added: string
   modified: string
