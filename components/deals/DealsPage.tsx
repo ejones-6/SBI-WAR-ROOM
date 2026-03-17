@@ -204,13 +204,14 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                       <small style={{ display: 'block', fontSize: 11, color: '#8A9BB0', fontWeight: 400, marginTop: 1 }}>
                         {deal.market}
                         {reg !== 'Misc' && <span style={{ marginLeft: 4, background: 'rgba(13,27,46,0.06)', color: '#8A9BB0', fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3 }}>{REGION_LABELS[reg]}</span>}
-                        {deal.broker && (deal.status.includes('1 -') || deal.status.includes('2 -')) && (
+                        {deal.broker && (deal.status.includes('1 -') || deal.status.includes('2 -') || deal.status.includes('3 -')) && (
                           <span style={{ marginLeft: 4, background: 'rgba(240,151,10,0.12)', color: '#b87200', fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 4 }}>{deal.broker}</span>
                         )}
                       </small>
                     </td>
                     <td style={{ padding: '10px 14px' }}>
-                      <span className={`status-badge ${sc}`} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:600,whiteSpace:'nowrap' }}>
+                      <span className={`status-badge ${sc}`} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:600,whiteSpace:'nowrap',
+                        ...(sc === 's-bid' ? { background:'rgba(124,58,237,0.1)', color:'#6d28d9' } : {}) }}>
                         <span style={{ width:6,height:6,borderRadius:'50%',background:'currentColor',opacity:.7 }}/>
                         {sl}
                       </span>

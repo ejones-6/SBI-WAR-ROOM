@@ -135,7 +135,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
   }, [])
 
-  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string }) => {
+  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string; _oldName?: string }) => {
+    const oldName = (updates as any)._oldName ?? updates.name
     const res = await fetch('/api/deals', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -146,8 +147,27 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     const data = JSON.parse(text)
     if (!res.ok) { console.error('saveDeal error:', data); return }
     const updated: Deal = data
-    setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
-    if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
+    const newName = updated.name
+    // Update deals list — match on oldName in case of rename
+    setDeals(prev => prev.map(d => d.name === oldName ? updated : d))
+    if (selectedDeal?.name === oldName) setSelectedDeal(updated)
+    // If name changed, update boeMap and capRateMap keys
+    if (oldName !== newName) {
+      setBoeMap(prev => {
+        if (!prev[oldName]) return prev
+        const next = { ...prev }
+        next[newName] = { ...next[oldName], deal_name: newName }
+        delete next[oldName]
+        return next
+      })
+      setCapRateMap(prev => {
+        if (!prev[oldName]) return prev
+        const next = { ...prev }
+        next[newName] = { ...next[oldName], deal_name: newName }
+        delete next[oldName]
+        return next
+      })
+    }
     return updated
   }, [selectedDeal])
 

@@ -47,6 +47,7 @@ export const REGION_LABELS: Record<Region, string> = {
 export const STATUS_CLASS: Record<string, string> = {
   '1 - New': 's-new',
   '2 - Active': 's-active',
+  '3 - Bid Placed': 's-bid',
   '5 - Dormant': 's-dormant',
   '6 - Passed': 's-passed',
   '7 - Lost': 's-lost',
@@ -88,7 +89,7 @@ export function formatBidDate(d: string | null): string {
 }
 
 export const ALL_STATUSES = [
-  '1 - New','2 - Active','5 - Dormant','6 - Passed','7 - Lost','9 - Exited','10 - Owned Property','11 - Property Comp'
+  '1 - New','2 - Active','3 - Bid Placed','5 - Dormant','6 - Passed','7 - Lost','9 - Exited','10 - Owned Property','11 - Property Comp'
 ]
 
 export function sortDeals(deals: Deal[], order: string): Deal[] {

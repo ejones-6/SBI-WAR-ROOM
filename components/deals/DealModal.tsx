@@ -82,6 +82,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     await onSave({
       id: deal.id,
       name: editName.trim() || deal.name,
+      _oldName: deal.name,
       status: form.status,
       purchase_price: pp,
       units: u,
