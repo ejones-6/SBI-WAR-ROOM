@@ -68,10 +68,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     setEditRegion(regionFromMarket(deal.market))
     setEditMarket(deal.market ?? '')
     setTab('details')
-    // Fetch property photo
-    const query = encodeURIComponent(`${deal.name} ${deal.market ?? ''} apartment`)
-    fetch(\`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=\${query}&inputtype=textquery&fields=photos&key=\${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}\`)
-      .catch(() => null)
+
   }, [deal.name, deal.comments, deal.status, deal.purchase_price, deal.units, deal.buyer, deal.seller, deal.sold_price, deal.market])
 
   const pp = parseFloat(form.purchase_price) || null
