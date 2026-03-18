@@ -183,9 +183,8 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       })
 
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true })
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        subdomains: 'abcd',
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles © Esri — Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom',
         maxZoom: 19,
       }).addTo(map)
       map.setView([33.5, -84.0], 5)
@@ -218,9 +217,9 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       const color = getStatusColor(deal.status)
       const icon = L.divIcon({
         className: '',
-        html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);cursor:pointer;transition:transform 0.1s;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer;transition:transform 0.12s;" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'"></div>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
       })
 
       const marker = L.marker(coords, { icon })
@@ -318,7 +317,7 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
         <div style={{ position: 'absolute', bottom: 24, right: 10, zIndex: 1000, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', fontSize: 10, fontFamily: "'DM Sans',sans-serif" }}>
           {[['New','#F0B429'],['Active','#1E8A3C'],['Bid Placed','#6B3FA0'],['Passed','#1A1A1A'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               <span style={{ color: '#334155' }}>{label}</span>
             </div>
           ))}
