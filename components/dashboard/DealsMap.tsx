@@ -130,22 +130,12 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       const addr = deal.address!
 
       try {
-        // Use structured search for better accuracy
-        const addrParts = addr.split(',').map((s: string) => s.trim())
-        const street = addrParts[0] || ''
-        const cityState = addrParts.slice(1).join(', ')
-        const structuredUrl = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(street)}&countrycodes=us&addressdetails=1&format=json&limit=1${cityState ? '&q=' + encodeURIComponent(cityState) : ''}`
-        const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr + ', USA')}&format=json&limit=1&countrycodes=us`
-        let res = await fetch(structuredUrl, { headers: { 'User-Agent': 'SBI-WarRoom/1.0' } })
-        let data = await res.json()
-        if (!data?.[0]) {
-          res = await fetch(fallbackUrl, { headers: { 'User-Agent': 'SBI-WarRoom/1.0' } })
-          data = await res.json()
-        }
-        const geocodeRes = data
-        if (geocodeRes?.[0]) {
-          const lat = parseFloat(geocodeRes[0].lat)
-          const lng = parseFloat(geocodeRes[0].lon)
+        // Route through server-side API to avoid CORS and rate limit issues
+        const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
+        const geocodeRes = await res.json()
+        if (geocodeRes?.lat) {
+          const lat = geocodeRes.lat
+          const lng = geocodeRes.lng
           const coords: [number, number] = [lat, lng]
           setGeocodeCache(prev => ({ ...prev, [addr]: coords }))
           setGeocodedCount(prev => prev + 1)
