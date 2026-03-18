@@ -9,14 +9,14 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  '1 -': '#E8A020',   // New — gold
-  '2 -': '#2E6B9E',   // Active — blue
-  '3 -': '#6B3FA0',   // Bid Placed — purple
+  '1 -': '#2E6B9E',   // New — blue
+  '2 -': '#6B3FA0',   // Active — purple
+  '3 -': '#2E7D50',   // Bid Placed — green
   '5 -': '#8A9BB0',   // Dormant — grey
-  '6 -': '#2E7D50',   // Passed — green
+  '6 -': '#B0B8C1',   // Passed — light grey
   '7 -': '#C0392B',   // Lost — red
   '9 -': '#1E7A6E',   // Exited
-  '10-': '#C9A84C',   // Owned — light gold
+  '10-': '#C9A84C',   // Owned — gold
   '11-': '#5D6D7E',   // Comp — slate
 }
 
@@ -141,8 +141,8 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
           setGeocodedCount(prev => prev + 1)
           // Save to DB so we never geocode this address again
           try {
-            await fetch('/api/deals', {
-              method: 'PATCH',
+            await fetch('/api/geocode/save', {
+              method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: deal.name, lat, lng }),
             })
@@ -308,7 +308,7 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
         {/* Legend */}
         <div style={{ position: 'absolute', bottom: 24, right: 10, zIndex: 1000, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', fontSize: 10, fontFamily: "'DM Sans',sans-serif" }}>
-          {[['New','#E8A020'],['Active','#2E6B9E'],['Bid Placed','#6B3FA0'],['Passed','#2E7D50'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
+          {[['New','#2E6B9E'],['Active','#6B3FA0'],['Bid Placed','#2E7D50'],['Passed','#B0B8C1'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               <span style={{ color: '#334155' }}>{label}</span>
