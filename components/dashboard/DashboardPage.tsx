@@ -266,8 +266,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
   const now = new Date()
   const [rates, setRates] = useState<any>(null)
   const [ratesLoading, setRatesLoading] = useState(true)
-  const [news, setNews] = useState<{ title: string; url: string; date: string; summary: string }[]>([])
-  const [newsLoading, setNewsLoading] = useState(true)
+
 
   useEffect(() => {
     async function loadRates() {
@@ -284,9 +283,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
     loadRates()
   }, [])
 
-  useEffect(() => {
-    fetch('/api/mhn-news').then(r => r.json()).then(d => { setNews(d); setNewsLoading(false) }).catch(() => setNewsLoading(false))
-  }, [])
+
 
   const active = deals.filter(d => d.status.includes('2 -'))
   const newDeals = deals.filter(d => d.status.includes('1 -'))
@@ -354,7 +351,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       </div>
 
       {/* Main Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16, minHeight: 700 }}>
 
         {/* Market Intelligence */}
         <div style={{ ...dark, display: 'flex', flexDirection: 'column' }}>
@@ -429,49 +426,18 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
             </div>
           </div>
 
-          {/* MHN News Feed */}
-          <div style={dark}>
-            <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence Feed</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', marginTop: 2 }}>Multifamily Housing News</div>
-              </div>
-              <a href="https://www.multihousingnews.com" target="_blank" rel="noopener noreferrer"
-                style={{ fontSize: 9, color: '#C9A84C', textDecoration: 'none', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 4, padding: '4px 10px', letterSpacing: '0.08em' }}>
-                MHN ↗
-              </a>
+          {/* Deal Map — replaces news feed */}
+          <div style={{ ...card, flex: 1, minHeight: 500, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(13,27,46,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Deal Activity Map</div>
+              <div style={{ fontSize: 10, color: '#8A9BB0' }}>{deals.filter(d => d.address).length} deals with addresses</div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)' }}>
-              {newsLoading ? [1,2,3].map(i => (
-                <div key={i} style={{ padding: '16px 18px', borderRight: i < 3 ? '1px solid rgba(201,168,76,0.07)' : 'none' }}>
-                  {[60,100,80].map((w, j) => <div key={j} style={{ height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 3, marginBottom: 8, width: `${w}%` }} />)}
-                </div>
-              )) : news.length === 0 ? (
-                <div style={{ padding: 20, color: 'rgba(255,255,255,0.3)', fontSize: 12, gridColumn: '1/-1' }}>Unable to load news</div>
-              ) : news.slice(0, 3).map((item, i) => (
-                <a key={i} href={item.url} target="_blank" rel="noopener noreferrer"
-                  style={{ padding: '16px 18px', borderRight: i < 2 ? '1px solid rgba(201,168,76,0.07)' : 'none', textDecoration: 'none', display: 'block', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.05)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                  <div style={{ fontSize: 9, color: 'rgba(201,168,76,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 6 }}>{item.date}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#F5F4EF', lineHeight: 1.45, marginBottom: 8, fontFamily: "'Cormorant Garamond',serif" }}>{item.title}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.4)', lineHeight: 1.55 }}>{item.summary}</div>
-                  <div style={{ marginTop: 10, fontSize: 9, color: '#C9A84C', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Read Full Article ↗</div>
-                </a>
-              ))}
-            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}><DealsMap deals={deals} onOpenDeal={onOpenDeal} /></div>
           </div>
         </div>
       </div>
 
-      {/* Deal Map */}
-      <div style={{ ...card, height: 400, marginBottom: 16, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(13,27,46,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Deal Activity Map</div>
-          <div style={{ fontSize: 10, color: '#8A9BB0' }}>{deals.length} deals tracked</div>
-        </div>
-        <div style={{ flex: 1, overflow: 'hidden' }}><DealsMap deals={deals} onOpenDeal={onOpenDeal} /></div>
-      </div>
+
 
       {/* Broker Leaderboard */}
       <BrokerLeaderboard deals={deals} />
