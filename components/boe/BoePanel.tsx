@@ -11,7 +11,7 @@ interface Props {
 
 const ADJ_ORDER = ['gpr','ltl','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
 
-const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
+const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,oi_t3:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
 
 const DEFAULT_ADJS: BoeAdjs = {
   gpr:'1.6', ltl:'3', vac:'5.0', bad:'', conc:'', mod:'', emp:'',
@@ -159,7 +159,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
-  const [oiT3, setOiT3] = useState<number>((boe as any)?.oi_t3 ?? 0)
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -184,7 +183,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
         setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
         setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
-        setOiT3((boe as any)?.oi_t3 ?? 0)
       } else {
         setT12(EMPTY_T12)
         setAdjs(DEFAULT_ADJS)
@@ -209,7 +207,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
       setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
       setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
-      setOiT3((boe as any)?.oi_t3 ?? 0)
       justSaved.current = true // After first load, don't reload again until deal changes
     }
   })
@@ -234,6 +231,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const brr_t = gpr_t+ltl_t+vac_t+bad_t+conc_t+mod_t+emp_t
   const brr_p = gpr_p+ltl_p+vac_p+bad_p+conc_p+mod_p+emp_p
   const oi_t  = t12.oi
+  const oiT3  = (t12 as any).oi_t3 ?? 0
   const oi_p  = isLeaseUp && oiT3 > 0 ? oiT3 : oi_t + (v('oi')??0)
   const egr_t = brr_t + oi_t; const egr_p = brr_p + oi_p
 
@@ -273,7 +271,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   async function handleSave() {
     setSaving(true)
     justSaved.current = true
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6, oi_t3: oiT3 }
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6 }
     await onSave(payload as any)
     if (pp && cap_adj) {
       try {
@@ -346,17 +344,15 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       }
       newT12.oi = oiVal || BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
       // Capture T3 OI: last 3 months × 4 for lease-up mode
-      let oiT3Val = 0
       const last3Cols = useCols.slice(-3)
       for (let i = hdrIdx+1; i < rows.length; i++) {
         const c = String(rows[i][0] ?? '').trim()
         const l = String(rows[i][1] ?? '').trim().toLowerCase()
         if (!c && l === 'other income') {
-          oiT3Val = last3Cols.reduce((s: number, col: number) => s + (parseFloat(String(rows[i][col] ?? '').replace(/[,$]/g,'')) || 0), 0) * 4
+          ;(newT12 as any).oi_t3 = last3Cols.reduce((s: number, col: number) => s + (parseFloat(String(rows[i][col] ?? '').replace(/[,$]/g,'')) || 0), 0) * 4
           break
         }
       }
-      setOiT3(oiT3Val)
       newT12.ga   = (codeMap['ga']  ?? 0) + (codeMap['lic'] ?? 0)
       newT12.mkt  = codeMap['adv']  ?? 0
       newT12.rm   = (codeMap['rm']  ?? 0) + (codeMap['cont'] ?? 0) + (codeMap['turn'] ?? 0) + (codeMap['ls'] ?? 0)

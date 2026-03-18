@@ -27,6 +27,7 @@ export interface Deal {
 export interface BoeT12 {
   gpr: number; ltl: number; vac: number; bad: number
   conc: number; mod: number; emp: number; oi: number
+  oi_t3?: number
   ga: number; mkt: number; rm: number; pay: number
   mgt: number; utl: number; tax: number; taxm: number
   ins: number
