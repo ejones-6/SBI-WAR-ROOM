@@ -368,6 +368,14 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       setT12(newT12)
       setPeriod(`${useCols.length} months`)
       setStatus(`✓ Loaded ${useCols.length} months from ${file.name}`)
+      if (leaseUpMode === 'leaseup') {
+        const r = parseFloat(avgRent.replace(/[,$]/g,'')) || 0
+        setNotes(prev => ({
+          ...prev,
+          oi: 'T3 Annualized',
+          gpr: r > 0 ? `Avg In-Place Rent: $${r.toLocaleString()}/unit` : 'Avg In-Place Rent',
+        }))
+      }
     } catch(err) {
       setStatus('⚠ Parse error: ' + String(err))
     }
@@ -439,7 +447,15 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         {/* Stabilized / Lease-Up toggle */}
         <div style={{ marginLeft:'auto', display:'flex', borderRadius:6, overflow:'hidden', border:'1px solid rgba(13,27,46,0.15)' }}>
           {(['stabilized','leaseup'] as const).map(mode => (
-            <button key={mode} onClick={() => setLeaseUpMode(mode)}
+            <button key={mode} onClick={() => {
+              setLeaseUpMode(mode)
+              if (mode === 'leaseup') {
+                const r = parseFloat(avgRent.replace(/[,$]/g,'')) || 0
+                setNotes(prev => ({ ...prev, oi: 'T3 Annualized', gpr: r > 0 ? `Avg In-Place Rent: $${r.toLocaleString()}/unit` : 'Avg In-Place Rent' }))
+              } else {
+                setNotes(prev => { const n = {...prev}; if (n.oi === 'T3 Annualized') delete n.oi; if (n.gpr?.startsWith('Avg In-Place')) delete n.gpr; return n })
+              }
+            }}
               style={{ padding:'3px 12px', fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:"'DM Sans',sans-serif",
                 background: leaseUpMode===mode ? '#0D1B2E' : 'transparent',
                 color: leaseUpMode===mode ? '#F0B429' : '#8A9BB0' }}>
@@ -453,7 +469,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ display:'flex', gap:12, alignItems:'flex-end', padding:'10px 14px', background:'rgba(240,180,41,0.06)', borderBottom:'1px solid rgba(13,27,46,0.07)', flexWrap:'wrap' }}>
           <div>
             <label style={{ fontSize:10, fontWeight:700, color:'#8A6500', display:'block', marginBottom:3, letterSpacing:'0.08em' }}>AVG IN-PLACE RENT ($/unit/mo)</label>
-            <input type="text" value={avgRent} onChange={e => setAvgRent(e.target.value)} placeholder="e.g. 1850"
+            <input type="text" value={avgRent} onChange={e => {
+              setAvgRent(e.target.value)
+              const r = parseFloat(e.target.value.replace(/[,$]/g,'')) || 0
+              if (r > 0) setNotes(prev => ({ ...prev, gpr: `Avg In-Place Rent: $${r.toLocaleString()}/unit` }))
+            }} placeholder="e.g. 1850"
               style={{ width:140, padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, background:'rgba(240,180,41,0.08)', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
           </div>
           <div>
