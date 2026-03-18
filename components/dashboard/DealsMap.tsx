@@ -9,11 +9,11 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  '1 -': '#2E6B9E',   // New — blue
-  '2 -': '#6B3FA0',   // Active — purple
-  '3 -': '#2E7D50',   // Bid Placed — green
+  '1 -': '#F0B429',   // New — yellow
+  '2 -': '#1E8A3C',   // Active — green
+  '3 -': '#6B3FA0',   // Bid Placed — purple
   '5 -': '#8A9BB0',   // Dormant — grey
-  '6 -': '#B0B8C1',   // Passed — light grey
+  '6 -': '#1A1A1A',   // Passed — black
   '7 -': '#C0392B',   // Lost — red
   '9 -': '#1E7A6E',   // Exited
   '10-': '#C9A84C',   // Owned — gold
@@ -183,9 +183,10 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       })
 
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true })
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 18,
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19,
       }).addTo(map)
       map.setView([33.5, -84.0], 5)
       mapInstanceRef.current = map
@@ -217,9 +218,9 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       const color = getStatusColor(deal.status)
       const icon = L.divIcon({
         className: '',
-        html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.4);cursor:pointer;"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6],
+        html: `<div style="width:36px;height:36px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);cursor:pointer;transition:transform 0.1s;display:flex;align-items:center;justify-content:center;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       })
 
       const marker = L.marker(coords, { icon })
@@ -315,7 +316,7 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
         {/* Legend */}
         <div style={{ position: 'absolute', bottom: 24, right: 10, zIndex: 1000, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', fontSize: 10, fontFamily: "'DM Sans',sans-serif" }}>
-          {[['New','#2E6B9E'],['Active','#6B3FA0'],['Bid Placed','#2E7D50'],['Passed','#B0B8C1'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
+          {[['New','#F0B429'],['Active','#1E8A3C'],['Bid Placed','#6B3FA0'],['Passed','#1A1A1A'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               <span style={{ color: '#334155' }}>{label}</span>

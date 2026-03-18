@@ -410,19 +410,41 @@ function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" f
 // Upload Pipeline Page
 function GeocodePage() {
   const [status, setStatus] = React.useState<'idle'|'running'|'done'|'error'>('idle')
-  const [result, setResult] = React.useState<any>(null)
+  const [totalGeocoded, setTotalGeocoded] = React.useState(0)
+  const [remaining, setRemaining] = React.useState<number|null>(null)
+  const [error, setError] = React.useState<string|null>(null)
+  const [batchNum, setBatchNum] = React.useState(0)
 
-  async function runBatch() {
+  async function runAll() {
     setStatus('running')
-    setResult(null)
-    try {
-      const res = await fetch('/api/geocode/batch', { method: 'POST' })
-      const data = await res.json()
-      setResult(data)
-      setStatus(data.error ? 'error' : 'done')
-    } catch (e: any) {
-      setResult({ error: e.message })
-      setStatus('error')
+    setTotalGeocoded(0)
+    setError(null)
+    setBatchNum(0)
+    let offset = 0
+    let batch = 1
+
+    while (true) {
+      setBatchNum(batch)
+      try {
+        const res = await fetch('/api/geocode/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offset })
+        })
+        const data = await res.json()
+        if (data.error) { setError(data.error); setStatus('error'); return }
+        setTotalGeocoded(prev => prev + (data.geocoded || 0))
+        setRemaining(data.remaining ?? 0)
+        if (data.done || !data.submitted) { setStatus('done'); return }
+        offset = data.nextOffset
+        batch++
+        // Small pause between batches
+        await new Promise(r => setTimeout(r, 1000))
+      } catch (e: any) {
+        setError(e.message)
+        setStatus('error')
+        return
+      }
     }
   }
 
@@ -430,26 +452,27 @@ function GeocodePage() {
     <div style={{ padding: '40px 48px', maxWidth: 600 }}>
       <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: '#0D1B2E', marginBottom: 8 }}>Bulk Geocode Deals</div>
       <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 32, lineHeight: 1.6 }}>
-        Sends all deals with addresses but no coordinates to the US Census geocoder in one batch request.
-        Run this once to populate the map. Takes about 30–60 seconds.
+        Sends all un-geocoded deals to the US Census geocoder in batches of 500.
+        Run this once to fully populate the map. Each batch takes ~30–45 seconds.
       </div>
-      <button onClick={runBatch} disabled={status === 'running'}
+      <button onClick={runAll} disabled={status === 'running'}
         style={{ padding: '12px 32px', background: status === 'running' ? '#8A9BB0' : '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: status === 'running' ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans',sans-serif", letterSpacing: '0.05em' }}>
-        {status === 'running' ? '⟳ Geocoding… (up to 60s)' : '▶ Run Batch Geocode'}
+        {status === 'running' ? `⟳ Running batch ${batchNum}…` : '▶ Run Batch Geocode'}
       </button>
-      {result && (
+      {status !== 'idle' && (
         <div style={{ marginTop: 24, padding: '16px 20px', borderRadius: 8, background: status === 'error' ? 'rgba(192,57,43,0.08)' : 'rgba(46,125,80,0.08)', border: `1px solid ${status === 'error' ? 'rgba(192,57,43,0.2)' : 'rgba(46,125,80,0.2)'}` }}>
-          {result.error ? (
-            <div style={{ color: '#C0392B', fontSize: 13 }}>Error: {result.error}</div>
-          ) : result.message ? (
-            <div style={{ color: '#2E7D50', fontSize: 13, fontWeight: 600 }}>{result.message}</div>
+          {error ? (
+            <div style={{ color: '#C0392B', fontSize: 13 }}>Error: {error}</div>
+          ) : status === 'done' ? (
+            <>
+              <div style={{ color: '#2E7D50', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>✓ All done!</div>
+              <div style={{ fontSize: 13, color: '#334155' }}>Total geocoded this run: <strong>{totalGeocoded}</strong></div>
+              <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 8 }}>Refresh the Map page to see all pins.</div>
+            </>
           ) : (
             <>
-              <div style={{ color: '#2E7D50', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>✓ Complete</div>
-              <div style={{ fontSize: 13, color: '#334155' }}>Submitted: <strong>{result.submitted}</strong></div>
-              <div style={{ fontSize: 13, color: '#334155' }}>Geocoded: <strong>{result.geocoded}</strong></div>
-              <div style={{ fontSize: 13, color: '#334155' }}>Failed: <strong>{result.failed}</strong></div>
-              <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 8 }}>Refresh the Map page to see all pins.</div>
+              <div style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>Geocoded so far: <strong>{totalGeocoded}</strong></div>
+              {remaining !== null && <div style={{ fontSize: 13, color: '#8A9BB0' }}>Remaining: ~{remaining}</div>}
             </>
           )}
         </div>

@@ -12,86 +12,88 @@ function getSupabase() {
   )
 }
 
+async function geocodeBatch(deals: { id: string; name: string; address: string }[]) {
+  const csvRows = deals.map((d, i) => {
+    const parts = (d.address || '').split(',').map((s: string) => s.trim())
+    const street = parts[0] || ''
+    const city = parts[1] || ''
+    const state = (parts[2] || '').replace(/\d/g, '').trim()
+    const zip = (parts[3] || (parts[2] || '').replace(/[^\d]/g, '')).trim()
+    return `${i},"${street}","${city}","${state}","${zip}"`
+  })
+
+  const csv = csvRows.join('\n')
+  const formData = new FormData()
+  formData.append('addressFile', new Blob([csv], { type: 'text/csv' }), 'addresses.csv')
+  formData.append('benchmark', 'Public_AR_Current')
+  formData.append('returntype', 'locations')
+
+  const res = await fetch('https://geocoding.geo.census.gov/geocoder/locations/addressbatch', {
+    method: 'POST',
+    body: formData,
+    signal: AbortSignal.timeout(50000)
+  })
+
+  if (!res.ok) throw new Error(`Census API ${res.status}`)
+
+  const text = await res.text()
+  const results: { idx: number; lat: number; lng: number }[] = []
+
+  for (const line of text.trim().split('\n').filter(Boolean)) {
+    const cols = line.split(',')
+    const idx = parseInt(cols[0])
+    const matched = cols[2]?.trim().toLowerCase() === 'match'
+    const coords = cols[5]?.trim().replace(/"/g, '')
+    if (!matched || !coords || isNaN(idx)) continue
+    const [lng, lat] = coords.split(',').map(Number)
+    if (!isNaN(lat) && !isNaN(lng)) results.push({ idx, lat, lng })
+  }
+
+  return results
+}
+
 export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase()
+    const body = await req.json().catch(() => ({}))
+    const offset = body.offset ?? 0
+    const batchSize = 500 // Safe chunk size that completes within 60s
 
-    // Fetch all deals with address but no lat/lng
     const { data: deals, error } = await supabase
       .from('deals')
       .select('id, name, address')
       .not('address', 'is', null)
       .neq('address', '')
       .or('lat.is.null,lng.is.null')
-      .limit(9500) // Census batch limit is 10,000
+      .range(offset, offset + batchSize - 1)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    if (!deals?.length) return NextResponse.json({ message: 'All deals already geocoded', count: 0 })
+    if (!deals?.length) return NextResponse.json({ done: true, geocoded: 0, remaining: 0 })
 
-    // Build CSV: ID,Address,City,State,Zip
-    // Census batch format: unique_id, street, city, state, zip
-    const csvRows = deals.map((d, i) => {
-      const parts = (d.address || '').split(',').map((s: string) => s.trim())
-      const street = parts[0] || ''
-      const city = parts[1] || ''
-      const stateZip = parts[2] || ''
-      const zip = parts[3] || ''
-      // Extract state from "TX" or "TX 76155"
-      const state = stateZip.replace(/\d/g, '').trim()
-      const zipClean = zip || stateZip.replace(/[^\d]/g, '').trim()
-      return `${i},${street},${city},${state},${zipClean}`
-    })
+    const results = await geocodeBatch(deals)
 
-    const csv = csvRows.join('\n')
+    // Save all results
+    await Promise.all(results.map(r =>
+      Promise.resolve(supabase.from('deals')
+        .update({ lat: r.lat, lng: r.lng })
+        .eq('id', deals[r.idx].id))
+    ))
 
-    // POST to Census batch geocoder
-    const formData = new FormData()
-    const blob = new Blob([csv], { type: 'text/csv' })
-    formData.append('addressFile', blob, 'addresses.csv')
-    formData.append('benchmark', 'Public_AR_Current')
-    formData.append('returntype', 'locations')
-
-    const censusRes = await fetch(
-      'https://geocoding.geo.census.gov/geocoder/locations/addressbatch',
-      { method: 'POST', body: formData, signal: AbortSignal.timeout(55000) }
-    )
-
-    if (!censusRes.ok) {
-      return NextResponse.json({ error: `Census API error: ${censusRes.status}` }, { status: 500 })
-    }
-
-    const resultText = await censusRes.text()
-    const lines = resultText.trim().split('\n').filter(Boolean)
-
-    // Parse results and save to DB
-    // Census output: ID, input_address, match, matchtype, parsed_address, coords, tiger_id, side
-    let saved = 0
-    const updates: Promise<any>[] = []
-
-    for (const line of lines) {
-      const cols = line.split(',')
-      const idx = parseInt(cols[0])
-      const matched = cols[2]?.trim().toLowerCase() === 'match'
-      const coords = cols[5]?.trim() // "lng,lat" format
-
-      if (!matched || !coords || idx >= deals.length) continue
-
-      const [lng, lat] = coords.replace(/"/g, '').split(',').map(Number)
-      if (isNaN(lat) || isNaN(lng)) continue
-
-      const deal = deals[idx]
-      updates.push(
-        Promise.resolve(supabase.from('deals').update({ lat, lng }).eq('id', deal.id))
-      )
-      saved++
-    }
-
-    await Promise.all(updates)
+    // Check how many still need geocoding
+    const { count } = await supabase
+      .from('deals')
+      .select('id', { count: 'exact', head: true })
+      .not('address', 'is', null)
+      .neq('address', '')
+      .or('lat.is.null,lng.is.null')
 
     return NextResponse.json({
+      done: (count ?? 0) === 0,
       submitted: deals.length,
-      geocoded: saved,
-      failed: deals.length - saved
+      geocoded: results.length,
+      failed: deals.length - results.length,
+      remaining: count ?? 0,
+      nextOffset: offset + batchSize
     })
 
   } catch (e: any) {
