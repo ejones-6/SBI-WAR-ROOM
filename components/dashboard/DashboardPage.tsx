@@ -188,12 +188,18 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
 
 
 function RateRow({ label, value, change, loading }: { label: string; value: string; change?: string; loading?: boolean }) {
-  const up = change ? !change.startsWith('-') : null
+  const up = change ? !change.startsWith('-') && change !== '+0.000' && change !== '+0.00' : null
+  const changeColor = up === null ? '#8A9BB0' : up ? '#2E7D50' : '#C0392B'
+  const arrow = up === null ? '' : up ? '▲' : '▼'
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
       <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.5)', letterSpacing: '0.05em' }}>{label}</div>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-        {change && up !== null && <span style={{ fontSize: 10, color: up ? '#2E7D50' : '#C0392B', fontWeight: 600 }}>{change}</span>}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {change && up !== null && (
+          <span style={{ fontSize: 10, color: changeColor, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span style={{ fontSize: 8 }}>{arrow}</span>{change}
+          </span>
+        )}
         <span style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</span>
       </div>
     </div>
@@ -319,7 +325,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
   const fmtBig = (n: number) => n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : '—'
   const fmtR = (v: any, d = 2) => v != null ? `${Number(v).toFixed(d)}%` : '—'
-  const fmtDelta = (v: any) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}` : '—'
+  const fmtDelta = (v: any, d = 3) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(d)}` : '—'
   const fmtPct = (v: any) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(2)}%` : '—'
   const fmtPrice = (v: any, decimals = 2) => v != null ? Number(v).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) : '—'
 
@@ -360,9 +366,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           </div>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
             <div style={secLabel}>Reference Rates</div>
-            <RateRow label="SOFR" value={fmtR(rates?.sofr?.rate)} change={fmtDelta(rates?.sofr?.change)} loading={ratesLoading} />
-            <RateRow label="5Y Treasury" value={fmtR(rates?.fiveY?.rate)} change={fmtDelta(rates?.fiveY?.change)} loading={ratesLoading} />
-            <RateRow label="7Y Treasury" value={fmtR(rates?.sevenY?.rate)} loading={ratesLoading} />
+            <RateRow label="SOFR" value={fmtR(rates?.sofr?.rate)} change={fmtDelta(rates?.sofr?.change, 2)} loading={ratesLoading} />
+            <RateRow label="5Y Treasury" value={fmtR(rates?.fiveY?.rate)} change={fmtDelta(rates?.fiveY?.change, 3)} loading={ratesLoading} />
+            <RateRow label="7Y Treasury" value={fmtR(rates?.sevenY?.rate)} change={fmtDelta(rates?.sevenY?.change)} loading={ratesLoading} />
             <RateRow label="10Y Treasury" value={fmtR(rates?.tenY?.rate)} change={fmtDelta(rates?.tenY?.change)} loading={ratesLoading} />
           </div>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
