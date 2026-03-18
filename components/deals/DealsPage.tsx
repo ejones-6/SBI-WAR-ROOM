@@ -49,15 +49,15 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Deals')
-    const statusLabel = filters.has('all') ? 'All' : [...filters].map(f => f.replace(/^\d+ - /, '')).join('+')
-    const regionLabel = regions.has('all') ? 'All Regions' : [...regions].map(r => (REGION_LABELS as any)[r] ?? r).join('+')
+    const statusLabel = filters.has('all') ? 'All' : Array.from(filters).map(f => f.replace(/^\d+ - /, '')).join('+')
+    const regionLabel = regions.has('all') ? 'All Regions' : Array.from(regions).map(r => (REGION_LABELS as any)[r] ?? r).join('+')
     const filename = `SBI War Room - ${statusLabel} - ${regionLabel}.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
   const filtered = useMemo(() => {
     let d = deals
-    if (!filters.has('all')) d = d.filter(x => [...filters].some(f => x.status.includes(f.split(' - ')[0] + ' -')))
+    if (!filters.has('all')) d = d.filter(x => Array.from(filters).some(f => x.status.includes(f.split(' - ')[0] + ' -')))
     if (!regions.has('all')) d = d.filter(x => regions.has(getRegion(x.market)))
     if (search) {
       const q = search.toLowerCase()
