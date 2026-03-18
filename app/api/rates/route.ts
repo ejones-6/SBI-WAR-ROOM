@@ -8,7 +8,7 @@ async function fetchStooq(symbol: string): Promise<{ close: number; prev: number
   try {
     const res = await fetch(`https://stooq.com/q/d/l/?s=${symbol}&i=d`, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      next: { revalidate: 0 }
+      cache: 'no-store'
     })
     if (!res.ok) return null
     const text = await res.text()
@@ -24,32 +24,18 @@ async function fetchStooq(symbol: string): Promise<{ close: number; prev: number
 }
 
 async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
-  // Primary: NY Fed API — official SOFR source, published daily ~8am ET
-  try {
-    const res = await fetch('https://markets.newyorkfed.org/api/rates/all/last/2.json', {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-      next: { revalidate: 0 }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      const rates = data?.refRates?.filter((r: any) => r.type === 'SOFR')
-      if (rates && rates.length >= 2) {
-        const close = parseFloat(rates[0]?.percentRate)
-        const prev  = parseFloat(rates[1]?.percentRate)
-        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
-      }
-    }
-  } catch {}
-
-  // Fallback: FRED API (no key needed for basic access)
+  // Primary: FRED CSV — reliable, no auth needed, direct download
   try {
     const res = await fetch(
-      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR&vintage_date=&output_type=file',
-      { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }
+      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR',
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/csv' },
+        cache: 'no-store'
+      }
     )
     if (res.ok) {
       const text = await res.text()
-      const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('.'))
+      const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('ND'))
       if (lines.length >= 2) {
         const close = parseFloat(lines[lines.length - 1].split(',')[1])
         const prev  = parseFloat(lines[lines.length - 2].split(',')[1])
@@ -58,8 +44,27 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
     }
   } catch {}
 
-  // Final fallback: Stooq
-  return fetchStooq('sofr.b')
+  // Fallback: NY Fed API
+  try {
+    const res = await fetch(
+      'https://markets.newyorkfed.org/api/rates/sofr/last/2.json',
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+        cache: 'no-store'
+      }
+    )
+    if (res.ok) {
+      const data = await res.json()
+      const rates = data?.refRates
+      if (rates?.length >= 2) {
+        const close = parseFloat(rates[0]?.percentRate)
+        const prev  = parseFloat(rates[1]?.percentRate)
+        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+      }
+    }
+  } catch {}
+
+  return null
 }
 
 export async function GET() {
@@ -95,7 +100,5 @@ export async function GET() {
     eqr:    price(eqr),
     maa:    price(maa),
     ess:    price(ess),
-  }, {
-    headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' }
   })
 }
