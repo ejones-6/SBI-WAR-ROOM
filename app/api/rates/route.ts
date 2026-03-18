@@ -1,7 +1,8 @@
 // app/api/rates/route.ts
 import { NextResponse } from 'next/server'
 
-export const revalidate = 3600
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 async function fetchStooq(symbol: string): Promise<{ close: number; prev: number } | null> {
   try {
