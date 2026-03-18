@@ -89,7 +89,7 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
       {/* Header */}
       <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence · 2026 YTD</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence · 2026 YTD</div>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 2 }}>Broker Activity by Market</div>
         </div>
         <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.3)' }}>{deals2026.filter(d=>d.broker).length} deals tracked</div>
@@ -211,10 +211,10 @@ function TickerRow({ label, value, change, pct, loading }: { label: string; valu
   const color = loading ? '#8A9BB0' : up ? '#2E7D50' : '#C0392B'
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr auto auto', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(201,168,76,0.08)', gap: 8 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.06em' }}>{label}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.06em' }}>{label}</div>
       <div />
-      <div style={{ fontSize: 12, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, color, minWidth: 90, textAlign: 'right' }}>{loading ? '—' : `${change} (${pct})`}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</div>
+      <div style={{ fontSize: 11, fontWeight: 600, color, minWidth: 90, textAlign: 'right' }}>{loading ? '—' : `${change} (${pct})`}</div>
     </div>
   )
 }
@@ -356,7 +356,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
   const card = { background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.07)', overflow: 'hidden' as const }
   const dark = { background: '#0D1B2E', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', overflow: 'hidden' as const }
-  const secLabel: React.CSSProperties = { fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }
+  const secLabel: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }
 
   return (
     <div style={{ padding: '24px 28px', background: '#EEEDE7', minHeight: '100%' }}>
@@ -384,7 +384,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
         {/* Market Intelligence */}
         <div style={{ ...dark, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 1 }}>Market Intelligence</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const, marginBottom: 1 }}>Market Intelligence</div>
             <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)' }}>
               {now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · Live Data
             </div>
@@ -416,16 +416,16 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           {/* Donut + Bids */}
           <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: 16 }}>
             <div style={{ ...card, padding: '16px 18px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>2026 by Market</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 8 }}>2026 by Market</div>
               <div style={{ display: 'flex', justifyContent: 'center' }}><DonutChart data={marketData} /></div>
               <div style={{ marginTop: 6 }}>
                 {marketData.slice(0, 5).map(d => (
                   <div key={d.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <div style={{ width: 6, height: 6, borderRadius: 2, background: d.color, flexShrink: 0 }} />
-                      <span style={{ fontSize: 10, color: '#8A9BB0' }}>{d.label}</span>
+                      <span style={{ fontSize: 11, color: '#8A9BB0' }}>{d.label}</span>
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#0D1B2E' }}>{d.value}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#0D1B2E' }}>{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -433,12 +433,12 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
             <div style={card}>
               <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(13,27,46,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
                 <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 54px 74px 74px 86px', gap: 6, padding: '4px 14px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 58px 52px 70px 70px 82px', gap: 6, padding: '4px 14px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
                 {['Deal', 'Guidance', 'Cap Rate', 'Seller', 'Broker', 'Bid Due'].map(h => (
-                  <div key={h} style={{ fontSize: 8, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: h === 'Deal' ? 'left' : 'right' as const }}>{h}</div>
+                  <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: h === 'Deal' ? 'left' : 'right' as const }}>{h}</div>
                 ))}
               </div>
               <div style={{ overflowY: activeDealsList.length > 8 ? 'auto' as const : 'visible' as const, maxHeight: activeDealsList.length > 8 ? 288 : 'none' }}>
@@ -449,7 +449,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                   const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                   return (
                     <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                      style={{ display: 'grid', gridTemplateColumns: '1fr 60px 54px 74px 74px 86px', gap: 6, padding: '6px 14px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.03)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: '1fr 58px 52px 70px 70px 82px', gap: 6, padding: '6px 14px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.03)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ overflow: 'hidden' }}>
@@ -472,10 +472,10 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           <div style={{ ...card, padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 3 }}>Pipeline Intelligence</div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Monthly Deal Flow</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 3 }}>Pipeline Intelligence</div>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 19, fontWeight: 700, color: '#0D1B2E' }}>Monthly Deal Flow</div>
             </div>
-            <div style={{ fontSize: 9, color: '#8A9BB0', letterSpacing: '0.06em', textAlign: 'right' as const }}>
+            <div style={{ fontSize: 11, color: '#8A9BB0', letterSpacing: '0.06em', textAlign: 'right' as const }}>
               <div>12-month rolling · {monthlyFlow.reduce((s,m) => s+m.count, 0)} total deals</div>
             </div>
           </div>
@@ -490,13 +490,13 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                     onMouseEnter={e => (e.currentTarget.style.background = '#2E4A6E')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#0D1B2E')}>
                     {/* Deal count */}
-                    <div style={{ fontSize: barH > 28 ? 10 : 8, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.count}</div>
+                    <div style={{ fontSize: barH > 28 ? 11 : 9, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.count}</div>
                     {/* Cap rate — only if bar tall enough */}
                     {m.avgCapRate && barH > 36 && (
-                      <div style={{ fontSize: 8, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.avgCapRate.toFixed(1)}%</div>
+                      <div style={{ fontSize: 9, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.avgCapRate.toFixed(1)}%</div>
                     )}
                   </div>
-                  <div style={{ fontSize: 8, color: '#8A9BB0', fontWeight: 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
+                  <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
                 </div>
               )
             })}
@@ -504,11 +504,11 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           <div style={{ marginTop: 8, display: 'flex', gap: 16, alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 8, height: 8, borderRadius: 2, background: '#0D1B2E' }} />
-              <span style={{ fontSize: 9, color: '#8A9BB0', letterSpacing: '0.05em' }}>DEALS ADDED</span>
+              <span style={{ fontSize: 10, color: '#8A9BB0', letterSpacing: '0.05em' }}>DEALS ADDED</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               <div style={{ width: 8, height: 4, borderRadius: 1, background: '#C9A84C' }} />
-              <span style={{ fontSize: 9, color: '#8A9BB0', letterSpacing: '0.05em' }}>AVG BOE CAP RATE</span>
+              <span style={{ fontSize: 10, color: '#8A9BB0', letterSpacing: '0.05em' }}>AVG BOE CAP RATE</span>
             </div>
           </div>
           </div>
