@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
@@ -12,7 +12,7 @@ import CapRatesPage from './caprates/CapRatesPage'
 import AnalyticsPage from './analytics/AnalyticsPage'
 const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
-type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
+type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload' | 'geocode'
 
 interface Props {
   initialDeals: Deal[]
@@ -264,6 +264,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'map', label: 'Map', icon: <MapIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
     { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
+    { id: 'geocode', label: 'Geocode Map', icon: <PinIcon /> },
   ]
 
   if (deals.length === 0) {
@@ -365,6 +366,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           {page === 'pipeline' && (
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
+          {page === 'geocode' && <GeocodePage />}
           {page === 'map' && (
             <div style={{ height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}>
               <DealsMap deals={deals} onOpenDeal={setSelectedDeal} />
@@ -400,11 +402,62 @@ function GridIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
+function PinIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> }
 function MapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
 // Upload Pipeline Page
+function GeocodePage() {
+  const [status, setStatus] = React.useState<'idle'|'running'|'done'|'error'>('idle')
+  const [result, setResult] = React.useState<any>(null)
+
+  async function runBatch() {
+    setStatus('running')
+    setResult(null)
+    try {
+      const res = await fetch('/api/geocode/batch', { method: 'POST' })
+      const data = await res.json()
+      setResult(data)
+      setStatus(data.error ? 'error' : 'done')
+    } catch (e: any) {
+      setResult({ error: e.message })
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div style={{ padding: '40px 48px', maxWidth: 600 }}>
+      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: '#0D1B2E', marginBottom: 8 }}>Bulk Geocode Deals</div>
+      <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 32, lineHeight: 1.6 }}>
+        Sends all deals with addresses but no coordinates to the US Census geocoder in one batch request.
+        Run this once to populate the map. Takes about 30–60 seconds.
+      </div>
+      <button onClick={runBatch} disabled={status === 'running'}
+        style={{ padding: '12px 32px', background: status === 'running' ? '#8A9BB0' : '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: status === 'running' ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans',sans-serif", letterSpacing: '0.05em' }}>
+        {status === 'running' ? '⟳ Geocoding… (up to 60s)' : '▶ Run Batch Geocode'}
+      </button>
+      {result && (
+        <div style={{ marginTop: 24, padding: '16px 20px', borderRadius: 8, background: status === 'error' ? 'rgba(192,57,43,0.08)' : 'rgba(46,125,80,0.08)', border: `1px solid ${status === 'error' ? 'rgba(192,57,43,0.2)' : 'rgba(46,125,80,0.2)'}` }}>
+          {result.error ? (
+            <div style={{ color: '#C0392B', fontSize: 13 }}>Error: {result.error}</div>
+          ) : result.message ? (
+            <div style={{ color: '#2E7D50', fontSize: 13, fontWeight: 600 }}>{result.message}</div>
+          ) : (
+            <>
+              <div style={{ color: '#2E7D50', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>✓ Complete</div>
+              <div style={{ fontSize: 13, color: '#334155' }}>Submitted: <strong>{result.submitted}</strong></div>
+              <div style={{ fontSize: 13, color: '#334155' }}>Geocoded: <strong>{result.geocoded}</strong></div>
+              <div style={{ fontSize: 13, color: '#334155' }}>Failed: <strong>{result.failed}</strong></div>
+              <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 8 }}>Refresh the Map page to see all pins.</div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () => void, addDeal: (deal: any) => Promise<any> }) {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
