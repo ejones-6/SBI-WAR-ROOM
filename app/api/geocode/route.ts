@@ -12,19 +12,28 @@ export async function GET(req: NextRequest) {
     const street = parts[0] || ''
     const rest = parts.slice(1).join(', ')
 
-    // Try structured search first
+    // Try structured search first (more accurate with zip)
     const structuredUrl = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(street)}&q=${encodeURIComponent(rest)}&countrycodes=us&format=json&limit=1`
     let res = await fetch(structuredUrl, {
-      headers: { 'User-Agent': 'SBI-WarRoom/1.0 (acquisitions internal tool)' }
+      headers: { 'User-Agent': 'SBI-WarRoom/1.0 (private acquisitions tool)' },
+      signal: AbortSignal.timeout(8000)
     })
+
+    // Pass through rate limit status
+    if (res.status === 429) {
+      return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+    }
+
     let data = await res.json()
 
-    // Fallback to free-text
+    // Fallback to free-text search
     if (!data?.[0]) {
       const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ', USA')}&countrycodes=us&format=json&limit=1`
       res = await fetch(fallbackUrl, {
-        headers: { 'User-Agent': 'SBI-WarRoom/1.0 (acquisitions internal tool)' }
+        headers: { 'User-Agent': 'SBI-WarRoom/1.0 (private acquisitions tool)' },
+        signal: AbortSignal.timeout(8000)
       })
+      if (res.status === 429) return NextResponse.json({ error: 'rate limited' }, { status: 429 })
       data = await res.json()
     }
 

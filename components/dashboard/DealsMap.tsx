@@ -127,27 +127,42 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
     setGeocoding(true)
 
-    async function geocodeNext(i: number) {
-      if (i >= toGeocode.length) { setGeocoding(false); return }
+    async function geocodeNext(i: number, retries = 0) {
+      if (i >= toGeocode.length) {
+        setGeocoding(false)
+        // Final marker refresh
+        setGeocodeCache({ ...geocodeCacheRef.current })
+        return
+      }
       const deal = toGeocode[i]
       const addr = deal.address!
 
       try {
-        // Route through server-side API to avoid CORS and rate limit issues
         const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
+
+        // Rate limited — back off and retry
+        if (res.status === 429) {
+          if (retries < 3) {
+            setTimeout(() => geocodeNext(i, retries + 1), 10000 * (retries + 1))
+          } else {
+            // Give up on this one after 3 retries, skip it
+            setTimeout(() => geocodeNext(i + 1), 2000)
+          }
+          return
+        }
+
         const geocodeRes = await res.json()
         if (geocodeRes?.lat) {
           const lat = geocodeRes.lat
           const lng = geocodeRes.lng
-          const coords: [number, number] = [lat, lng]
-          geocodeCacheRef.current[addr] = coords
+          geocodeCacheRef.current[addr] = [lat, lng]
           setGeocodedCount(prev => prev + 1)
-          // Batch marker updates — only refresh map every 5 seconds, not on every geocode
+          // Batch marker updates every 5 seconds
           if (markerUpdateTimer.current) clearTimeout(markerUpdateTimer.current)
           markerUpdateTimer.current = setTimeout(() => {
             setGeocodeCache({ ...geocodeCacheRef.current })
           }, 5000)
-          // Save to DB so we never geocode this address again
+          // Save to DB
           try {
             await fetch('/api/geocode/save', {
               method: 'POST',
@@ -156,13 +171,19 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
             })
           } catch {}
         } else {
+          // No result — use city centroid fallback
           const cityCoords = CITY_COORDS[deal.market || '']
           geocodeCacheRef.current[addr] = cityCoords || null
         }
       } catch {
-        setGeocodeCache(prev => ({ ...prev, [addr]: null }))
+        // Network error — retry after delay
+        if (retries < 2) {
+          setTimeout(() => geocodeNext(i, retries + 1), 5000)
+          return
+        }
       }
-      setTimeout(() => geocodeNext(i + 1), 1100)
+      // 1.5s between requests to stay under Nominatim rate limit
+      setTimeout(() => geocodeNext(i + 1), 1500)
     }
 
     geocodeNext(0)
