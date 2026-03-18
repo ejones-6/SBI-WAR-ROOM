@@ -171,108 +171,125 @@ function MarketIntelligence({ deals }: { deals: Deal[] }) {
   )
 }
 
-// ── 2. Broker Heatmap ─────────────────────────────────────────────────────────
-function BrokerHeatmap({ deals }: { deals: Deal[] }) {
-  const [view, setView] = useState<'volume' | 'markets'>('volume')
+// ── 2. Cap Rate Distribution ─────────────────────────────────────────────────
+function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
+  const [view, setView] = useState<'dist' | 'market'>('dist')
 
-  const brokerData = useMemo(() => {
-    const map: Record<string, { count: number; markets: Set<string>; avgPpu: number[]; years: Record<string, number> }> = {}
-    deals.filter(d => d.broker).forEach(d => {
-      const b = d.broker!.trim()
-      if (!map[b]) map[b] = { count: 0, markets: new Set(), avgPpu: [], years: {} }
-      map[b].count++
-      if (d.market) map[b].markets.add(shortMarket(d.market))
-      if (d.price_per_unit) map[b].avgPpu.push(d.price_per_unit)
-      const yr = d.added?.slice(0, 4) || 'Unknown'
-      map[b].years[yr] = (map[b].years[yr] || 0) + 1
+  // Build distribution buckets: 3–8% in 0.5% increments
+  const distData = useMemo(() => {
+    const rates = deals
+      .map(d => capRateMap[d.name]?.noi_cap_rate)
+      .filter(Boolean)
+      .map(Number)
+      .filter(r => r >= 3 && r <= 10)
+
+    const buckets = ['3.0–3.5','3.5–4.0','4.0–4.5','4.5–5.0','5.0–5.5','5.5–6.0','6.0–6.5','6.5–7.0','7.0+']
+    const counts = buckets.map((_, i) => {
+      if (i === 8) return rates.filter(r => r >= 7.0).length
+      const lo = 3.0 + i * 0.5
+      const hi = lo + 0.5
+      return rates.filter(r => r >= lo && r < hi).length
+    })
+    const maxC = Math.max(...counts, 1)
+    return buckets.map((label, i) => ({ label, count: counts[i], pct: (counts[i] / maxC) * 100 }))
+  }, [deals, capRateMap])
+
+  // By market averages
+  const marketData = useMemo(() => {
+    const map: Record<string, number[]> = {}
+    deals.forEach(d => {
+      const cr = capRateMap[d.name]?.noi_cap_rate
+      if (!cr) return
+      const m = shortMarket(d.market || 'Unknown')
+      if (!map[m]) map[m] = []
+      map[m].push(Number(cr))
     })
     return Object.entries(map)
-      .map(([name, v]) => ({
-        name,
-        count: v.count,
-        markets: v.markets.size,
-        topMarkets: Array.from(v.markets).slice(0, 3).join(', '),
-        avgPpu: v.avgPpu.length ? Math.round(v.avgPpu.reduce((a, b) => a + b, 0) / v.avgPpu.length) : null,
-        y2024: v.years['2024'] || 0,
-        y2025: v.years['2025'] || 0,
-        y2026: v.years['2026'] || 0,
+      .filter(([, v]) => v.length >= 2)
+      .map(([market, vals]) => ({
+        market,
+        avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+        count: vals.length,
+        min: Math.min(...vals),
+        max: Math.max(...vals),
       }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => a.avg - b.avg)
       .slice(0, 10)
-  }, [deals])
+  }, [deals, capRateMap])
 
-  const maxCount = brokerData[0]?.count || 1
+  const totalRates = deals.filter(d => capRateMap[d.name]?.noi_cap_rate).length
+  const allRates = deals.map(d => capRateMap[d.name]?.noi_cap_rate).filter(Boolean).map(Number)
+  const avgRate = allRates.length ? allRates.reduce((a, b) => a + b, 0) / allRates.length : 0
+  const medianRate = allRates.length ? [...allRates].sort((a,b)=>a-b)[Math.floor(allRates.length/2)] : 0
 
   return (
     <div style={darkCard}>
       <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(232,160,32,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <div style={sectionLabel('rgba(232,160,32,0.55)')}>Broker Intelligence</div>
-          <div style={darkCardTitle}>Broker Heatmap</div>
+          <div style={sectionLabel('rgba(232,160,32,0.55)')}>Underwriting Intelligence</div>
+          <div style={darkCardTitle}>Cap Rate Distribution</div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {(['volume', 'markets'] as const).map(v => (
+          {(['dist', 'market'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '4px 10px', borderRadius: 5,
               border: `1px solid rgba(232,160,32,${view === v ? '0.5' : '0.15'})`,
               background: view === v ? 'rgba(232,160,32,0.15)' : 'transparent',
               color: view === v ? SBI_ORANGE : 'rgba(245,244,239,0.4)',
               fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em'
-            }}>{v === 'volume' ? 'By Volume' : 'By Markets'}</button>
+            }}>{v === 'dist' ? 'Distribution' : 'By Market'}</button>
           ))}
         </div>
       </div>
       <div style={{ padding: '18px 20px' }}>
-        {brokerData.map((b, i) => (
-          <div key={b.name} style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 6, height: 6, borderRadius: 2, background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: CREAM }}>{b.name}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                {view === 'volume' ? (
-                  <>
-                    <span style={{ fontSize: 10, color: 'rgba(245,244,239,0.35)' }}>{b.markets} mkt{b.markets !== 1 ? 's' : ''}</span>
-                    {b.avgPpu && <span style={{ fontSize: 10, color: 'rgba(245,244,239,0.35)' }}>${(b.avgPpu/1000).toFixed(0)}K/unit</span>}
-                    <span style={{ fontSize: 13, fontWeight: 700, color: SBI_ORANGE, fontFamily: "'DM Mono',monospace" }}>{b.count}</span>
-                  </>
-                ) : (
-                  <>
-                    <span style={{ fontSize: 10, color: 'rgba(245,244,239,0.35)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.topMarkets}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: SBI_ORANGE, fontFamily: "'DM Mono',monospace" }}>{b.markets}</span>
-                  </>
-                )}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 3, height: 6 }}>
-              {/* Stacked year bars */}
-              {[
-                { yr: '2024', val: b.y2024, color: 'rgba(46,107,158,0.7)' },
-                { yr: '2025', val: b.y2025, color: 'rgba(232,160,32,0.6)' },
-                { yr: '2026', val: b.y2026, color: SBI_ORANGE },
-              ].map(({ yr, val, color }) => {
-                const w = maxCount > 0 ? (val / maxCount) * 100 : 0
-                return w > 0 ? (
-                  <div key={yr} title={`${yr}: ${val}`} style={{ height: '100%', width: `${w}%`, background: color, borderRadius: 2, flexShrink: 0 }} />
-                ) : null
-              })}
-              <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }} />
-            </div>
-          </div>
-        ))}
-        <div style={{ marginTop: 12, display: 'flex', gap: 16, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        {/* Summary strip */}
+        <div style={{ display: 'flex', gap: 24, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           {[
-            { color: 'rgba(46,107,158,0.7)', label: '2024' },
-            { color: 'rgba(232,160,32,0.6)', label: '2025' },
-            { color: SBI_ORANGE, label: '2026' },
-          ].map(l => (
-            <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 8, height: 8, borderRadius: 2, background: l.color }} />
-              <span style={{ fontSize: 9, color: 'rgba(245,244,239,0.4)', letterSpacing: '0.08em' }}>{l.label}</span>
+            { label: 'Deals Underwritten', value: totalRates.toLocaleString() },
+            { label: 'Avg BOE Cap Rate', value: avgRate ? `${avgRate.toFixed(2)}%` : '—' },
+            { label: 'Median Cap Rate', value: medianRate ? `${medianRate.toFixed(2)}%` : '—' },
+          ].map(s => (
+            <div key={s.label}>
+              <div style={{ fontSize: 9, color: 'rgba(232,160,32,0.5)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>{s.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: CREAM, fontFamily: "'Cormorant Garamond',serif" }}>{s.value}</div>
             </div>
           ))}
         </div>
+
+        {view === 'dist' ? (
+          <div>
+            {distData.map((b, i) => (
+              <div key={b.label} style={{ display: 'grid', gridTemplateColumns: '72px 1fr 36px', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.5)', fontFamily: "'DM Mono',monospace", textAlign: 'right' }}>{b.label}%</div>
+                <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 3, height: 20, overflow: 'hidden' }}>
+                  <div style={{ width: `${b.pct}%`, height: '100%', background: b.pct > 60 ? SBI_ORANGE : 'rgba(201,168,76,0.5)', borderRadius: 3, transition: 'width 0.3s' }} />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: b.count > 0 ? CREAM : 'rgba(245,244,239,0.2)', fontFamily: "'DM Mono',monospace", textAlign: 'right' }}>{b.count}</div>
+              </div>
+            ))}
+            <div style={{ marginTop: 12, fontSize: 9, color: 'rgba(245,244,239,0.2)' }}>All BOE underwritten deals · NOI cap rate (adj)</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 70px 40px', gap: 8, marginBottom: 8 }}>
+              {['Market','Avg','Min','Max','#'].map(h => (
+                <div key={h} style={{ fontSize: 8, fontWeight: 700, color: 'rgba(232,160,32,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase', textAlign: h==='Market'?'left':'right' }}>{h}</div>
+              ))}
+            </div>
+            {marketData.map((m, i) => (
+              <div key={m.market} style={{ display: 'grid', gridTemplateColumns: '1fr 70px 70px 70px 40px', gap: 8, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 5, height: 5, borderRadius: 1, background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: CREAM }}>{m.market}</span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: SBI_ORANGE, textAlign: 'right', fontFamily: "'DM Mono',monospace" }}>{m.avg.toFixed(2)}%</div>
+                <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.4)', textAlign: 'right', fontFamily: "'DM Mono',monospace" }}>{m.min.toFixed(2)}%</div>
+                <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.4)', textAlign: 'right', fontFamily: "'DM Mono',monospace" }}>{m.max.toFixed(2)}%</div>
+                <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.3)', textAlign: 'right', fontFamily: "'DM Mono',monospace" }}>{m.count}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -514,10 +531,10 @@ function BoeBenchmarking({ deals, boeMap, capRateMap }: { deals: Deal[]; boeMap:
       if (!cr) return
       const m = shortMarket(d.market || 'Unknown')
       if (!map[m]) map[m] = { noicaps: [], brokercaps: [], deltas: [] }
-      if (cr.noi_cap_rate) map[m].noicaps.push(Number(cr.noi_cap_rate) * 100)
-      if (cr.broker_cap_rate) map[m].brokercaps.push(Number(cr.broker_cap_rate) * 100)
+      if (cr.noi_cap_rate) map[m].noicaps.push(Number(cr.noi_cap_rate))
+      if (cr.broker_cap_rate) map[m].brokercaps.push(Number(cr.broker_cap_rate))
       if (cr.noi_cap_rate && cr.broker_cap_rate) {
-        map[m].deltas.push((Number(cr.noi_cap_rate) - Number(cr.broker_cap_rate)) * 100)
+        map[m].deltas.push(Number(cr.noi_cap_rate) - Number(cr.broker_cap_rate))
       }
     })
     return Object.entries(map)
@@ -534,7 +551,7 @@ function BoeBenchmarking({ deals, boeMap, capRateMap }: { deals: Deal[]; boeMap:
   }, [deals, capRateMap])
 
   const totalBoe = Object.keys(boeMap).length
-  const allNoiCaps = Object.values(capRateMap).filter(c => c.noi_cap_rate).map(c => Number(c.noi_cap_rate) * 100)
+  const allNoiCaps = Object.values(capRateMap).filter(c => c.noi_cap_rate).map(c => Number(c.noi_cap_rate))
   const avgNoi = allNoiCaps.length ? allNoiCaps.reduce((a, b) => a + b, 0) / allNoiCaps.length : 0
 
   return (
@@ -662,25 +679,34 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: NAVY }}>
-                {['Deal', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer'].map(h => (
+                {['Deal', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer', 'Updated'].map(h => (
                   <th key={h} style={{ padding: '8px 14px', textAlign: 'left', color: SBI_ORANGE, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, 20).map((d, i) => (
-                <tr key={d.id} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)' }}>
-                  <td style={{ padding: '8px 14px', fontWeight: 600, color: NAVY, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</td>
-                  <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap' }}>{d.market}</td>
-                  <td style={{ padding: '8px 14px', color: MUTED, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.purchase_price)}</td>
-                  <td style={{ padding: '8px 14px', color: NAVY, fontWeight: 600, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.sold_price)}</td>
-                  <td style={{ padding: '8px 14px', fontWeight: 700, fontFamily: "'DM Mono',monospace", color: d.delta > 0 ? '#2E7D50' : '#C0392B', whiteSpace: 'nowrap' }}>
-                    {d.delta >= 0 ? '+' : ''}{fmtShort(d.delta)} ({d.deltaPct >= 0 ? '+' : ''}{d.deltaPct.toFixed(1)}%)
-                  </td>
-                  <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.seller || '—'}</td>
-                  <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.buyer || '—'}</td>
-                </tr>
-              ))}
+              {filtered.slice(0, 50).map((d, i) => {
+                const isRecent = d.modified && (Date.now() - new Date(d.modified).getTime()) < 7 * 24 * 60 * 60 * 1000
+                return (
+                  <tr key={d.id} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: isRecent ? 'rgba(201,168,76,0.08)' : i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)', transition: 'background 0.2s' }}>
+                    <td style={{ padding: '8px 14px', fontWeight: 600, color: NAVY, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {isRecent && <span style={{ fontSize: 8, fontWeight: 800, color: '#8A6500', background: 'rgba(201,168,76,0.2)', padding: '1px 5px', borderRadius: 3, letterSpacing: '0.1em', flexShrink: 0 }}>NEW</span>}
+                        {d.name}
+                      </div>
+                    </td>
+                    <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap' }}>{d.market}</td>
+                    <td style={{ padding: '8px 14px', color: MUTED, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.purchase_price)}</td>
+                    <td style={{ padding: '8px 14px', color: NAVY, fontWeight: 600, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.sold_price)}</td>
+                    <td style={{ padding: '8px 14px', fontWeight: 700, fontFamily: "'DM Mono',monospace", color: d.delta > 0 ? '#2E7D50' : '#C0392B', whiteSpace: 'nowrap' }}>
+                      {d.delta >= 0 ? '+' : ''}{fmtShort(d.delta)} ({d.deltaPct >= 0 ? '+' : ''}{d.deltaPct.toFixed(1)}%)
+                    </td>
+                    <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.seller || '—'}</td>
+                    <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.buyer || '—'}</td>
+                    <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap', fontSize: 11 }}>{d.modified ? new Date(d.modified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
@@ -700,10 +726,10 @@ export default function AnalyticsPage({ deals, boeMap, capRateMap }: Props) {
         <div style={{ fontSize: 12, color: MUTED, marginTop: 3 }}>{deals.length.toLocaleString()} deals · {Object.keys(boeMap).length} underwritten · {Object.keys(capRateMap).length} cap rates tracked</div>
       </div>
 
-      {/* Row 1: Market Intelligence + Broker Heatmap */}
+      {/* Row 1: Market Intelligence + Cap Rate Distribution */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <MarketIntelligence deals={deals} />
-        <BrokerHeatmap deals={deals} />
+        <CapRateDistribution deals={deals} capRateMap={capRateMap} />
       </div>
 
       {/* Row 2: Pricing Trends + Vintage Profile */}
