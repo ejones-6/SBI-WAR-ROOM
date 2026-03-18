@@ -23,25 +23,42 @@ async function fetchStooq(symbol: string): Promise<{ close: number; prev: number
 }
 
 async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
-  // Try Stooq symbols in order
-  for (const sym of ['sofr.b', 'sofrrate.b', 'usdfisr.b']) {
-    const result = await fetchStooq(sym)
-    if (result) return result
-  }
-  // Fallback: NY Fed published SOFR data
+  // Primary: NY Fed API — official SOFR source, published daily ~8am ET
   try {
-    const res = await fetch('https://markets.newyorkfed.org/api/rates/sofr/last/2.json', {
+    const res = await fetch('https://markets.newyorkfed.org/api/rates/all/last/2.json', {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
       next: { revalidate: 0 }
     })
-    if (!res.ok) return null
-    const data = await res.json()
-    const rates = data?.refRates
-    if (!rates || rates.length < 2) return null
-    const close = parseFloat(rates[0]?.percentRate)
-    const prev  = parseFloat(rates[1]?.percentRate)
-    if (isNaN(close)) return null
-    return { close, prev: isNaN(prev) ? close : prev }
-  } catch { return null }
+    if (res.ok) {
+      const data = await res.json()
+      const rates = data?.refRates?.filter((r: any) => r.type === 'SOFR')
+      if (rates && rates.length >= 2) {
+        const close = parseFloat(rates[0]?.percentRate)
+        const prev  = parseFloat(rates[1]?.percentRate)
+        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+      }
+    }
+  } catch {}
+
+  // Fallback: FRED API (no key needed for basic access)
+  try {
+    const res = await fetch(
+      'https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR&vintage_date=&output_type=file',
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, next: { revalidate: 0 } }
+    )
+    if (res.ok) {
+      const text = await res.text()
+      const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('.'))
+      if (lines.length >= 2) {
+        const close = parseFloat(lines[lines.length - 1].split(',')[1])
+        const prev  = parseFloat(lines[lines.length - 2].split(',')[1])
+        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+      }
+    }
+  } catch {}
+
+  // Final fallback: Stooq
+  return fetchStooq('sofr.b')
 }
 
 export async function GET() {
