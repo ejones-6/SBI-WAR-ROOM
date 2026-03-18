@@ -18,6 +18,7 @@ interface Props {
 export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAddDeal }: Props) {
   const [filters, setFilters] = useState<Set<string>>(new Set(['all']))
   const [regions, setRegions] = useState<Set<string>>(new Set(['all']))
+  const [brokers, setBrokers] = useState<Set<string>>(new Set(['all']))
   const [sort, setSort] = useState('modified-desc')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -51,7 +52,8 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     XLSX.utils.book_append_sheet(wb, ws, 'Deals')
     const statusLabel = filters.has('all') ? 'All' : Array.from(filters).map(f => f.replace(/^\d+ - /, '')).join('+')
     const regionLabel = regions.has('all') ? 'All Regions' : Array.from(regions).map(r => (REGION_LABELS as any)[r] ?? r).join('+')
-    const filename = `SBI War Room - ${statusLabel} - ${regionLabel}.xlsx`
+    const brokerLabel = brokers.has('all') ? '' : ' - ' + Array.from(brokers).join('+')
+    const filename = `SBI War Room - ${statusLabel} - ${regionLabel}${brokerLabel}.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
@@ -59,12 +61,13 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     let d = deals
     if (!filters.has('all')) d = d.filter(x => Array.from(filters).some(f => x.status.includes(f.split(' - ')[0] + ' -')))
     if (!regions.has('all')) d = d.filter(x => regions.has(getRegion(x.market)))
+    if (!brokers.has('all')) d = d.filter(x => brokers.has(getBrokerBucket(x.broker)))
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
     }
     return sortDeals(d, sort)
-  }, [deals, filters, regions, sort, search])
+  }, [deals, filters, regions, brokers, sort, search])
 
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -126,6 +129,25 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
   }
 
+  const NAMED_BROKERS = ['CBRE', 'Newmark', 'JLL', 'W&D', 'Northmarq', 'C&W', 'Berkadia', 'Eastdil', 'IPA']
+  const BROKER_CHIPS = ['all', ...NAMED_BROKERS, 'Misc']
+
+  function getBrokerBucket(broker: string | null | undefined): string {
+    if (!broker) return 'Misc'
+    const b = broker.trim()
+    // Exact or starts-with matches for each named broker
+    if (/^CBRE/i.test(b) || /CBRE/i.test(b)) return 'CBRE'
+    if (/^Newmark/i.test(b) || /^NGKF/i.test(b) || /NewMark/i.test(b)) return 'Newmark'
+    if (/^JLL/i.test(b)) return 'JLL'
+    if (/^W&D/i.test(b) || /^Walker.*Dunlop/i.test(b) || /W&D/i.test(b)) return 'W&D'
+    if (/^Northmarq/i.test(b) || /^NorthMarq/i.test(b) || /^North Marq/i.test(b)) return 'Northmarq'
+    if (/^C&W/i.test(b) || /^Cushman/i.test(b)) return 'C&W'
+    if (/^Berkadia/i.test(b)) return 'Berkadia'
+    if (/^Eastdil/i.test(b)) return 'Eastdil'
+    if (/^IPA/i.test(b) || /^Institutional Property/i.test(b)) return 'IPA'
+    return 'Misc'
+  }
+
   return (
     <div style={{ padding: '24px 28px' }}>
       {/* Controls */}
@@ -150,6 +172,32 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
         <button onClick={handleExport} title={`Export ${filtered.length} deals to Excel`} style={{ padding: '8px 16px', background: '#fff', color: '#0D1B2E', border: '1px solid rgba(13,27,46,0.15)', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em', fontFamily: "'DM Sans',sans-serif", display:'flex', alignItems:'center', gap:6 }}>
           ↓ Export ({filtered.length})
         </button>
+      </div>
+
+      {/* Broker chips */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+        {BROKER_CHIPS.map(b => {
+          const active = b === 'all' ? brokers.has('all') : brokers.has(b)
+          return (
+            <button key={b} onClick={() => {
+              setPage(1)
+              if (b === 'all') { setBrokers(new Set(['all'])); return }
+              setBrokers(prev => {
+                const next = new Set(prev)
+                next.delete('all')
+                if (next.has(b)) { next.delete(b); if (next.size === 0) next.add('all') }
+                else next.add(b)
+                return next
+              })
+            }} style={{
+              padding: '3px 10px', borderRadius: 16, border: '1px solid',
+              borderColor: active ? '#2E6B9E' : 'rgba(13,27,46,0.1)',
+              background: active ? 'rgba(46,107,158,0.1)' : 'transparent',
+              color: active ? '#2E6B9E' : '#8A9BB0',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+            }}>{b === 'all' ? 'All Brokers' : b}</button>
+          )
+        })}
       </div>
 
       {/* Status chips */}
