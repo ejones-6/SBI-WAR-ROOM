@@ -83,9 +83,11 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
   const [statusFilter, setStatusFilter] = useState(new Set(['all']))
   const [regionFilter, setRegionFilter] = useState(new Set(['all']))
   const [brokerFilter, setBrokerFilter] = useState(new Set(['all']))
+  const geocodeCacheRef = useRef<Record<string, [number, number] | null>>({})
   const [geocodeCache, setGeocodeCache] = useState<Record<string, [number, number] | null>>({})
   const [geocoding, setGeocoding] = useState(false)
   const [geocodedCount, setGeocodedCount] = useState(0)
+  const markerUpdateTimer = useRef<any>(null)
 
   // Deals with addresses
   const dealsWithAddr = useMemo(() => deals.filter(d => d.address && d.address.trim()), [deals])
@@ -108,7 +110,8 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       }
     })
     if (Object.keys(preloaded).length > 0) {
-      setGeocodeCache(prev => ({ ...preloaded, ...prev }))
+      geocodeCacheRef.current = { ...preloaded, ...geocodeCacheRef.current }
+      setGeocodeCache({ ...geocodeCacheRef.current })
       setGeocodedCount(Object.keys(preloaded).length)
     }
   }, [dealsWithAddr])
@@ -137,8 +140,13 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
           const lat = geocodeRes.lat
           const lng = geocodeRes.lng
           const coords: [number, number] = [lat, lng]
-          setGeocodeCache(prev => ({ ...prev, [addr]: coords }))
+          geocodeCacheRef.current[addr] = coords
           setGeocodedCount(prev => prev + 1)
+          // Batch marker updates — only refresh map every 5 seconds, not on every geocode
+          if (markerUpdateTimer.current) clearTimeout(markerUpdateTimer.current)
+          markerUpdateTimer.current = setTimeout(() => {
+            setGeocodeCache({ ...geocodeCacheRef.current })
+          }, 5000)
           // Save to DB so we never geocode this address again
           try {
             await fetch('/api/geocode/save', {
@@ -149,7 +157,7 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
           } catch {}
         } else {
           const cityCoords = CITY_COORDS[deal.market || '']
-          setGeocodeCache(prev => ({ ...prev, [addr]: cityCoords || null }))
+          geocodeCacheRef.current[addr] = cityCoords || null
         }
       } catch {
         setGeocodeCache(prev => ({ ...prev, [addr]: null }))
