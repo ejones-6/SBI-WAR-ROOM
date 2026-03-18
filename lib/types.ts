@@ -56,6 +56,10 @@ export interface BoeData {
   noi_badge?: string
   tax_mode?: 'pp' | 'av'
   current_av?: number | null
+  lease_up_mode?: 'stabilized' | 'leaseup'
+  avg_rent?: number | null
+  rent_growth?: number | null
+  oi_t3?: number | null
   updated_at?: string
 }
 

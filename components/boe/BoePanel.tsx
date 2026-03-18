@@ -156,6 +156,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'','tx-sf':'100' })
   const [taxMode, setTaxMode] = useState<'pp'|'av'>(boe?.tax_mode ?? 'pp')
   const [currentAV, setCurrentAV] = useState<string>(boe?.current_av?.toString() ?? '')
+  const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
+  const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
+  const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
+  const [oiT3, setOiT3] = useState<number>((boe as any)?.oi_t3 ?? 0)
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -177,6 +181,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
         setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
         setNoiBadge(boe?.noi_badge ?? 'BOE')
+        setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
+        setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
+        setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
+        setOiT3((boe as any)?.oi_t3 ?? 0)
       } else {
         setT12(EMPTY_T12)
         setAdjs(DEFAULT_ADJS)
@@ -198,6 +206,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
       setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
       setNoiBadge(boe?.noi_badge ?? 'BOE')
+      setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
+      setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
+      setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
+      setOiT3((boe as any)?.oi_t3 ?? 0)
       justSaved.current = true // After first load, don't reload again until deal changes
     }
   })
@@ -205,8 +217,15 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const v = (k: keyof BoeAdjs) => { const raw = adjs[k]; if (raw === undefined || raw === '') return null; const num = parseFloat(String(raw).replace(/[%,\$\s]/g, '')); return isNaN(num) ? null : num }
 
   // ── Compute all PF values ──────────────────────────────────
-  const gpr_t = t12.gpr; const gpr_p = v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t
-  const ltl_t = t12.ltl; const ltl_p = t12.ltl*(1+(v('ltl')??3)/100)
+  const isLeaseUp = leaseUpMode === 'leaseup'
+  const avgRentNum = parseFloat(avgRent.replace(/[,$]/g,'')) || 0
+  const rentGrowthNum = parseFloat(rentGrowth) || 1.6
+  const gpr_t = t12.gpr
+  const gpr_p = isLeaseUp
+    ? (avgRentNum > 0 ? avgRentNum * units * 12 * (1 + rentGrowthNum/100) : gpr_t*(1+rentGrowthNum/100))
+    : (v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t)
+  const ltl_t = t12.ltl
+  const ltl_p = isLeaseUp ? 0 : t12.ltl*(1+(v('ltl')??3)/100)
   const vac_t = t12.vac; const vac_p = v('vac')!=null ? -(v('vac')!/100)*(gpr_p+ltl_p) : vac_t
   const bad_t = t12.bad; const bad_p = v('bad')!=null ? -(v('bad')!/100)*gpr_p : bad_t
   const conc_t= t12.conc;const conc_p= v('conc')!=null? -(v('conc')!/100)*gpr_p : conc_t
@@ -214,7 +233,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const emp_t = t12.emp; const emp_p = v('emp')!=null ? -(v('emp')!/100)*gpr_p : emp_t
   const brr_t = gpr_t+ltl_t+vac_t+bad_t+conc_t+mod_t+emp_t
   const brr_p = gpr_p+ltl_p+vac_p+bad_p+conc_p+mod_p+emp_p
-  const oi_t  = t12.oi;  const oi_p  = oi_t + (v('oi')??0)
+  const oi_t  = t12.oi
+  const oi_p  = isLeaseUp && oiT3 > 0 ? oiT3 : oi_t + (v('oi')??0)
   const egr_t = brr_t + oi_t; const egr_p = brr_p + oi_p
 
   const pv = (k: string) => parseFloat(payroll[k] ?? '0') || 0
@@ -253,7 +273,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   async function handleSave() {
     setSaving(true)
     justSaved.current = true
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null }
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6, oi_t3: oiT3 }
     await onSave(payload as any)
     if (pp && cap_adj) {
       try {
@@ -325,6 +345,18 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         if (!c && l === 'other income') { oiVal = sumRow(rows[i]); break }
       }
       newT12.oi = oiVal || BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
+      // Capture T3 OI: last 3 months × 4 for lease-up mode
+      let oiT3Val = 0
+      const last3Cols = useCols.slice(-3)
+      for (let i = hdrIdx+1; i < rows.length; i++) {
+        const c = String(rows[i][0] ?? '').trim()
+        const l = String(rows[i][1] ?? '').trim().toLowerCase()
+        if (!c && l === 'other income') {
+          oiT3Val = last3Cols.reduce((s: number, col: number) => s + (parseFloat(String(rows[i][col] ?? '').replace(/[,$]/g,'')) || 0), 0) * 4
+          break
+        }
+      }
+      setOiT3(oiT3Val)
       newT12.ga   = (codeMap['ga']  ?? 0) + (codeMap['lic'] ?? 0)
       newT12.mkt  = codeMap['adv']  ?? 0
       newT12.rm   = (codeMap['rm']  ?? 0) + (codeMap['cont'] ?? 0) + (codeMap['turn'] ?? 0) + (codeMap['ls'] ?? 0)
@@ -408,7 +440,38 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </label>
         {period && <span style={{ fontSize:11, color:'#8A9BB0' }}>Period: {period}</span>}
         {status && <span style={{ fontSize:11, color: status.startsWith('⚠') ? '#C0392B' : status.startsWith('✓') ? '#2E7D50' : '#8A9BB0' }}>{status}</span>}
+        {/* Stabilized / Lease-Up toggle */}
+        <div style={{ marginLeft:'auto', display:'flex', borderRadius:6, overflow:'hidden', border:'1px solid rgba(13,27,46,0.15)' }}>
+          {(['stabilized','leaseup'] as const).map(mode => (
+            <button key={mode} onClick={() => setLeaseUpMode(mode)}
+              style={{ padding:'3px 12px', fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:"'DM Sans',sans-serif",
+                background: leaseUpMode===mode ? '#0D1B2E' : 'transparent',
+                color: leaseUpMode===mode ? '#F0B429' : '#8A9BB0' }}>
+              {mode === 'stabilized' ? 'Stabilized' : 'Lease-Up'}
+            </button>
+          ))}
+        </div>
       </div>
+      {/* Lease-Up inputs */}
+      {leaseUpMode === 'leaseup' && (
+        <div style={{ display:'flex', gap:12, alignItems:'flex-end', padding:'10px 14px', background:'rgba(240,180,41,0.06)', borderBottom:'1px solid rgba(13,27,46,0.07)', flexWrap:'wrap' }}>
+          <div>
+            <label style={{ fontSize:10, fontWeight:700, color:'#8A6500', display:'block', marginBottom:3, letterSpacing:'0.08em' }}>AVG IN-PLACE RENT ($/unit/mo)</label>
+            <input type="text" value={avgRent} onChange={e => setAvgRent(e.target.value)} placeholder="e.g. 1850"
+              style={{ width:140, padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, background:'rgba(240,180,41,0.08)', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
+          </div>
+          <div>
+            <label style={{ fontSize:10, fontWeight:700, color:'#8A6500', display:'block', marginBottom:3, letterSpacing:'0.08em' }}>RENT GROWTH %</label>
+            <input type="text" value={rentGrowth} onChange={e => setRentGrowth(e.target.value)} placeholder="1.6"
+              style={{ width:80, padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, background:'rgba(240,180,41,0.08)', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
+          </div>
+          <div style={{ fontSize:11, color:'#8A6500' }}>
+            {avgRentNum > 0
+              ? <>PF GPR: <strong>{fmt(avgRentNum * units * 12 * (1 + rentGrowthNum/100))}</strong> · OI (T3×4): <strong>{oiT3 > 0 ? fmt(oiT3) : '—'}</strong> · LTL: <strong>$0</strong></>
+              : <span style={{color:'#8A9BB0'}}>Enter avg rent to calculate PF GPR</span>}
+          </div>
+        </div>
+      )}
 
       {/* Column headers */}
       <div style={{ display:'grid', gridTemplateColumns:COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)' }}>
