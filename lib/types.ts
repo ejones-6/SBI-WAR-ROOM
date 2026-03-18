@@ -16,6 +16,8 @@ export interface Deal {
   hot: boolean
   broker: string | null
   address: string | null
+  lat?: number | null
+  lng?: number | null
   buyer: string | null
   seller: string | null
   sold_price: number | null

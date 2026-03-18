@@ -99,13 +99,30 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
     return d
   }, [dealsWithAddr, statusFilter, regionFilter, brokerFilter])
 
-  // Geocode addresses using Nominatim (free OSM geocoder)
+  // Load coords already stored in DB (lat/lng on deal record)
   useEffect(() => {
-    const toGeocode = dealsWithAddr.filter(d => d.address && !(d.address in geocodeCache))
+    const preloaded: Record<string, [number, number]> = {}
+    dealsWithAddr.forEach(d => {
+      if ((d as any).lat && (d as any).lng && d.address) {
+        preloaded[d.address] = [(d as any).lat, (d as any).lng]
+      }
+    })
+    if (Object.keys(preloaded).length > 0) {
+      setGeocodeCache(prev => ({ ...preloaded, ...prev }))
+      setGeocodedCount(Object.keys(preloaded).length)
+    }
+  }, [dealsWithAddr])
+
+  // Geocode only addresses that don't have coords in DB yet
+  useEffect(() => {
+    const toGeocode = dealsWithAddr.filter(d =>
+      d.address &&
+      !(d.address in geocodeCache) &&
+      !((d as any).lat && (d as any).lng)
+    )
     if (toGeocode.length === 0) return
 
     setGeocoding(true)
-    let count = 0
 
     async function geocodeNext(i: number) {
       if (i >= toGeocode.length) { setGeocoding(false); return }
@@ -113,28 +130,45 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
       const addr = deal.address!
 
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`
-        const res = await fetch(url, { headers: { 'User-Agent': 'SBI-WarRoom/1.0' } })
-        const data = await res.json()
-        if (data?.[0]) {
-          const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)]
+        // Use structured search for better accuracy
+        const addrParts = addr.split(',').map((s: string) => s.trim())
+        const street = addrParts[0] || ''
+        const cityState = addrParts.slice(1).join(', ')
+        const structuredUrl = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(street)}&countrycodes=us&addressdetails=1&format=json&limit=1${cityState ? '&q=' + encodeURIComponent(cityState) : ''}`
+        const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr + ', USA')}&format=json&limit=1&countrycodes=us`
+        let res = await fetch(structuredUrl, { headers: { 'User-Agent': 'SBI-WarRoom/1.0' } })
+        let data = await res.json()
+        if (!data?.[0]) {
+          res = await fetch(fallbackUrl, { headers: { 'User-Agent': 'SBI-WarRoom/1.0' } })
+          data = await res.json()
+        }
+        const geocodeRes = data
+        if (geocodeRes?.[0]) {
+          const lat = parseFloat(geocodeRes[0].lat)
+          const lng = parseFloat(geocodeRes[0].lon)
+          const coords: [number, number] = [lat, lng]
           setGeocodeCache(prev => ({ ...prev, [addr]: coords }))
-          count++
           setGeocodedCount(prev => prev + 1)
+          // Save to DB so we never geocode this address again
+          try {
+            await fetch('/api/deals', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: deal.name, lat, lng }),
+            })
+          } catch {}
         } else {
-          // Try city fallback
           const cityCoords = CITY_COORDS[deal.market || '']
           setGeocodeCache(prev => ({ ...prev, [addr]: cityCoords || null }))
         }
       } catch {
         setGeocodeCache(prev => ({ ...prev, [addr]: null }))
       }
-      // Nominatim rate limit: 1 req/sec
       setTimeout(() => geocodeNext(i + 1), 1100)
     }
 
     geocodeNext(0)
-  }, [dealsWithAddr])
+  }, [dealsWithAddr, geocodeCache])
 
   // Initialize Leaflet map
   useEffect(() => {
