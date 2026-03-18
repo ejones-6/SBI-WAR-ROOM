@@ -320,6 +320,34 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
   }, [deals])
   const statusCounts = deals.reduce((acc: Record<string, number>, d) => { acc[d.status] = (acc[d.status] || 0) + 1; return acc }, {})
 
+  // Monthly deal flow — rolling 12 months from current month
+  const monthlyFlow = useMemo(() => {
+    const months: { label: string; key: string; count: number; avgCapRate: number | null }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now)
+      d.setMonth(d.getMonth() - i)
+      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      months.push({ label, key, count: 0, avgCapRate: null })
+    }
+    deals.forEach(d => {
+      if (!d.added) return
+      const key = d.added.slice(0, 7)
+      const m = months.find(m => m.key === key)
+      if (!m) return
+      m.count++
+    })
+    // Compute avg cap rate per month
+    months.forEach(m => {
+      const monthDeals = deals.filter(d => d.added?.slice(0,7) === m.key)
+      const rates = monthDeals.map(d => capRateMap[d.name]?.noi_cap_rate).filter(Boolean).map(Number)
+      m.avgCapRate = rates.length ? rates.reduce((s,v) => s+v, 0) / rates.length : null
+    })
+    return months
+  }, [deals, now, capRateMap])
+
+  const maxFlow = Math.max(...monthlyFlow.map(m => m.count), 1)
+
   const fmtBig = (n: number) => n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : '—'
   const fmtR = (v: any, d = 2) => v != null ? `${Number(v).toFixed(d)}%` : '—'
   const fmtDelta = (v: any, d = 3) => v != null ? `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(d)}` : '—'
@@ -428,6 +456,64 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
 
         </div>
+
+        {/* Monthly Deal Flow */}
+        <div style={{ ...card, padding: '18px 20px', marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 3 }}>Pipeline Intelligence</div>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Monthly Deal Flow</div>
+            </div>
+            <div style={{ fontSize: 9, color: '#8A9BB0', letterSpacing: '0.06em', textAlign: 'right' as const }}>
+              <div>12-month rolling · {monthlyFlow.reduce((s,m) => s+m.count, 0)} total deals</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 140, paddingBottom: 0 }}>
+            {monthlyFlow.map((m) => {
+              const barH = m.count ? Math.max((m.count / maxFlow) * 96, 4) : 0
+              const isCurrentMonth = m.key === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
+              return (
+                <div key={m.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                  {/* Count label */}
+                  <div style={{ fontSize: 9, fontWeight: 700, color: m.count ? '#0D1B2E' : 'transparent', letterSpacing: '0.03em', fontFamily: "'DM Mono',monospace" }}>{m.count}</div>
+                  {/* Bar */}
+                  <div style={{ width: '100%', height: 96, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', position: 'relative' as const }}>
+                    {barH > 0 && (
+                      <div style={{
+                        width: '100%', height: `${barH}%`,
+                        background: isCurrentMonth ? '#0D1B2E' : 'rgba(13,27,46,0.18)',
+                        borderRadius: '2px 2px 0 0',
+                        position: 'relative' as const,
+                        transition: 'background 0.2s',
+                      }}>
+                        {/* Cap rate inside bar if tall enough */}
+                        {m.avgCapRate && barH > 22 && (
+                          <div style={{
+                            position: 'absolute' as const, top: '50%', left: 0, right: 0,
+                            transform: 'translateY(-50%)',
+                            fontSize: 8, fontWeight: 700, color: isCurrentMonth ? '#C9A84C' : 'rgba(13,27,46,0.5)',
+                            textAlign: 'center' as const, letterSpacing: '0.02em',
+                            fontFamily: "'DM Mono',monospace",
+                          }}>{m.avgCapRate.toFixed(1)}%</div>
+                        )}
+                      </div>
+                    )}
+                    {/* Zero state */}
+                    {barH === 0 && <div style={{ width: '100%', height: 2, background: 'rgba(13,27,46,0.06)', borderRadius: 1 }} />}
+                  </div>
+                  {/* Month label */}
+                  <div style={{ fontSize: 9, color: isCurrentMonth ? '#0D1B2E' : '#8A9BB0', fontWeight: isCurrentMonth ? 700 : 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.04em' }}>{m.label}</div>
+                </div>
+              )
+            })}
+          </div>
+          {/* Cap rate legend note */}
+          <div style={{ marginTop: 8, fontSize: 9, color: '#8A9BB0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
+            Bar label = deals added · Value inside bar = avg BOE cap rate · Current month highlighted
+          </div>
+        </div>
+
+      </div>
       </div>
 
 
