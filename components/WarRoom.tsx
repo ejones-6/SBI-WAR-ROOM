@@ -347,7 +347,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
         }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>
-            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline' }[page]}
+            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline', geocode: 'Geocode Map' }[page]}
           </h1>
           <div style={{ fontSize: 12, color: '#8A9BB0', display:'flex', alignItems:'center', gap:8 }}>
             {loadingAll && <span style={{ fontSize:10, color:'#C9A84C', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
