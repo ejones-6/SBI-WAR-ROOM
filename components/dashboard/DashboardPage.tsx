@@ -436,7 +436,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                 <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
                 <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 6, padding: '4px 14px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 8, padding: '6px 16px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
                 {['Deal', 'Guidance', 'Cap Rate', 'Seller', 'Broker', 'Bid Due'].map(h => (
                   <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: 'left' as const }}>{h}</div>
                 ))}
@@ -449,12 +449,12 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                   const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                   return (
                     <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                      style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 6, padding: '6px 14px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.03)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 8, padding: '12px 16px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
-                        <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 1 }}>{deal.market ?? ''}</div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
+                        <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 2 }}>{deal.market ?? ''}</div>
                       </div>
                       <div style={{ fontSize: 13, color: '#334155', textAlign: 'left' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
                       <div style={{ fontSize: 13, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
