@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
       const deal = deals[idx]
       updates.push(
-        supabase.from('deals').update({ lat, lng }).eq('id', deal.id)
+        supabase.from('deals').update({ lat, lng }).eq('id', deal.id).then()
       )
       saved++
     }
