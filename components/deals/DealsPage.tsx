@@ -5,7 +5,7 @@ import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, fmtUnit, fmtPct, formatBidDate, bidDateClass, statusClass, statusLabel, getRegion, REGION_LABELS, REGION_MAP, sortDeals, ALL_STATUSES } from '@/lib/utils'
 import type { Region } from '@/lib/types'
 
-const PER_PAGE = 25
+const PER_PAGE = 100
 
 interface Props {
   deals: Deal[]
@@ -16,8 +16,8 @@ interface Props {
 }
 
 export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAddDeal }: Props) {
-  const [filter, setFilter] = useState('all')
-  const [region, setRegion] = useState('all')
+  const [filters, setFilters] = useState<Set<string>>(new Set(['all']))
+  const [regions, setRegions] = useState<Set<string>>(new Set(['all']))
   const [sort, setSort] = useState('modified-desc')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -49,22 +49,22 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Deals')
-    const statusLabel = filter === 'all' ? 'All' : filter.replace(/^\d+ - /, '')
-    const regionLabel = region === 'all' ? 'All Regions' : (REGION_LABELS as any)[region] ?? region
+    const statusLabel = filters.has('all') ? 'All' : [...filters].map(f => f.replace(/^\d+ - /, '')).join('+')
+    const regionLabel = regions.has('all') ? 'All Regions' : [...regions].map(r => (REGION_LABELS as any)[r] ?? r).join('+')
     const filename = `SBI War Room - ${statusLabel} - ${regionLabel}.xlsx`
     XLSX.writeFile(wb, filename)
   }
 
   const filtered = useMemo(() => {
     let d = deals
-    if (filter !== 'all') d = d.filter(x => x.status.includes(filter.split(' - ')[0] + ' -'))
-    if (region !== 'all') d = d.filter(x => getRegion(x.market) === region)
+    if (!filters.has('all')) d = d.filter(x => [...filters].some(f => x.status.includes(f.split(' - ')[0] + ' -')))
+    if (!regions.has('all')) d = d.filter(x => regions.has(getRegion(x.market)))
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
     }
     return sortDeals(d, sort)
-  }, [deals, filter, region, sort, search])
+  }, [deals, filters, regions, sort, search])
 
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -154,28 +154,54 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
 
       {/* Status chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-        {FILTER_CHIPS.map(c => (
-          <button key={c.value} onClick={() => { setFilter(c.value); setPage(1) }} style={{
-            padding: '4px 12px', borderRadius: 20, border: '1px solid',
-            borderColor: filter === c.value ? '#0D1B2E' : 'rgba(13,27,46,0.15)',
-            background: filter === c.value ? '#0D1B2E' : '#fff',
-            color: filter === c.value ? '#F0B429' : '#8A9BB0',
-            fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
-          }}>{c.label}</button>
-        ))}
+        {FILTER_CHIPS.map(c => {
+          const active = c.value === 'all' ? filters.has('all') : filters.has(c.value)
+          return (
+            <button key={c.value} onClick={() => {
+              setPage(1)
+              if (c.value === 'all') { setFilters(new Set(['all'])); return }
+              setFilters(prev => {
+                const next = new Set(prev)
+                next.delete('all')
+                if (next.has(c.value)) { next.delete(c.value); if (next.size === 0) next.add('all') }
+                else next.add(c.value)
+                return next
+              })
+            }} style={{
+              padding: '4px 12px', borderRadius: 20, border: '1px solid',
+              borderColor: active ? '#0D1B2E' : 'rgba(13,27,46,0.15)',
+              background: active ? '#0D1B2E' : '#fff',
+              color: active ? '#F0B429' : '#8A9BB0',
+              fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+            }}>{c.label}</button>
+          )
+        })}
       </div>
 
       {/* Region chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-        {REGIONS.map(r => (
-          <button key={r} onClick={() => { setRegion(r); setPage(1) }} style={{
-            padding: '3px 10px', borderRadius: 16, border: '1px solid',
-            borderColor: region === r ? '#C9A84C' : 'rgba(13,27,46,0.1)',
-            background: region === r ? 'rgba(201,168,76,0.12)' : 'transparent',
-            color: region === r ? '#8A6500' : '#8A9BB0',
-            fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
-          }}>{r === 'all' ? 'All Regions' : REGION_DISPLAY[r] || r}</button>
-        ))}
+        {REGIONS.map(r => {
+          const active = r === 'all' ? regions.has('all') : regions.has(r)
+          return (
+            <button key={r} onClick={() => {
+              setPage(1)
+              if (r === 'all') { setRegions(new Set(['all'])); return }
+              setRegions(prev => {
+                const next = new Set(prev)
+                next.delete('all')
+                if (next.has(r)) { next.delete(r); if (next.size === 0) next.add('all') }
+                else next.add(r)
+                return next
+              })
+            }} style={{
+              padding: '3px 10px', borderRadius: 16, border: '1px solid',
+              borderColor: active ? '#C9A84C' : 'rgba(13,27,46,0.1)',
+              background: active ? 'rgba(201,168,76,0.12)' : 'transparent',
+              color: active ? '#8A6500' : '#8A9BB0',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+            }}>{r === 'all' ? 'All Regions' : REGION_DISPLAY[r] || r}</button>
+          )
+        })}
       </div>
 
 
