@@ -486,7 +486,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
               const isCurrentMonth = m.key === `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`
               return (
                 <div key={m.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }}>
-                  <div style={{ width: '100%', position: 'relative' as const, height: barH, background: '#0D1B2E', borderRadius: '3px 3px 0 0', opacity: isCurrentMonth ? 1 : 0.55, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: barH }}>
+                  <div style={{ width: '100%', position: 'relative' as const, height: barH, background: '#0D1B2E', borderRadius: '3px 3px 0 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, minHeight: barH, cursor: 'default', transition: 'background 0.15s' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#2E4A6E')}
+                    onMouseLeave={e => (e.currentTarget.style.background = '#0D1B2E')}>
                     {/* Deal count */}
                     <div style={{ fontSize: barH > 28 ? 10 : 8, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.count}</div>
                     {/* Cap rate — only if bar tall enough */}
@@ -494,7 +496,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                       <div style={{ fontSize: 8, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.avgCapRate.toFixed(1)}%</div>
                     )}
                   </div>
-                  <div style={{ fontSize: 8, color: isCurrentMonth ? '#0D1B2E' : '#8A9BB0', fontWeight: isCurrentMonth ? 700 : 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
+                  <div style={{ fontSize: 8, color: '#8A9BB0', fontWeight: 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
                 </div>
               )
             })}

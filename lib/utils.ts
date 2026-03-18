@@ -107,6 +107,8 @@ export function sortDeals(deals: Deal[], order: string): Deal[] {
     case 'units-desc':    return d.sort((a, b) => (b.units ?? 0) - (a.units ?? 0))
     case 'name-asc':      return d.sort((a, b) => a.name.localeCompare(b.name))
     case 'location-asc':  return d.sort((a, b) => (a.market ?? '').localeCompare(b.market ?? ''))
+    case 'added-desc':    return d.sort((a, b) => (b.added ?? '').localeCompare(a.added ?? ''))
+    case 'added-asc':     return d.sort((a, b) => (a.added ?? '').localeCompare(b.added ?? ''))
     default: return d
   }
 }

@@ -165,6 +165,8 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <option value="units-desc">Units (Most)</option>
           <option value="name-asc">Name A–Z</option>
           <option value="location-asc">Location A–Z</option>
+          <option value="added-desc">Date Added (Newest)</option>
+          <option value="added-asc">Date Added (Oldest)</option>
         </select>
         <button onClick={() => setShowAdd(true)} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.08em', fontFamily: "'DM Sans',sans-serif" }}>
           + Add Deal
