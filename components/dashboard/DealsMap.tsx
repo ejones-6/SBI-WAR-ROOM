@@ -16,8 +16,8 @@ const STATUS_COLORS: Record<string, string> = {
   '6 -': '#1A1A1A',   // Passed — black
   '7 -': '#C0392B',   // Lost — red
   '9 -': '#1E7A6E',   // Exited
-  '10-': '#C9A84C',   // Owned — gold
-  '11-': '#5D6D7E',   // Comp — slate
+  '10 -': '#FF69B4', // Owned — pink
+  '11 -': '#5D6D7E', // Comp — slate
 }
 
 const NAMED_BROKERS = ['CBRE','Newmark','JLL','W&D','Northmarq','C&W','Berkadia','Eastdil','IPA']
@@ -52,7 +52,7 @@ const STATUS_FILTERS = [
   { label: 'Dormant', value: '5 -' },
   { label: 'Passed', value: '6 -' },
   { label: 'Lost', value: '7 -' },
-  { label: 'Owned', value: '10-' },
+  { label: 'Owned', value: '10 -' },
 ]
 
 const REGIONS = ['all', 'DC', 'Carolinas', 'GA', 'TX', 'TN', 'FL', 'Misc']
@@ -315,7 +315,7 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
         {/* Legend */}
         <div style={{ position: 'absolute', bottom: 24, right: 10, zIndex: 1000, background: 'rgba(255,255,255,0.95)', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', fontSize: 10, fontFamily: "'DM Sans',sans-serif" }}>
-          {[['New','#F0B429'],['Active','#1E8A3C'],['Bid Placed','#6B3FA0'],['Passed','#1A1A1A'],['Lost','#C0392B'],['Owned','#C9A84C'],['Dormant','#8A9BB0']].map(([label, color]) => (
+          {[['New','#F0B429'],['Active','#1E8A3C'],['Bid Placed','#6B3FA0'],['Passed','#1A1A1A'],['Lost','#C0392B'],['Owned','#FF69B4'],['Dormant','#8A9BB0']].map(([label, color]) => (
             <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, border: '2px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }} />
               <span style={{ color: '#334155' }}>{label}</span>
