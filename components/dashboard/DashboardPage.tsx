@@ -437,8 +437,8 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                 <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
               {/* Column headers */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 56px 56px 90px', gap: 8, padding: '6px 18px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
-                {['Deal', 'Guidance', 'Cap Rate', 'Broker', 'Bid Due'].map(h => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 64px 56px 80px 80px 90px', gap: 8, padding: '6px 18px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
+                {['Deal', 'Guidance', 'Cap Rate', 'Seller', 'Broker', 'Bid Due'].map(h => (
                   <div key={h} style={{ fontSize: 8, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: h === 'Deal' ? 'left' : 'right' as const }}>{h}</div>
                 ))}
               </div>
@@ -449,17 +449,16 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                 const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                 return (
                   <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 64px 56px 56px 90px', gap: 8, padding: '9px 18px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.04)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 64px 56px 80px 80px 90px', gap: 8, padding: '9px 18px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.04)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <div style={{ overflow: 'hidden' }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
-                      <div style={{ fontSize: 9, color: '#8A9BB0', marginTop: 1, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {deal.seller ? `${deal.seller} · ` : ''}{deal.market ?? ''}
-                      </div>
+                      <div style={{ fontSize: 9, color: '#8A9BB0', marginTop: 1 }}>{deal.market ?? ''}</div>
                     </div>
                     <div style={{ fontSize: 11, color: '#334155', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
                     <div style={{ fontSize: 11, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
+                    <div style={{ fontSize: 10, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
                     <div style={{ fontSize: 10, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
                     <div style={{ fontSize: 10, fontWeight: 600, textAlign: 'right' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
                   </div>
@@ -468,11 +467,8 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
             </div>
           </div>
 
-
-        </div>
-
-        {/* Monthly Deal Flow */}
-        <div style={{ ...card, padding: '18px 20px', marginTop: 16 }}>
+          {/* Monthly Deal Flow */}
+          <div style={{ ...card, padding: '18px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 9, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.15em', textTransform: 'uppercase' as const, marginBottom: 3 }}>Pipeline Intelligence</div>
@@ -525,8 +521,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           <div style={{ marginTop: 8, fontSize: 9, color: '#8A9BB0', letterSpacing: '0.06em', textTransform: 'uppercase' as const }}>
             Bar label = deals added · Value inside bar = avg BOE cap rate · Current month highlighted
           </div>
-        </div>
+          </div>
 
+        </div>
       </div>
 
 
