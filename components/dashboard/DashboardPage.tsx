@@ -290,6 +290,22 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
   const totalGuidance = useMemo(() => [...newDeals, ...active].filter(d => d.purchase_price).reduce((s, d) => s + d.purchase_price!, 0), [newDeals, active])
   const avgCapRate = useMemo(() => { const crs = Object.values(capRateMap).filter(c => c.noi_cap_rate).map(c => Number(c.noi_cap_rate)); return crs.length ? crs.reduce((s, v) => s + v, 0) / crs.length : 0 }, [capRateMap])
 
+  // New KPI stats
+  const activeGuidancePrices = useMemo(() => active.filter(d => d.purchase_price).map(d => d.purchase_price!), [active])
+  const avgActiveGuidance = activeGuidancePrices.length ? activeGuidancePrices.reduce((s, v) => s + v, 0) / activeGuidancePrices.length : null
+
+  const activeCapRates = useMemo(() => active.map(d => capRateMap[d.name]).filter(cr => cr?.noi_cap_rate).map(cr => Number(cr.noi_cap_rate)), [active, capRateMap])
+  const avgActiveCapRate = activeCapRates.length ? activeCapRates.reduce((s, v) => s + v, 0) / activeCapRates.length : null
+
+  const allTimeCapRates = useMemo(() => {
+    return deals.filter(d => {
+      if (!d.added) return false
+      const yr = parseInt(d.added.slice(0, 4))
+      return yr >= 2025
+    }).map(d => capRateMap[d.name]).filter(cr => cr?.noi_cap_rate).map(cr => Number(cr.noi_cap_rate))
+  }, [deals, capRateMap])
+  const avgAllTimeCapRate = allTimeCapRates.length ? allTimeCapRates.reduce((s, v) => s + v, 0) / allTimeCapRates.length : null
+
   const upcomingBids = [...newDeals, ...active].filter(d => d.bid_due_date && d.bid_due_date >= now.toISOString().split('T')[0]).sort((a, b) => a.bid_due_date!.localeCompare(b.bid_due_date!)).slice(0, 6)
   const marketData = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -317,11 +333,11 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       {/* KPI Strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Active Pipeline', value: `${newDeals.length + active.length}`, sub: `${newDeals.length} new · ${active.length} active`, accent: '#C9A84C' },
-          { label: 'Pipeline Guidance', value: fmtBig(totalGuidance), sub: 'active + new deals', accent: '#2E6B9E' },
-          { label: 'Portfolio', value: owned.length.toString(), sub: 'owned properties', accent: '#2E7D50' },
-          { label: 'Avg BOE Cap Rate', value: avgCapRate ? `${avgCapRate.toFixed(2)}%` : '—', sub: 'underwritten deals', accent: '#6B3FA0' },
-          { label: 'Not Pursued', value: passed.length.toString(), sub: 'passed or lost', accent: '#8A9BB0' },
+          { label: 'New Deals', value: newDeals.length.toString(), sub: 'currently in pipeline', accent: '#C9A84C' },
+          { label: 'Active Deals', value: active.length.toString(), sub: 'in active pursuit', accent: '#2E6B9E' },
+          { label: 'Avg Active Guidance', value: avgActiveGuidance ? fmtBig(avgActiveGuidance) : '—', sub: 'avg ask price · active deals', accent: '#2E7D50' },
+          { label: 'Avg Active Cap Rate', value: avgActiveCapRate ? `${avgActiveCapRate.toFixed(2)}%` : '—', sub: `${activeCapRates.length} active deals w/ BOE`, accent: '#6B3FA0' },
+          { label: 'Avg Cap Rate All Time', value: avgAllTimeCapRate ? `${avgAllTimeCapRate.toFixed(2)}%` : '—', sub: `2025–present · ${allTimeCapRates.length} deals`, accent: '#1E7A6E' },
         ].map(s => (
           <div key={s.label} style={{ ...card, padding: '18px 20px', borderTop: `3px solid ${s.accent}` }}>
             <div style={{ fontSize: 10, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{s.label}</div>

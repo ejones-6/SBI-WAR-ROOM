@@ -498,19 +498,7 @@ function VintageProfile({ deals, capRateMap }: { deals: Deal[]; capRateMap: Reco
           {unitSizes.map((u, i) => (
             <HorizBar key={u.label} label={u.label} value={u.count} max={unitSizes[0]?.count || 1} color={CHART_COLORS[i % CHART_COLORS.length]} />
           ))}
-          <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(13,27,46,0.05)' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: MUTED, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>Quick Stats</div>
-            {[
-              ['Avg Unit Count', filtered.filter(d=>d.units).length ? Math.round(filtered.filter(d=>d.units).reduce((s,d)=>s+d.units!,0)/filtered.filter(d=>d.units).length).toLocaleString() : '—'],
-              ['Avg Year Built', filtered.filter(d=>d.year_built).length ? Math.round(filtered.filter(d=>d.year_built).reduce((s,d)=>s+d.year_built!,0)/filtered.filter(d=>d.year_built).length).toString() : '—'],
-              ['Deals w/ Price', filtered.filter(d=>d.purchase_price).length.toLocaleString()],
-            ].map(([l, v]) => (
-              <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(13,27,46,0.04)' }}>
-                <span style={{ fontSize: 11, color: MUTED }}>{l}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: NAVY, fontFamily: "'DM Mono',monospace" }}>{v}</span>
-              </div>
-            ))}
-          </div>
+
         </div>
       </div>
     </div>
