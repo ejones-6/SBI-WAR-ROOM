@@ -8,38 +8,25 @@ export async function GET(req: NextRequest) {
   if (!address) return NextResponse.json({ error: 'address required' }, { status: 400 })
 
   try {
-    const parts = address.split(',').map(s => s.trim())
-    const street = parts[0] || ''
-    const rest = parts.slice(1).join(', ')
-
-    // Try structured search first (more accurate with zip)
-    const structuredUrl = `https://nominatim.openstreetmap.org/search?street=${encodeURIComponent(street)}&q=${encodeURIComponent(rest)}&countrycodes=us&format=json&limit=1`
-    let res = await fetch(structuredUrl, {
-      headers: { 'User-Agent': 'SBI-WarRoom/1.0 (private acquisitions tool)' },
-      signal: AbortSignal.timeout(8000)
+    // US Census Geocoder — free, no key, no rate limit, US addresses only
+    const url = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(address)}&benchmark=Public_AR_Current&format=json`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'SBI-WarRoom/1.0' },
+      signal: AbortSignal.timeout(10000)
     })
 
-    // Pass through rate limit status
-    if (res.status === 429) {
-      return NextResponse.json({ error: 'rate limited' }, { status: 429 })
-    }
+    if (!res.ok) return NextResponse.json({ lat: null, lng: null })
 
-    let data = await res.json()
+    const data = await res.json()
+    const match = data?.result?.addressMatches?.[0]
 
-    // Fallback to free-text search
-    if (!data?.[0]) {
-      const fallbackUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ', USA')}&countrycodes=us&format=json&limit=1`
-      res = await fetch(fallbackUrl, {
-        headers: { 'User-Agent': 'SBI-WarRoom/1.0 (private acquisitions tool)' },
-        signal: AbortSignal.timeout(8000)
+    if (match?.coordinates) {
+      return NextResponse.json({
+        lat: match.coordinates.y,
+        lng: match.coordinates.x
       })
-      if (res.status === 429) return NextResponse.json({ error: 'rate limited' }, { status: 429 })
-      data = await res.json()
     }
 
-    if (data?.[0]) {
-      return NextResponse.json({ lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) })
-    }
     return NextResponse.json({ lat: null, lng: null })
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 })

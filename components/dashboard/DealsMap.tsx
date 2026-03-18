@@ -127,10 +127,9 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
     setGeocoding(true)
 
-    async function geocodeNext(i: number, retries = 0) {
+    async function geocodeNext(i: number) {
       if (i >= toGeocode.length) {
         setGeocoding(false)
-        // Final marker refresh
         setGeocodeCache({ ...geocodeCacheRef.current })
         return
       }
@@ -139,30 +138,16 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
 
       try {
         const res = await fetch(`/api/geocode?address=${encodeURIComponent(addr)}`)
-
-        // Rate limited — back off and retry
-        if (res.status === 429) {
-          if (retries < 3) {
-            setTimeout(() => geocodeNext(i, retries + 1), 10000 * (retries + 1))
-          } else {
-            // Give up on this one after 3 retries, skip it
-            setTimeout(() => geocodeNext(i + 1), 2000)
-          }
-          return
-        }
-
         const geocodeRes = await res.json()
         if (geocodeRes?.lat) {
           const lat = geocodeRes.lat
           const lng = geocodeRes.lng
           geocodeCacheRef.current[addr] = [lat, lng]
           setGeocodedCount(prev => prev + 1)
-          // Batch marker updates every 5 seconds
           if (markerUpdateTimer.current) clearTimeout(markerUpdateTimer.current)
           markerUpdateTimer.current = setTimeout(() => {
             setGeocodeCache({ ...geocodeCacheRef.current })
           }, 5000)
-          // Save to DB
           try {
             await fetch('/api/geocode/save', {
               method: 'POST',
@@ -171,19 +156,12 @@ export default function DealsMap({ deals, onOpenDeal }: Props) {
             })
           } catch {}
         } else {
-          // No result — use city centroid fallback
           const cityCoords = CITY_COORDS[deal.market || '']
           geocodeCacheRef.current[addr] = cityCoords || null
         }
-      } catch {
-        // Network error — retry after delay
-        if (retries < 2) {
-          setTimeout(() => geocodeNext(i, retries + 1), 5000)
-          return
-        }
-      }
-      // 1.5s between requests to stay under Nominatim rate limit
-      setTimeout(() => geocodeNext(i + 1), 1500)
+      } catch {}
+      // Census geocoder has no rate limit — can go faster
+      setTimeout(() => geocodeNext(i + 1), 200)
     }
 
     geocodeNext(0)
