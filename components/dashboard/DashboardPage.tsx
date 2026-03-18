@@ -90,9 +90,9 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
       <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(201,168,76,0.55)', letterSpacing: '0.2em', textTransform: 'uppercase' as const }}>Intelligence · 2026 YTD</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 2 }}>Broker Activity by Market</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif", marginTop: 2 }}>Broker Activity by Market</div>
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.3)' }}>{deals2026.filter(d=>d.broker).length} deals tracked</div>
+        <div style={{ fontSize: 13, color: 'rgba(245,244,239,0.3)' }}>{deals2026.filter(d=>d.broker).length} deals tracked</div>
       </div>
 
       <div style={{ display: 'flex' }}>
@@ -115,10 +115,10 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
                 onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
                 onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
               >
-                <span style={{ fontSize: 11, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#C9A84C' : '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 160 }}>
+                <span style={{ fontSize: 13, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#C9A84C' : '#F5F4EF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const, maxWidth: 160 }}>
                   {isAll ? 'All Markets' : shortMarket(market)}
                 </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: isSelected ? '#C9A84C' : 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 6 }}>{count}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#C9A84C' : 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", flexShrink: 0, marginLeft: 6 }}>{count}</span>
               </button>
             )
           })}
@@ -128,16 +128,16 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
         <div style={{ flex: 1, overflow: 'hidden' }}>
           {/* Panel subheader */}
           <div style={{ padding: '10px 18px', borderBottom: '1px solid rgba(201,168,76,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#F5F4EF', fontFamily: "'Cormorant Garamond',serif" }}>
               {selectedMarket === 'All Markets' ? 'All Markets' : shortMarket(selectedMarket)}
             </div>
-            <div style={{ fontSize: 9, color: 'rgba(245,244,239,0.3)', letterSpacing: '0.05em' }}>{brokerRanking.length} brokers · {totalInView} deals</div>
+            <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.3)', letterSpacing: '0.05em' }}>{brokerRanking.length} brokers · {totalInView} deals</div>
           </div>
 
           {/* Column headers */}
           <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 1fr 44px 44px', gap: 0, padding: '6px 18px', borderBottom: '1px solid rgba(201,168,76,0.06)' }}>
             {['#', 'Broker', 'Share', 'Deals', '%'].map(h => (
-              <div key={h} style={{ fontSize: 8, fontWeight: 700, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: h === '#' || h === 'Deals' || h === '%' ? 'center' as const : 'left' as const }}>{h}</div>
+              <div key={h} style={{ fontSize: 10, fontWeight: 700, color: 'rgba(201,168,76,0.4)', letterSpacing: '0.15em', textTransform: 'uppercase' as const, textAlign: h === '#' || h === 'Deals' || h === '%' ? 'center' as const : 'left' as const }}>{h}</div>
             ))}
           </div>
 
@@ -155,26 +155,26 @@ function BrokerLeaderboard({ deals }: { deals: Deal[] }) {
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   {/* Rank */}
-                  <div style={{ fontSize: medal ? 13 : 10, fontWeight: 700, color: 'rgba(245,244,239,0.25)', textAlign: 'center' as const }}>{medal || `${idx+1}`}</div>
+                  <div style={{ fontSize: medal ? 14 : 13, fontWeight: 700, color: 'rgba(245,244,239,0.25)', textAlign: 'center' as const }}>{medal || `${idx+1}`}</div>
 
                   {/* Name */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 8, minWidth: 0 }}>
                     <div style={{ width: 6, height: 6, borderRadius: 2, background: broker.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#F5F4EF', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{broker.name}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#F5F4EF', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{broker.name}</span>
                   </div>
 
                   {/* Bar */}
                   <div style={{ paddingRight: 12 }}>
-                    <div style={{ height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{ height: '100%', width: `${barPct}%`, background: broker.color, borderRadius: 3, opacity: 0.8 }} />
                     </div>
                   </div>
 
                   {/* Count */}
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{broker.count}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{broker.count}</div>
 
                   {/* Share % */}
-                  <div style={{ fontSize: 10, color: 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{sharePct}%</div>
+                  <div style={{ fontSize: 12, color: 'rgba(245,244,239,0.3)', fontFamily: "'DM Mono',monospace", textAlign: 'center' as const }}>{sharePct}%</div>
                 </div>
               )
             })}
@@ -436,9 +436,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                 <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
                 <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 58px 52px 70px 70px 82px', gap: 6, padding: '4px 14px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 6, padding: '4px 14px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
                 {['Deal', 'Guidance', 'Cap Rate', 'Seller', 'Broker', 'Bid Due'].map(h => (
-                  <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: h === 'Deal' ? 'left' : 'right' as const }}>{h}</div>
+                  <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: 'left' as const }}>{h}</div>
                 ))}
               </div>
               <div style={{ overflowY: activeDealsList.length > 8 ? 'auto' as const : 'visible' as const, maxHeight: activeDealsList.length > 8 ? 288 : 'none' }}>
@@ -449,18 +449,18 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                   const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                   return (
                     <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                      style={{ display: 'grid', gridTemplateColumns: '1fr 58px 52px 70px 70px 82px', gap: 6, padding: '6px 14px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.03)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: '200px 70px 60px 90px 90px 100px', gap: 6, padding: '6px 14px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.03)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ overflow: 'hidden' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
                         <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 1 }}>{deal.market ?? ''}</div>
                       </div>
-                      <div style={{ fontSize: 12, color: '#334155', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
-                      <div style={{ fontSize: 12, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
-                      <div style={{ fontSize: 11, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
-                      <div style={{ fontSize: 11, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
-                      <div style={{ fontSize: 11, fontWeight: 600, textAlign: 'right' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
+                      <div style={{ fontSize: 13, color: '#334155', textAlign: 'left' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
+                      <div style={{ fontSize: 13, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
+                      <div style={{ fontSize: 13, color: '#8A9BB0', textAlign: 'left' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
+                      <div style={{ fontSize: 13, color: '#8A9BB0', textAlign: 'left' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'left' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
                     </div>
                   )
                 })}
@@ -490,13 +490,13 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                     onMouseEnter={e => (e.currentTarget.style.background = '#2E4A6E')}
                     onMouseLeave={e => (e.currentTarget.style.background = '#0D1B2E')}>
                     {/* Deal count */}
-                    <div style={{ fontSize: barH > 28 ? 11 : 9, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.count}</div>
+                    <div style={{ fontSize: barH > 28 ? 13 : 11, fontWeight: 700, color: '#F5F4EF', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.count}</div>
                     {/* Cap rate — only if bar tall enough */}
                     {m.avgCapRate && barH > 36 && (
-                      <div style={{ fontSize: 9, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.avgCapRate.toFixed(1)}%</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#C9A84C', fontFamily: "'DM Mono',monospace", lineHeight: 1 }}>{m.avgCapRate.toFixed(1)}%</div>
                     )}
                   </div>
-                  <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
+                  <div style={{ fontSize: 10, color: '#8A9BB0', fontWeight: 400, whiteSpace: 'nowrap' as const, letterSpacing: '0.03em' }}>{m.label}</div>
                 </div>
               )
             })}
