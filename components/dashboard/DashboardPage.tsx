@@ -193,14 +193,14 @@ function RateRow({ label, value, change, loading }: { label: string; value: stri
   const arrow = up === null ? '' : up ? '▲' : '▼'
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid rgba(201,168,76,0.08)' }}>
-      <div style={{ fontSize: 11, color: 'rgba(245,244,239,0.5)', letterSpacing: '0.05em' }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'rgba(245,244,239,0.5)', letterSpacing: '0.05em' }}>{label}</div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {change && up !== null && (
           <span style={{ fontSize: 10, color: changeColor, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
             <span style={{ fontSize: 8 }}>{arrow}</span>{change}
           </span>
         )}
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</span>
+        <span style={{ fontSize: 14, fontWeight: 700, color: '#C9A84C', fontFamily: "'DM Mono',monospace" }}>{loading ? '—' : value}</span>
       </div>
     </div>
   )
@@ -371,9 +371,9 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
           { label: 'Avg Cap Rate All Time', value: avgAllTimeCapRate ? `${avgAllTimeCapRate.toFixed(2)}%` : '—', sub: `2025–present · ${allTimeCapRates.length} deals`, accent: '#1E7A6E' },
         ].map(s => (
           <div key={s.label} style={{ ...card, padding: '18px 20px', borderTop: `3px solid ${s.accent}` }}>
-            <div style={{ fontSize: 10, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{s.label}</div>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: '#0D1B2E', lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 4 }}>{s.sub}</div>
+            <div style={{ fontSize: 11, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }}>{s.label}</div>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, fontWeight: 700, color: '#0D1B2E', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 4 }}>{s.sub}</div>
           </div>
         ))}
       </div>
@@ -453,14 +453,14 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ overflow: 'hidden' }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
-                        <div style={{ fontSize: 9, color: '#8A9BB0', marginTop: 1 }}>{deal.market ?? ''}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
+                        <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 1 }}>{deal.market ?? ''}</div>
                       </div>
-                      <div style={{ fontSize: 11, color: '#334155', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
-                      <div style={{ fontSize: 11, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
-                      <div style={{ fontSize: 10, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
-                      <div style={{ fontSize: 10, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
-                      <div style={{ fontSize: 10, fontWeight: 600, textAlign: 'right' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
+                      <div style={{ fontSize: 12, color: '#334155', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
+                      <div style={{ fontSize: 12, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
+                      <div style={{ fontSize: 11, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
+                      <div style={{ fontSize: 11, color: '#8A9BB0', textAlign: 'right' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, textAlign: 'right' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
                     </div>
                   )
                 })}

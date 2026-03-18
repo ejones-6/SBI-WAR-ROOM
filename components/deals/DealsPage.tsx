@@ -80,7 +80,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     if (cr?.noi_cap_rate) {
       const pct = Number(cr.noi_cap_rate)
       return (
-        <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>
+        <span style={{fontSize:13,fontWeight:600,color:'#0D1B2E'}}>
           {fmtPct(pct)}
           <sup style={{fontSize:7,opacity:.5,marginLeft:1}}>{badge}</sup>
         </span>
@@ -88,7 +88,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     }
     if (cr?.broker_cap_rate) {
       const pct = Number(cr.broker_cap_rate)
-      return <span style={{fontSize:12,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}</span>
+      return <span style={{fontSize:13,fontWeight:600,color:'#0D1B2E'}}>{fmtPct(pct)}</span>
     }
     return <span className="cr-none">—</span>
   }
@@ -278,7 +278,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                     onMouseLeave={e => (e.currentTarget.style.background = '')}>
                     <td style={{ padding: '10px 14px', fontWeight: 500, color: '#0D1B2E', maxWidth: 220 }}>
                       {deal.name}
-                      <small style={{ display: 'block', fontSize: 11, color: '#8A9BB0', fontWeight: 400, marginTop: 1 }}>
+                      <small style={{ display: 'block', fontSize: 12, color: '#8A9BB0', fontWeight: 400, marginTop: 1 }}>
                         {deal.market}
                         {reg !== 'Misc' && <span style={{ marginLeft: 4, background: 'rgba(13,27,46,0.06)', color: '#8A9BB0', fontSize: 9, fontWeight: 600, padding: '1px 5px', borderRadius: 3 }}>{REGION_LABELS[reg]}</span>}
                         {deal.broker && (deal.status.includes('1 -') || deal.status.includes('2 -') || deal.status.includes('3 -')) && (
@@ -287,22 +287,22 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                       </small>
                     </td>
                     <td style={{ padding: '10px 14px' }}>
-                      <span className={`status-badge ${sc}`} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:12,fontSize:11,fontWeight:600,whiteSpace:'nowrap',
+                      <span className={`status-badge ${sc}`} style={{ display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:12,fontSize:12,fontWeight:600,whiteSpace:'nowrap',
                         ...(sc === 's-bid' ? { background:'rgba(124,58,237,0.1)', color:'#6d28d9' } : {}) }}>
                         <span style={{ width:6,height:6,borderRadius:'50%',background:'currentColor',opacity:.7 }}/>
                         {sl}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.units?.toLocaleString() ?? '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.year_built ?? '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtShort(deal.purchase_price)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 13, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtUnit(deal.price_per_unit)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 14, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.units?.toLocaleString() ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 14, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.year_built ?? '—'}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 14, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtShort(deal.purchase_price)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 14, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{fmtUnit(deal.price_per_unit)}</td>
                     <td style={{ padding: '10px 14px', textAlign: 'center' }}>{crCell(deal)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.seller || '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, color: '#8A9BB0', textAlign: 'center' }}>{deal.buyer || '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.sold_price ? fmtShort(deal.sold_price) : '—'}</td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <td style={{ padding: '11px 14px', fontSize: 14, whiteSpace: 'nowrap', textAlign: 'center' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 14, color: '#8A9BB0', textAlign: 'center' }}>{deal.seller || '—'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 14, color: '#8A9BB0', textAlign: 'center' }}>{deal.buyer || '—'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 14, textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{deal.sold_price ? fmtShort(deal.sold_price) : '—'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 14, whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {guidanceDiff !== null ? (
                         <span className={guidanceDiff > 0 ? 'guidance-pos' : guidanceDiff < 0 ? 'guidance-neg' : 'guidance-zero'}>
                           {guidanceDiff >= 0 ? '+' : ''}{fmtShort(guidanceDiff)}
