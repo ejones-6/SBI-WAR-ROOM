@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, statusLabel, formatBidDate, bidDateClass, getRegion, REGION_LABELS } from '@/lib/utils'
 import dynamic from 'next/dynamic'
-const DealsMap = dynamic(() => import('./DealsMap'), { ssr: false })
+
 
 interface Props {
   deals: Deal[]
@@ -309,7 +309,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
   }, [deals, capRateMap])
   const avgAllTimeCapRate = allTimeCapRates.length ? allTimeCapRates.reduce((s, v) => s + v, 0) / allTimeCapRates.length : null
 
-  const upcomingBids = [...newDeals, ...active].filter(d => d.bid_due_date && d.bid_due_date >= now.toISOString().split('T')[0]).sort((a, b) => a.bid_due_date!.localeCompare(b.bid_due_date!)).slice(0, 6)
+  const activeDealsList = active.sort((a, b) => (b.modified ?? '').localeCompare(a.modified ?? '')).slice(0, 8)
   const marketData = useMemo(() => {
     const counts: Record<string, number> = {}
     deals.filter(d => d.added && new Date(d.added).getFullYear() === 2026).forEach(d => {
@@ -351,7 +351,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       </div>
 
       {/* Main Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16, minHeight: 700 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16, marginBottom: 16 }}>
 
         {/* Market Intelligence */}
         <div style={{ ...dark, display: 'flex', flexDirection: 'column' }}>
@@ -405,14 +405,14 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
             <div style={card}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(13,27,46,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Upcoming Bids</div>
-                <div style={{ fontSize: 10, color: '#8A9BB0' }}>{upcomingBids.length} deals</div>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
+                <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
-              {upcomingBids.length === 0 ? (
-                <div style={{ padding: 20, color: '#8A9BB0', fontSize: 12 }}>No upcoming bids</div>
-              ) : upcomingBids.map((deal, i) => (
+              {activeDealsList.length === 0 ? (
+                <div style={{ padding: 20, color: '#8A9BB0', fontSize: 12 }}>No active deals</div>
+              ) : activeDealsList.map((deal, i) => (
                 <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                  style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, padding: '10px 18px', borderBottom: i < upcomingBids.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 12, padding: '10px 18px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                   onMouseLeave={e => (e.currentTarget.style.background = '')}>
                   <div>
@@ -420,20 +420,13 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                     <div style={{ fontSize: 10, color: '#8A9BB0', marginTop: 1 }}>{deal.market}</div>
                   </div>
                   <div style={{ fontSize: 11, color: '#8A9BB0' }}>{fmtShort(deal.purchase_price)}</div>
-                  <div style={{ fontSize: 11, fontWeight: 600, minWidth: 110, textAlign: 'right' }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
+                  <div style={{ fontSize: 11, color: '#8A9BB0', textAlign: 'right' }}>{deal.broker ?? '—'}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Deal Map — replaces news feed */}
-          <div style={{ ...card, flex: 1, minHeight: 500, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(13,27,46,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: '#0D1B2E' }}>Deal Activity Map</div>
-              <div style={{ fontSize: 10, color: '#8A9BB0' }}>{deals.filter(d => d.address).length} deals with addresses</div>
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden' }}><DealsMap deals={deals} onOpenDeal={onOpenDeal} /></div>
-          </div>
+
         </div>
       </div>
 

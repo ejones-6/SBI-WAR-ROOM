@@ -1,6 +1,7 @@
 'use client'
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import DealsPage from './deals/DealsPage'
@@ -9,6 +10,7 @@ import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
 import AnalyticsPage from './analytics/AnalyticsPage'
+const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
 type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
@@ -259,6 +261,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'dashboard', label: 'Dashboard', icon: <GridIcon /> },
     { id: 'deals', label: 'Deals', icon: <ListIcon />, badgeKey: '1 - New' },
     { id: 'pipeline', label: 'Pipeline', icon: <PipeIcon />, badgeKey: '2 - Active' },
+    { id: 'map', label: 'Map', icon: <MapIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
     { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
   ]
@@ -362,6 +365,11 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           {page === 'pipeline' && (
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
+          {page === 'map' && (
+            <div style={{ height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}>
+              <DealsMap deals={deals} onOpenDeal={setSelectedDeal} />
+            </div>
+          )}
           {page === 'analytics' && (
             <AnalyticsPage deals={deals} capRateMap={capRateMap} boeMap={boeMap} />
           )}
@@ -392,6 +400,7 @@ function GridIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
+function MapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
