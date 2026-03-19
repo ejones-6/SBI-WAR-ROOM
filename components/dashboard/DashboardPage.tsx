@@ -521,7 +521,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                   const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                   return (
                     <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                      style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '13px 18px', alignItems: 'center', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '13px 18px', alignItems: 'center', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
                       <div style={{ overflow: 'hidden', justifySelf: 'start', width: '100%' }}>
