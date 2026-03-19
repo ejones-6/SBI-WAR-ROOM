@@ -461,18 +461,16 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
               {capRateByRegion.length === 0 ? (
                 <div style={{ fontSize: 11, color: '#8A9BB0', flex: 1, display: 'flex', alignItems: 'center' }}>No BOE data yet</div>
               ) : (() => {
-                const minR = Math.min(...capRateByRegion.map(r => r.avg)) - 0.3
-                const maxR = Math.max(...capRateByRegion.map(r => r.avg)) + 0.3
-                const range = maxR - minR || 1
-                const toPct = (v: number) => ((v - minR) / range) * 100
+                const minR = 4.0
+                const maxR = 6.0
+                const range = 2.0
+                const toPct = (v: number) => Math.min(Math.max(((v - minR) / range) * 100, 0), 100)
                 const avgPct = avg2026CapRate ? toPct(avg2026CapRate) : null
                 return (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    {/* Scale labels */}
+                    {/* Scale labels — fixed 4.0 to 6.0 in 50bps increments */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#8A9BB0', fontFamily: "'DM Mono',monospace", marginBottom: 6 }}>
-                      <span>{minR.toFixed(1)}%</span>
-                      <span>{((minR+maxR)/2).toFixed(1)}%</span>
-                      <span>{maxR.toFixed(1)}%</span>
+                      {[4.0,4.5,5.0,5.5,6.0].map(v => <span key={v}>{v.toFixed(1)}%</span>)}
                     </div>
                     {/* Axis with avg line */}
                     <div style={{ position: 'relative', height: 2, background: 'rgba(13,27,46,0.08)', borderRadius: 1, marginBottom: 14 }}>
@@ -510,12 +508,12 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                 <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 17, fontWeight: 700, color: '#0D1B2E' }}>Active Deals</div>
                 <div style={{ fontSize: 10, color: '#8A9BB0' }}>{active.length} deals</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '7px 18px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '7px 18px', borderBottom: '1px solid rgba(13,27,46,0.04)', background: 'rgba(13,27,46,0.02)', justifyItems: 'center' }}>
                 {['Deal', 'Guidance', 'Cap Rate', 'Seller', 'Broker', 'Bid Due'].map(h => (
                   <div key={h} style={{ fontSize: 9, fontWeight: 700, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, textAlign: 'left' as const }}>{h}</div>
                 ))}
               </div>
-              <div style={{ overflowY: activeDealsList.length > 8 ? 'auto' as const : 'visible' as const, maxHeight: activeDealsList.length > 8 ? 288 : 'none' }}>
+              <div style={{ overflowY: 'auto' as const, maxHeight: 290 }}>
                 {activeDealsList.length === 0 ? (
                   <div style={{ padding: 16, color: '#8A9BB0', fontSize: 12 }}>No active deals</div>
                 ) : activeDealsList.map((deal, i) => {
@@ -523,15 +521,15 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
                   const capRate = cr?.noi_cap_rate ? `${Number(cr.noi_cap_rate).toFixed(2)}%` : '—'
                   return (
                     <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                      style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '13px 18px', borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
+                      style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.2fr 1.2fr 1.2fr', gap: 16, padding: '13px 18px', alignItems: 'center', bor, borderBottom: i < activeDealsList.length - 1 ? '1px solid rgba(13,27,46,0.05)' : 'none', cursor: 'pointer', alignItems: 'center' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(201,168,76,0.04)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                      <div style={{ overflow: 'hidden' }}>
+                      <div style={{ overflow: 'hidden', justifySelf: 'start', width: '100%' }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.name}</div>
                         <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 2 }}>{deal.market ?? ''}</div>
                       </div>
                       <div style={{ fontSize: 13, color: '#334155', textAlign: 'center' as const, fontFamily: "'DM Mono',monospace", fontWeight: 600 }}>{fmtShort(deal.purchase_price)}</div>
-                      <div style={{ fontSize: 13, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'right' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
+                      <div style={{ fontSize: 13, color: capRate !== '—' ? '#0D1B2E' : '#8A9BB0', textAlign: 'center' as const, fontFamily: "'DM Mono',monospace", fontWeight: capRate !== '—' ? 700 : 400 }}>{capRate}</div>
                       <div style={{ fontSize: 13, color: '#8A9BB0', textAlign: 'center' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.seller ?? '—'}</div>
                       <div style={{ fontSize: 13, color: '#8A9BB0', textAlign: 'center' as const, whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }}>{deal.broker ?? '—'}</div>
                       <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'center' as const }} className={bidDateClass(deal.bid_due_date)}>{formatBidDate(deal.bid_due_date)}</div>
