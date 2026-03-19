@@ -123,10 +123,10 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     { label: 'Owned', value: '10 - Owned Property' },
     { label: 'Comp', value: '11 - Property Comp' },
   ]
-  const REGIONS = ['all','DC','Carolinas','GA','TX','TN','FL','Misc']
+  const REGIONS = ['all','DC','Carolinas','GA','TX','TN','FL','Midwest','Misc']
   const REGION_DISPLAY: Record<string, string> = {
     DC: 'Mid-Atlantic', Carolinas: 'Carolinas', GA: 'Georgia',
-    TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
+    TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Midwest: 'Midwest', Misc: 'Misc',
   }
 
   const NAMED_BROKERS = ['CBRE', 'Newmark', 'JLL', 'W&D', 'Northmarq', 'C&W', 'Berkadia', 'Eastdil', 'IPA']
@@ -446,7 +446,24 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                         <option value="Naples/Fort Myers, FL">Naples/Fort Myers, FL</option>
                         <option value="Misc - Florida">Misc</option>
                       </>)}
+                    {newDealRegion === 'Midwest' && (<>
+                      <option value="Chicago, IL">Chicago, IL</option>
+                      <option value="Indianapolis, IN">Indianapolis, IN</option>
+                      <option value="Minneapolis, MN">Minneapolis, MN</option>
+                      <option value="Kansas City, MO">Kansas City, MO</option>
+                      <option value="Cincinnati, OH">Cincinnati, OH</option>
+                      <option value="Misc - Midwest">Misc</option>
+                      <option value="__custom__">Other (type below)…</option>
+                    </>)}
                     </select>
+                  )}
+                  {newDeal.market === '__custom__' && (
+                    <input
+                      type="text"
+                      placeholder="Type market name…"
+                      style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", marginTop: 6 }}
+                      onChange={e => setNewDeal(p => ({ ...p, market: e.target.value }))}
+                    />
                   )}
                 </div>
               </div>

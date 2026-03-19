@@ -55,10 +55,10 @@ const STATUS_FILTERS = [
   { label: 'Owned', value: '10 -' },
 ]
 
-const REGIONS = ['all', 'DC', 'Carolinas', 'GA', 'TX', 'TN', 'FL', 'Misc']
+const REGIONS = ['all', 'DC', 'Carolinas', 'GA', 'TX', 'TN', 'FL', 'Midwest', 'Misc']
 const REGION_DISPLAY: Record<string, string> = {
   DC: 'Mid-Atlantic', Carolinas: 'Carolinas', GA: 'Georgia',
-  TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
+  TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Midwest: 'Midwest', Misc: 'Misc',
 }
 const BROKER_CHIPS = ['all', ...NAMED_BROKERS, 'Misc']
 

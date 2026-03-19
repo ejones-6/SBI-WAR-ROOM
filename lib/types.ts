@@ -89,7 +89,7 @@ export interface UserProfile {
 // ── Computed / UI helpers ─────────────────────────────
 export type StatusKey = '1 - New' | '2 - Active' | '5 - Dormant' | '6 - Passed' | '7 - Lost' | '9 - Exited' | '10 - Owned Property' | '11 - Property Comp'
 
-export type Region = 'DC' | 'Carolinas' | 'GA' | 'TX' | 'TN' | 'FL' | 'Misc'
+export type Region = 'DC' | 'Carolinas' | 'GA' | 'TX' | 'TN' | 'FL' | 'Midwest' | 'Misc'
 
 export type SortOrder =
   | 'modified-desc'

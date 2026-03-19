@@ -294,12 +294,19 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
                 <div>
                   <label style={labelStyle}>Market</label>
-                  <select value={editMarket} onChange={e => setEditMarket(e.target.value)} style={{...inputStyle, background:'#fff'}} disabled={!editRegion}>
+                  <select value={editMarket.startsWith('__custom__') ? '__custom__' : editMarket} onChange={e => setEditMarket(e.target.value === '__custom__' ? '__custom__' : e.target.value)} style={{...inputStyle, background:'#fff'}} disabled={!editRegion}>
                     <option value=''>— Select Market —</option>
                     {editRegion && (REGION_MAP[editRegion] as string[]).map(city => (
                       <option key={city} value={city}>{city}</option>
                     ))}
+                    <option value='__custom__'>Other (type below)…</option>
                   </select>
+                  {editMarket === '__custom__' && (
+                    <input type="text" placeholder="Type market name…"
+                      style={{...inputStyle, marginTop: 6}}
+                      onChange={e => setEditMarket(e.target.value)}
+                    />
+                  )}
                 </div>
 
                 {/* Comments — full width */}

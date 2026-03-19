@@ -29,6 +29,7 @@ export const REGION_MAP: Record<Region, string[]> = {
   TX: ['Dallas, TX','Houston, TX','Austin, TX','San Antonio, TX','Misc - Texas'],
   TN: ['Nashville, TN','Misc - Tennessee'],
   FL: ['Jacksonville, FL','Orlando, FL','Tampa, FL','South Florida','Naples/Fort Myers, FL','Misc - Florida'],
+  Midwest: ['Chicago, IL','Indianapolis, IN','Minneapolis, MN','Kansas City, MO','Cincinnati, OH','Misc - Midwest'],
   Misc: [],
 }
 
@@ -41,7 +42,7 @@ export function getRegion(market: string): Region {
 
 export const REGION_LABELS: Record<Region, string> = {
   DC: 'Mid-Atlantic', Carolinas: 'Carolinas', GA: 'Georgia',
-  TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Misc: 'Misc',
+  TX: 'Texas', TN: 'Tennessee', FL: 'Florida', Midwest: 'Midwest', Misc: 'Misc',
 }
 
 export const STATUS_CLASS: Record<string, string> = {
