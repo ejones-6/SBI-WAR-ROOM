@@ -175,19 +175,21 @@ function MarketIntelligence({ deals }: { deals: Deal[] }) {
 function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
   const [view, setView] = useState<'dist' | 'market'>('dist')
 
-  // Build distribution buckets: 3–8% in 0.5% increments
+  // Build distribution buckets: 4.0–6.5% in 25bps increments
   const distData = useMemo(() => {
     const rates = deals
       .map(d => capRateMap[d.name]?.noi_cap_rate)
       .filter(Boolean)
       .map(Number)
-      .filter(r => r >= 3 && r <= 10)
 
-    const buckets = ['3.0–3.5','3.5–4.0','4.0–4.5','4.5–5.0','5.0–5.5','5.5–6.0','6.0–6.5','6.5–7.0','7.0+']
+    // 25bps buckets from 4.00 to 6.50, plus <4% and >6.5% catch-alls
+    const steps = Array.from({ length: 10 }, (_, i) => 4.0 + i * 0.25) // 4.00,4.25,...6.25
+    const buckets = ['<4.00', ...steps.map(s => `${s.toFixed(2)}–${(s+0.25).toFixed(2)}`), '>6.50']
     const counts = buckets.map((_, i) => {
-      if (i === 8) return rates.filter(r => r >= 7.0).length
-      const lo = 3.0 + i * 0.5
-      const hi = lo + 0.5
+      if (i === 0) return rates.filter(r => r < 4.0).length
+      if (i === buckets.length - 1) return rates.filter(r => r >= 6.5).length
+      const lo = 4.0 + (i - 1) * 0.25
+      const hi = lo + 0.25
       return rates.filter(r => r >= lo && r < hi).length
     })
     const maxC = Math.max(...counts, 1)
@@ -617,6 +619,7 @@ function BoeBenchmarking({ deals, boeMap, capRateMap }: { deals: Deal[]; boeMap:
 // ── 7. Market Comp Tracker ────────────────────────────────────────────────────
 function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
   const [marketFilter, setMarketFilter] = useState('all')
+  const [search, setSearch] = useState('')
 
   const soldDeals = useMemo(() =>
     deals
@@ -633,7 +636,14 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
 
   const markets = useMemo(() => ['all', ...Array.from(new Set(soldDeals.map(d => d.market)))], [soldDeals])
 
-  const filtered = marketFilter === 'all' ? soldDeals : soldDeals.filter(d => d.market === marketFilter)
+  const filtered = useMemo(() => {
+    let d = marketFilter === 'all' ? soldDeals : soldDeals.filter(x => x.market === marketFilter)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.seller?.toLowerCase().includes(q) || x.buyer?.toLowerCase().includes(q))
+    }
+    return d
+  }, [soldDeals, marketFilter, search])
 
   const avgDelta = filtered.length ? filtered.reduce((s, d) => s + d.deltaPct, 0) / filtered.length : 0
   const above = filtered.filter(d => d.delta > 0).length
@@ -646,12 +656,19 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
           <div style={sectionLabel()}>Transaction Intelligence</div>
           <div style={cardTitle}>Market Comp Tracker</div>
         </div>
-        <select value={marketFilter} onChange={e => setMarketFilter(e.target.value)} style={{
-          padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(13,27,46,0.12)',
-          fontSize: 11, color: NAVY, background: '#fff', fontFamily: "'DM Sans',sans-serif", cursor: 'pointer'
-        }}>
-          {markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All Markets' : m}</option>)}
-        </select>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search deals, sellers, buyers…"
+            style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(13,27,46,0.12)', fontSize: 11, color: NAVY, fontFamily: "'DM Sans',sans-serif", outline: 'none', width: 220 }}
+          />
+          <select value={marketFilter} onChange={e => setMarketFilter(e.target.value)} style={{
+            padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(13,27,46,0.12)',
+            fontSize: 11, color: NAVY, background: '#fff', fontFamily: "'DM Sans',sans-serif", cursor: 'pointer'
+          }}>
+            {markets.map(m => <option key={m} value={m}>{m === 'all' ? 'All Markets' : m}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Summary row */}
