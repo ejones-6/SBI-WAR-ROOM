@@ -364,7 +364,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
                 <select value={newDeal.state} onChange={e => setNewDeal(p => ({ ...p, state: e.target.value }))}
                   style={{ width:'100%', padding:'8px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:7, fontSize:13, fontFamily:"'DM Sans',sans-serif", background:'#fff', color: newDeal.state ? '#0D1B2E' : '#8A9BB0' }}>
                   <option value="">State…</option>
-                  {['AL','AR','AZ','CO','DC','FL','GA','MD','NC','NV','SC','TN','TX','VA'].map(s => <option key={s} value={s}>{s}</option>)}
+                  {['AL','AK','AZ','AR','CA','CO','CT','DE','DC','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div>
