@@ -1,7 +1,6 @@
 'use client'
-import React, { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import DealsPage from './deals/DealsPage'
@@ -9,10 +8,8 @@ import DealModal from './deals/DealModal'
 import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
-import AnalyticsPage from './analytics/AnalyticsPage'
-const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
-type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload' | 'geocode'
+type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
 interface Props {
   initialDeals: Deal[]
@@ -138,8 +135,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     if (crRes.data)  setCapRateMap(Object.fromEntries(crRes.data.map((c: any) => [c.deal_name, c])))
   }, [])
 
-  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string; _oldName?: string }) => {
-    const oldName = (updates as any)._oldName ?? updates.name
+  const saveDeal = useCallback(async (updates: Partial<Deal> & { name: string; id?: string }) => {
     const res = await fetch('/api/deals', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -150,27 +146,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     const data = JSON.parse(text)
     if (!res.ok) { console.error('saveDeal error:', data); return }
     const updated: Deal = data
-    const newName = updated.name
-    // Update deals list — match on oldName in case of rename
-    setDeals(prev => prev.map(d => d.name === oldName ? updated : d))
-    if (selectedDeal?.name === oldName) setSelectedDeal(updated)
-    // If name changed, update boeMap and capRateMap keys
-    if (oldName !== newName) {
-      setBoeMap(prev => {
-        if (!prev[oldName]) return prev
-        const next = { ...prev }
-        next[newName] = { ...next[oldName], deal_name: newName }
-        delete next[oldName]
-        return next
-      })
-      setCapRateMap(prev => {
-        if (!prev[oldName]) return prev
-        const next = { ...prev }
-        next[newName] = { ...next[oldName], deal_name: newName }
-        delete next[oldName]
-        return next
-      })
-    }
+    setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
+    if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
     return updated
   }, [selectedDeal])
 
@@ -195,11 +172,33 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     })
     if (res.ok) {
       const saved: BoeData = await res.json()
-      // Merge: always prefer the full payload we sent over whatever the API returns
-      // This ensures t12, adjs, payroll etc never get wiped if API response is partial
       const merged = { ...boe, ...saved, t12: saved.t12 ?? boe.t12, adjs: saved.adjs ?? boe.adjs, payroll: saved.payroll ?? boe.payroll, rmi: saved.rmi ?? boe.rmi, tax_helper: saved.tax_helper ?? boe.tax_helper, notes: saved.notes ?? boe.notes, noi_badge: boe.noi_badge, pf_noi_override: boe.pf_noi_override }
       setBoeMap(prev => ({ ...prev, [merged.deal_name]: merged }))
-      // Also refresh cap rates after BOE save to pick up any new value
+
+      // Auto-save cap rate whenever BOE is saved with a PF NOI override
+      // This ensures the cap rate tracker always reflects the manual NOI entry
+      const deal = deals.find(d => d.name === boe.deal_name)
+      if (deal?.purchase_price && boe.pf_noi_override) {
+        const pfNoi = Number(boe.pf_noi_override)
+        const pp = deal.purchase_price
+        if (pfNoi > 0 && pp > 0) {
+          const capAdj = (pfNoi / pp) * 100
+          await fetch('/api/cap-rates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              deal_name: boe.deal_name,
+              noi_cap_rate: capAdj / 100,
+              broker_cap_rate: null,
+              purchase_price: pp / 1000,
+              sold_price: deal.sold_price ? deal.sold_price / 1000 : null,
+              delta: deal.sold_price && pp > 0 ? (deal.sold_price - pp) / pp : null,
+            }),
+          })
+        }
+      }
+
+      // Refresh cap rates
       setTimeout(async () => {
         const crRes = await fetch('/api/cap-rates')
         if (crRes.ok) {
@@ -209,7 +208,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       }, 800)
       return merged
     }
-  }, [])
+  }, [deals])
 
   const saveCapRateFromBoe = useCallback(async (dealName: string, capAdj: number) => {
     const deal = deals.find(d => d.name === dealName)
@@ -261,10 +260,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'dashboard', label: 'Dashboard', icon: <GridIcon /> },
     { id: 'deals', label: 'Deals', icon: <ListIcon />, badgeKey: '1 - New' },
     { id: 'pipeline', label: 'Pipeline', icon: <PipeIcon />, badgeKey: '2 - Active' },
-    { id: 'map', label: 'Map', icon: <MapIcon /> },
     { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
     { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
-    { id: 'geocode', label: 'Geocode Map', icon: <PinIcon /> },
   ]
 
   if (deals.length === 0) {
@@ -347,7 +344,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           display: 'flex', alignItems: 'center', padding: '0 28px', gap: 16, flexShrink: 0
         }}>
           <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: '#0D1B2E', letterSpacing: '0.04em', flex: 1 }}>
-            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline', geocode: 'Geocode Map' }[page]}
+            {{ dashboard: 'Deal Dashboard', deals: 'Deals', pipeline: 'Pipeline', analytics: 'Analytics', map: 'Market Map', team: 'Our Team', caprates: 'Cap Rate Tracker', upload: 'Upload Pipeline' }[page]}
           </h1>
           <div style={{ fontSize: 12, color: '#8A9BB0', display:'flex', alignItems:'center', gap:8 }}>
             {loadingAll && <span style={{ fontSize:10, color:'#C9A84C', fontWeight:600, letterSpacing:'0.05em' }}>● Loading all deals…</span>}
@@ -366,14 +363,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
           {page === 'pipeline' && (
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
-          {page === 'geocode' && <GeocodePage />}
-          {page === 'map' && (
-            <div style={{ height: 'calc(100vh - 56px)', display: 'flex', flexDirection: 'column' }}>
-              <DealsMap deals={deals} onOpenDeal={setSelectedDeal} />
-            </div>
-          )}
           {page === 'analytics' && (
-            <AnalyticsPage deals={deals} capRateMap={capRateMap} boeMap={boeMap} />
+            <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
           {page === 'upload' && (
             <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
@@ -402,85 +393,10 @@ function GridIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
-function PinIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> }
-function MapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 
 // Upload Pipeline Page
-function GeocodePage() {
-  const [status, setStatus] = React.useState<'idle'|'running'|'done'|'error'>('idle')
-  const [totalGeocoded, setTotalGeocoded] = React.useState(0)
-  const [remaining, setRemaining] = React.useState<number|null>(null)
-  const [error, setError] = React.useState<string|null>(null)
-  const [batchNum, setBatchNum] = React.useState(0)
-
-  async function runAll() {
-    setStatus('running')
-    setTotalGeocoded(0)
-    setError(null)
-    setBatchNum(0)
-    let offset = 0
-    let batch = 1
-
-    while (true) {
-      setBatchNum(batch)
-      try {
-        const res = await fetch('/api/geocode/batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ offset })
-        })
-        const data = await res.json()
-        if (data.error) { setError(data.error); setStatus('error'); return }
-        setTotalGeocoded(prev => prev + (data.geocoded || 0))
-        setRemaining(data.remaining ?? 0)
-        if (data.done || !data.submitted) { setStatus('done'); return }
-        offset = data.nextOffset
-        batch++
-        // Small pause between batches
-        await new Promise(r => setTimeout(r, 1000))
-      } catch (e: any) {
-        setError(e.message)
-        setStatus('error')
-        return
-      }
-    }
-  }
-
-  return (
-    <div style={{ padding: '40px 48px', maxWidth: 600 }}>
-      <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: '#0D1B2E', marginBottom: 8 }}>Bulk Geocode Deals</div>
-      <div style={{ fontSize: 13, color: '#8A9BB0', marginBottom: 32, lineHeight: 1.6 }}>
-        Sends all un-geocoded deals to the US Census geocoder in batches of 500.
-        Run this once to fully populate the map. Each batch takes ~30–45 seconds.
-      </div>
-      <button onClick={runAll} disabled={status === 'running'}
-        style={{ padding: '12px 32px', background: status === 'running' ? '#8A9BB0' : '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: status === 'running' ? 'not-allowed' : 'pointer', fontFamily: "'DM Sans',sans-serif", letterSpacing: '0.05em' }}>
-        {status === 'running' ? `⟳ Running batch ${batchNum}…` : '▶ Run Batch Geocode'}
-      </button>
-      {status !== 'idle' && (
-        <div style={{ marginTop: 24, padding: '16px 20px', borderRadius: 8, background: status === 'error' ? 'rgba(192,57,43,0.08)' : 'rgba(46,125,80,0.08)', border: `1px solid ${status === 'error' ? 'rgba(192,57,43,0.2)' : 'rgba(46,125,80,0.2)'}` }}>
-          {error ? (
-            <div style={{ color: '#C0392B', fontSize: 13 }}>Error: {error}</div>
-          ) : status === 'done' ? (
-            <>
-              <div style={{ color: '#2E7D50', fontSize: 15, fontWeight: 700, marginBottom: 8 }}>✓ All done!</div>
-              <div style={{ fontSize: 13, color: '#334155' }}>Total geocoded this run: <strong>{totalGeocoded}</strong></div>
-              <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 8 }}>Refresh the Map page to see all pins.</div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>Geocoded so far: <strong>{totalGeocoded}</strong></div>
-              {remaining !== null && <div style={{ fontSize: 13, color: '#8A9BB0' }}>Remaining: ~{remaining}</div>}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function UploadPipelinePage({ onDealsImported, addDeal }: { onDealsImported: () => void, addDeal: (deal: any) => Promise<any> }) {
   const [status, setStatus] = useState<'idle' | 'parsing' | 'preview' | 'importing' | 'done'>('idle')
   const [preview, setPreview] = useState<any[]>([])
