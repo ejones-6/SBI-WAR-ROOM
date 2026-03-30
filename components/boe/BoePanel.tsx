@@ -276,31 +276,30 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     const A   = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'
     const A2  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"_);_(@_)'
     const S   = '#,##0 ;\\(#,##0\\)'
-    // SBI brand colors
-    const NAVY   = 'FF0D1B2E'
-    const GOLD   = 'FFC9A84C'
-    const CREAM  = 'FFF5F4EF'
-    const MUTED  = 'FF8A9BB0'
-    const BLUE   = 'FF0070C0'  // adj inputs (matches template)
-    const BINP   = 'FFC9A84C'  // side table inputs — gold instead of red
+    // Colors as ARGB hex — works with standard xlsx
+    const NAVY  = '000D1B2E'
+    const GOLD  = '00C9A84C'
+    const WHITE = '00FFFFFF'
+    const BLUE  = '000070C0'  // adj col
 
     function s(col: number, row: number, v: any,
       opts: { b?: boolean; sz?: number; rgb?: string; z?: string; bg?: string } = {}) {
       const addr = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 })
       const isF = typeof v === 'string' && v.startsWith('=')
-      ws[addr] = {
+      const cell: any = {
         v: isF ? 0 : v,
         t: isF ? 'n' : typeof v === 'number' ? 'n' : 's',
         ...(isF ? { f: v.slice(1) } : {}),
-        s: {
-          font: {
-            name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false,
-            color: { rgb: opts.rgb ?? NAVY },
-          },
-          ...(opts.bg ? { fill: { patternType: 'solid', fgColor: { rgb: opts.bg } } } : {}),
-          numFmt: opts.z ?? 'General',
-        },
       }
+      // Build style string for xlsx (HTML-style bgcolor via richtext not supported,
+      // but font color and bold work fine)
+      cell.s = {
+        font: { name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false,
+                color: { rgb: opts.rgb ?? NAVY } },
+        ...(opts.bg ? { fill: { fgColor: { rgb: opts.bg }, patternType: 'solid' } } : {}),
+        numFmt: opts.z ?? 'General',
+      }
+      ws[addr] = cell
     }
 
     ws['!cols'] = [{wch:2.66},{wch:46.33},{wch:5.33},{wch:13.33},{wch:10.66},{wch:11.33},{wch:14.33},{wch:10.66},{wch:35.44},{wch:13},{wch:13},{wch:2.78},{wch:10.89},{wch:12},{wch:2.78}]
@@ -342,43 +341,53 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
     // R&M side — rmi values are already $/unit/yr, no *12
     s(10,17,'R&M:',{b:true,sz:8}); s(13,17,'Payroll:',{b:true,sz:8})
-    s(10,18,'R&M',{b:true,sz:8,z:S});       s(11,18,parseFloat(rmi['rmi-rm']||'750'),{sz:8,rgb:BINP,z:S})
-    s(10,19,'Contracts',{b:true,sz:8,z:S}); s(11,19,parseFloat(rmi['rmi-ct']||'420'),{sz:8,rgb:BINP,z:S})
-    s(10,20,'Turnover',{b:true,sz:8,z:S});  s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:BINP,z:S})
+    s(10,18,'R&M',{b:true,sz:8,z:S});       s(11,18,parseFloat(rmi['rmi-rm']||'750'),{sz:8,rgb:GOLD,z:S})
+    s(10,19,'Contracts',{b:true,sz:8,z:S}); s(11,19,parseFloat(rmi['rmi-ct']||'420'),{sz:8,rgb:GOLD,z:S})
+    s(10,20,'Turnover',{b:true,sz:8,z:S});  s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:GOLD,z:S})
     s(10,21,'Per unit',{b:true,sz:8,z:S});  s(11,21,'=+SUM(K18:K20)',{sz:10,z:A})
     s(13,18,'Inside / Office',{b:true,sz:8})
-    s(13,19,'Prop Mgr',{sz:8,rgb:BINP,z:S});   s(14,19,parseFloat(payroll['py-pm']||'85000'),{sz:8,rgb:BINP,z:S})
-    s(13,20,'Assist Mgr',{sz:8,rgb:BINP,z:S}); s(14,20,parseFloat(payroll['py-am']||'60000'),{sz:8,rgb:BINP,z:S})
-    s(13,21,'Leasing',{sz:8,rgb:BINP,z:S});    s(14,21,parseFloat(payroll['py-la']||'45000'),{sz:8,rgb:BINP,z:S})
+    s(13,19,'Prop Mgr',{sz:8,rgb:GOLD,z:S});   s(14,19,parseFloat(payroll['py-pm']||'85000'),{sz:8,rgb:GOLD,z:S})
+    s(13,20,'Assist Mgr',{sz:8,rgb:GOLD,z:S}); s(14,20,parseFloat(payroll['py-am']||'60000'),{sz:8,rgb:GOLD,z:S})
+    s(13,21,'Leasing',{sz:8,rgb:GOLD,z:S});    s(14,21,parseFloat(payroll['py-la']||'0'),{sz:8,rgb:GOLD,z:S})
+    // N22 is blank in template but included in SUM(N19:N22) — write 0 so formula is clean
+    ws[XLSX.utils.encode_cell({r:21,c:13})] = {v:0,t:'n',s:{font:{name:'Calibri',sz:8,color:{rgb:NAVY}},numFmt:S}}
     s(10,23,'Taxes:',{b:true,sz:8}); s(13,23,'Bonus Inside',{sz:8})
-    s(14,23,parseFloat(payroll['py-bi']||'0.25'),{sz:8,rgb:BINP,z:'0%'})
-    s(10,24,'Ratio',{b:true,sz:8,z:S}); s(11,24,parseFloat(taxHelper['tx-rat']||'0')/100,{sz:8,rgb:BINP,z:'0%'})
+    s(14,23,parseFloat(payroll['py-bi']||'0.25'),{sz:8,rgb:GOLD,z:'0%'})
+    s(10,24,'Ratio',{b:true,sz:8,z:S}); s(11,24,parseFloat(taxHelper['tx-rat']||'0')/100,{sz:8,rgb:GOLD,z:'0%'})
     s(13,24,'Total Inside',{b:true,sz:8}); s(14,24,'=SUM(N19:N22)+(SUM(N19:N22)*N23)',{b:true,sz:8,z:S})
-    s(10,25,'Millage',{b:true,sz:8,z:S}); s(11,25,parseFloat(taxHelper['tx-mil']||'0')/100,{sz:8,rgb:BINP,z:'0.0000%'})
+    s(10,25,'Millage',{b:true,sz:8,z:S}); s(11,25,parseFloat(taxHelper['tx-mil']||'0')/100,{sz:8,rgb:GOLD,z:'0.0000%'})
     s(13,25,'Outside / Maintenance',{b:true,sz:8})
-    s(10,26,'Non ad',{b:true,sz:8,z:S}); s(11,26,parseFloat(taxHelper['tx-nad']||'0'),{sz:8,rgb:BINP,z:'"$"#,##0'})
-    s(13,26,'Maint Super',{sz:8,rgb:BINP,z:S}); s(14,26,parseFloat(payroll['py-ms']||'80000'),{sz:8,rgb:BINP,z:S})
-    s(13,27,'Maint Tech',{sz:8,rgb:BINP,z:S});  s(14,27,parseFloat(payroll['py-mt']||'60000'),{sz:8,rgb:BINP,z:S})
+    s(10,26,'Non ad',{b:true,sz:8,z:S}); s(11,26,parseFloat(taxHelper['tx-nad']||'0'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
+    s(13,26,'Maint Super',{sz:8,rgb:GOLD,z:S}); s(14,26,parseFloat(payroll['py-ms']||'80000'),{sz:8,rgb:GOLD,z:S})
+    s(13,27,'Maint Tech',{sz:8,rgb:GOLD,z:S});  s(14,27,parseFloat(payroll['py-mt']||'60000'),{sz:8,rgb:GOLD,z:S})
     s(10,28,'Insurance',{b:true,sz:8})
-    s(13,28,'Maint Assist',{sz:8,rgb:BINP,z:S}); s(14,28,parseFloat(payroll['py-ma']||'40000'),{sz:8,rgb:BINP,z:S})
-    s(10,29,'Per Unit',{b:true,sz:8,z:S}); s(11,29,parseFloat(adjs['ins']||'550'),{sz:8,rgb:BINP,z:'"$"#,##0'})
-    s(13,30,'Bonus Outside',{sz:8}); s(14,30,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:BINP,z:'0%'})
+    s(13,28,'Maint Assist',{sz:8,rgb:GOLD,z:S}); s(14,28,parseFloat(payroll['py-ma']||'40000'),{sz:8,rgb:GOLD,z:S})
+    s(10,29,'Per Unit',{b:true,sz:8,z:S}); s(11,29,parseFloat(adjs['ins']||'550'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
+    s(13,30,'Bonus Outside',{sz:8}); s(14,30,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:GOLD,z:'0%'})
     s(13,31,'Total Outside',{b:true,sz:8}); s(14,31,'=SUM(N26:N29)+(SUM(N26:N29)*N30)',{b:true,sz:8,z:S})
     s(13,32,'Total',{b:true,sz:8});          s(14,32,'=SUM(N24,N31)',{b:true,sz:8,z:S})
-    s(13,33,parseFloat(payroll['py-ben']||'0.325'),{sz:8,rgb:BINP,z:'0.0%\\ "Burden"'})
+    s(13,33,parseFloat(payroll['py-ben']||'0.325'),{sz:8,rgb:GOLD,z:'0.0%\\ "Burden"'})
     s(14,33,'=M33*SUM(N19:N22,N26:N29)',{sz:8,z:S})
     s(13,34,'GRAND TOTAL',{b:true,sz:8}); s(14,34,'=SUM(N32:N33)',{b:true,sz:8,z:S})
     s(13,35,'Per Unit',{b:true,sz:8});    s(14,35,'=+N34/C2',{sz:10,z:A})
 
     function erow(row: number, label: string, t12v: number, fAdj: string|null, note='') {
       s(2,row,label,{sz:11,z:A2}); s(3,row,'T12',{sz:10,z:A2}); s(4,row,t12v,{sz:11,z:A})
-      s(5,row,`=D${row}/$C$2`,{sz:10,z:A}); if(fAdj) s(6,row,fAdj,{sz:11,rgb:BLUE,z:A})
+      s(5,row,`=D${row}/$C$2`,{sz:10,z:A})
+      if(fAdj) {
+        const isFormula = fAdj.startsWith('=')
+        if (isFormula) s(6,row,fAdj,{sz:11,rgb:BLUE,z:A})
+        else s(6,row,parseFloat(fAdj),{sz:11,rgb:BLUE,z:A})
+      }
       s(7,row,`=SUM(D${row},F${row})`,{sz:11,z:A}); s(8,row,`=G${row}/$C$2`,{sz:10,z:A})
       if(note) s(9,row,note,{sz:10})
     }
 
-    erow(18,'General & Administrative',t12.ga,  null, notes['ga']||'')
-    erow(19,'Marketing / Advertising', t12.mkt, null, notes['mkt']||'')
+    // Pass actual adj so any dollar adjustment shows in column F
+    const gaAdj  = (v('ga')  ?? 0) !== 0 ? String(v('ga')  ?? 0) : null
+    const mktAdj = (v('mkt') ?? 0) !== 0 ? String(v('mkt') ?? 0) : null
+    erow(18,'General & Administrative',t12.ga,  gaAdj,  notes['ga']||'')
+    erow(19,'Marketing / Advertising', t12.mkt, mktAdj, notes['mkt']||'')
     erow(20,'Repairs & Maintenance',   t12.rm,  '=($K$21*$C$2)-D20',
          `$${rmi['rmi-rm']||750}/unit R&M · $${rmi['rmi-ct']||420}/unit Contracts · $${rmi['rmi-tu']||350}/unit Turnover`)
     erow(21,'Payroll', t12.pay, '=(N35*$C$2)-D21', notes['pay']||'')
@@ -400,8 +409,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     sub(29,'Non-Controllable Expenses','=SUM(D24:D28)','=SUM(G24:G28)')
     sub(31,'Operating Expenses','=SUM(D22,D29)','=SUM(G22,G29)')
 
-    s(2,33,'NET OPERATING INCOME',{b:true,sz:11,rgb:CREAM,bg:NAVY})
-    s(4,33,'=D16-D31',{b:true,sz:11,z:A,rgb:CREAM,bg:NAVY}); s(5,33,'=D33/$C$2',{b:true,sz:10,z:A,rgb:CREAM,bg:NAVY})
+    s(2,33,'NET OPERATING INCOME',{b:true,sz:11,rgb:WHITE,bg:NAVY})
+    s(4,33,'=D16-D31',{b:true,sz:11,z:A,rgb:WHITE,bg:NAVY}); s(5,33,'=D33/$C$2',{b:true,sz:10,z:A,rgb:WHITE,bg:NAVY})
     s(7,33,'=G16-G31',{b:true,sz:11,z:A,rgb:GOLD,bg:NAVY}); s(8,33,'=G33/$C$2',{b:true,sz:10,z:A,rgb:GOLD,bg:NAVY})
 
     s(2,36,ppLabel+' Price',{b:true,sz:11}); s(4,36,pp||0,{b:true,sz:11,z:'"$"#,##0'})
@@ -412,6 +421,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(7,40,'=G33/D36',{b:true,sz:12,z:'0.00%',rgb:GOLD})
 
     ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
+    // Turn off gridlines
+    ws['!sheetView'] = { showGridLines: false }
     XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
