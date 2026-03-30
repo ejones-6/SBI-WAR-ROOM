@@ -142,7 +142,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
               ) : (
                 <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'text' }} onClick={() => setEditingName(true)}>
                   <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(editName + ' ' + (deal.market ?? ''))}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((form as any).address || (editName + ' ' + (deal.market ?? '')))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Search on Google Maps"

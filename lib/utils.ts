@@ -71,7 +71,7 @@ export function statusLabel(s: string): string {
 
 export function bidDateClass(d: string | null): string {
   if (!d) return ''
-  const days = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
+  const days = Math.round((new Date(d + 'T12:00:00').getTime() - Date.now()) / 86400000)
   if (days < 0) return 'text-red-500'
   if (days <= 3) return 'text-red-500 font-bold'
   if (days <= 7) return 'text-amber-600 font-semibold'
@@ -81,10 +81,11 @@ export function bidDateClass(d: string | null): string {
 export function formatBidDate(d: string | null): string {
   if (!d) return '—'
   const date = new Date(d + 'T12:00:00')
-  const days = Math.ceil((date.getTime() - Date.now()) / 86400000)
+  const days = Math.round((date.getTime() - Date.now()) / 86400000)
   const str = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   if (days < 0) return str + ' (past)'
-  if (days === 0) return str + ' (TODAY)'
+  if (days === 0) return str + ' (Today)'
+  if (days === 1) return str + ' (Tomorrow)'
   if (days <= 7) return str + ` (${days}d)`
   return str
 }

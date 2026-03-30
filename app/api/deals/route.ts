@@ -162,21 +162,7 @@ export async function POST(req: NextRequest) {
       }
 
       const skipped = incoming.length - toInsert.length - toUpdate.length
-      // Debug: check specific deals
-      const debugDeals = ['Yardly Crossings', 'Avenue 33 Apartments']
-      const debugInfo: any = {}
-      for (const dn of debugDeals) {
-        const inFile = incoming.find((d:any) => d.name?.trim() === dn)
-        const inDb = allExisting.find((d:any) => d.name?.trim() === dn)
-        const inInsert = toInsert.find((d:any) => d.name?.trim() === dn)
-        const inUpdate = toUpdate.find((d:any) => d.name?.trim() === dn)
-        debugInfo[dn] = {
-          inFile: inFile ? { bid_due_date: inFile.bid_due_date, modified: inFile.modified } : null,
-          inDb: inDb ? { bid_due_date: inDb.bid_due_date, modified: inDb.modified } : 'NOT IN DB FETCH',
-          action: inInsert ? 'INSERT' : inUpdate ? { UPDATE: inUpdate.changes } : 'SKIPPED'
-        }
-      }
-      return NextResponse.json({ inserted, updated, skipped, insertErrors, dbFetched: allExisting.length, debug: debugInfo })
+      return NextResponse.json({ inserted, updated, skipped, insertErrors, dbFetched: allExisting.length })
     }
 
     // ── Single deal insert (Add Deal button in UI) ────────────────────────────
@@ -196,26 +182,17 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json()
     const { name, id, _oldName, ...updates } = body
     if (!name && !id) return NextResponse.json({ error: 'name or id required' }, { status: 400 })
+    // Always include name in update payload so renames persist
+    if (name) updates.name = name
     updates.modified = new Date().toISOString().slice(0, 10)
-
-    // Determine the old name for cascading renames
-    const oldName = _oldName ?? name
-
     let data, error
     if (id) {
       ({ data, error } = await supabase.from('deals').update(updates).eq('id', id).select())
     } else {
-      ({ data, error } = await supabase.from('deals').update(updates).eq('name', oldName).select())
+      ({ data, error } = await supabase.from('deals').update(updates).eq('name', name).select())
     }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     if (!data || data.length === 0) return NextResponse.json({ error: 'no rows updated' }, { status: 404 })
-
-    // If name changed, cascade to boe_data
-    const newName = updates.name ?? name
-    if (newName && oldName && newName !== oldName) {
-      await supabase.from('boe_data').update({ deal_name: newName }).eq('deal_name', oldName)
-    }
-
     return NextResponse.json(data[0])
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'unknown' }, { status: 500 })

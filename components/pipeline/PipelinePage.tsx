@@ -43,7 +43,7 @@ export default function PipelinePage({ deals, onOpenDeal }: Props) {
   const byWeek = useMemo(() => {
     const weeks: { label: string; deals: Deal[] }[] = []
     upcomingBids.forEach(d => {
-      const date = new Date(d.bid_due_date!)
+      const date = new Date(d.bid_due_date! + 'T12:00:00')
       const weekStart = new Date(date)
       weekStart.setDate(date.getDate() - date.getDay())
       const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' week'
@@ -95,7 +95,7 @@ export default function PipelinePage({ deals, onOpenDeal }: Props) {
         let reason = ''
         // Bid due soon
         if (d.bid_due_date) {
-          const daysUntil = Math.ceil((new Date(d.bid_due_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+          const daysUntil = Math.round((new Date(d.bid_due_date + 'T12:00:00').getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
           if (daysUntil <= 3 && daysUntil >= 0) { urgency = 3; reason = `Bid in ${daysUntil}d` }
           else if (daysUntil <= 7 && daysUntil >= 0) { urgency = 2; reason = `Bid in ${daysUntil}d` }
           else if (daysUntil <= 14 && daysUntil >= 0) { urgency = 1; reason = `Bid in ${daysUntil}d` }
@@ -149,7 +149,7 @@ export default function PipelinePage({ deals, onOpenDeal }: Props) {
               <div key={week.label} style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.12em', textTransform: 'uppercase' as const, marginBottom: 8, paddingLeft: 4 }}>{week.label}</div>
                 {week.deals.map(d => {
-                  const daysUntil = Math.ceil((new Date(d.bid_due_date!).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                  const daysUntil = Math.round((new Date(d.bid_due_date! + 'T12:00:00').getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
                   const isUrgent = daysUntil <= 3
                   const isSoon = daysUntil <= 7
                   return (
@@ -212,7 +212,7 @@ export default function PipelinePage({ deals, onOpenDeal }: Props) {
                 ['Upcoming Bids', upcomingBids.length.toString()],
                 ['This Week', byWeek[0]?.deals.length.toString() ?? '0'],
                 ['Next 14 Days', upcomingBids.filter(d => {
-                  const days = Math.ceil((new Date(d.bid_due_date!).getTime() - now.getTime()) / 86400000)
+                  const days = Math.round((new Date(d.bid_due_date! + 'T12:00:00').getTime() - now.getTime()) / 86400000)
                   return days <= 14
                 }).length.toString()],
               ].map(([l, v]) => (
