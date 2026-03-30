@@ -365,13 +365,17 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
 
   // Monthly deal flow — rolling 12 months from current month
   const monthlyFlow = useMemo(() => {
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
     const months: { label: string; key: string; count: number; avgCapRate: number | null }[] = []
+    const baseYear = now.getFullYear()
+    const baseMonth = now.getMonth() // 0-indexed
     for (let i = 11; i >= 0; i--) {
-      const d = new Date(now)
-      d.setMonth(d.getMonth() - i)
-      const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-      const label = `${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(2)}`
+      // Calculate month without mutating a shared Date object
+      const totalMonths = baseYear * 12 + baseMonth - i
+      const yr = Math.floor(totalMonths / 12)
+      const mo = totalMonths % 12 // 0-indexed
+      const key = `${yr}-${String(mo + 1).padStart(2,'0')}`
+      const label = `${MONTHS[mo]}-${String(yr).slice(2)}`
       months.push({ label, key, count: 0, avgCapRate: null })
     }
     deals.forEach(d => {
