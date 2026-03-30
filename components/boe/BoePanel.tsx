@@ -427,7 +427,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     // Turn off gridlines via workbook SheetViews
     if (!wb.Workbook) wb.Workbook = {}
     if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [{}]
-    wb.Workbook.Sheets[0].showGridLines = 0
+    (wb.Workbook.Sheets[0] as any).showGridLines = 0
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
   }
