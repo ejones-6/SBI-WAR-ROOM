@@ -277,10 +277,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     const A2  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"_);_(@_)'
     const S   = '#,##0 ;\\(#,##0\\)'
     // Colors as ARGB hex — works with standard xlsx
-    const NAVY  = '000D1B2E'
-    const GOLD  = '00C9A84C'
-    const WHITE = '00FFFFFF'
-    const BLUE  = '000070C0'  // adj col
+    const NAVY  = 'FF0D1B2E'
+    const GOLD  = 'FFC9A84C'
+    const WHITE = 'FFFFFFFF'
+    const BLUE  = 'FF0070C0'  // adj col
 
     function s(col: number, row: number, v: any,
       opts: { b?: boolean; sz?: number; rgb?: string; z?: string; bg?: string } = {}) {
@@ -346,8 +346,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(10,20,'Turnover',{b:true,sz:8,z:S});  s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:GOLD,z:S})
     s(10,21,'Per unit',{b:true,sz:8,z:S});  s(11,21,'=+SUM(K18:K20)',{sz:10,z:A})
     s(13,18,'Inside / Office',{b:true,sz:8})
-    s(13,19,'Prop Mgr',{sz:8,rgb:GOLD,z:S});   s(14,19,parseFloat(payroll['py-pm']||'85000'),{sz:8,rgb:GOLD,z:S})
-    s(13,20,'Assist Mgr',{sz:8,rgb:GOLD,z:S}); s(14,20,parseFloat(payroll['py-am']||'60000'),{sz:8,rgb:GOLD,z:S})
+    s(13,19,'Prop Mgr',{sz:8,rgb:GOLD,z:S});   s(14,19,parseFloat(payroll['py-pm']||'0'),{sz:8,rgb:GOLD,z:S})
+    s(13,20,'Assist Mgr',{sz:8,rgb:GOLD,z:S}); s(14,20,parseFloat(payroll['py-am']||'0'),{sz:8,rgb:GOLD,z:S})
     s(13,21,'Leasing',{sz:8,rgb:GOLD,z:S});    s(14,21,parseFloat(payroll['py-la']||'0'),{sz:8,rgb:GOLD,z:S})
     // N22 is blank in template but included in SUM(N19:N22) — write 0 so formula is clean
     ws[XLSX.utils.encode_cell({r:21,c:13})] = {v:0,t:'n',s:{font:{name:'Calibri',sz:8,color:{rgb:NAVY}},numFmt:S}}
@@ -358,10 +358,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(10,25,'Millage',{b:true,sz:8,z:S}); s(11,25,parseFloat(taxHelper['tx-mil']||'0')/100,{sz:8,rgb:GOLD,z:'0.0000%'})
     s(13,25,'Outside / Maintenance',{b:true,sz:8})
     s(10,26,'Non ad',{b:true,sz:8,z:S}); s(11,26,parseFloat(taxHelper['tx-nad']||'0'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
-    s(13,26,'Maint Super',{sz:8,rgb:GOLD,z:S}); s(14,26,parseFloat(payroll['py-ms']||'80000'),{sz:8,rgb:GOLD,z:S})
-    s(13,27,'Maint Tech',{sz:8,rgb:GOLD,z:S});  s(14,27,parseFloat(payroll['py-mt']||'60000'),{sz:8,rgb:GOLD,z:S})
+    s(10,27,'State Factor',{b:true,sz:8,z:S}); s(11,27,parseFloat(taxHelper['tx-sf']||'100')/100,{sz:8,rgb:GOLD,z:'0%'})
+    s(13,26,'Maint Super',{sz:8,rgb:GOLD,z:S}); s(14,26,parseFloat(payroll['py-ms']||'0'),{sz:8,rgb:GOLD,z:S})
+    s(13,27,'Maint Tech',{sz:8,rgb:GOLD,z:S});  s(14,27,parseFloat(payroll['py-mt']||'0'),{sz:8,rgb:GOLD,z:S})
     s(10,28,'Insurance',{b:true,sz:8})
-    s(13,28,'Maint Assist',{sz:8,rgb:GOLD,z:S}); s(14,28,parseFloat(payroll['py-ma']||'40000'),{sz:8,rgb:GOLD,z:S})
+    s(13,28,'Maint Assist',{sz:8,rgb:GOLD,z:S}); s(14,28,parseFloat(payroll['py-ma']||'0'),{sz:8,rgb:GOLD,z:S})
     s(10,29,'Per Unit',{b:true,sz:8,z:S}); s(11,29,parseFloat(adjs['ins']||'550'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
     s(13,30,'Bonus Outside',{sz:8}); s(14,30,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:GOLD,z:'0%'})
     s(13,31,'Total Outside',{b:true,sz:8}); s(14,31,'=SUM(N26:N29)+(SUM(N26:N29)*N30)',{b:true,sz:8,z:S})
@@ -398,9 +399,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
     // Tax formula: Current Cycle uses hardcoded AV; Reassess to PP uses D36
     const avVal = parseFloat(currentAV.replace(/[,$]/g,'')) || 0
+    // Tax formula includes state factor K27; Current Cycle uses hardcoded AV
     const taxFormula = taxMode === 'av' && avVal > 0
-      ? `=(${avVal}*$K$24*$K$25)-$D$26+$K$26`
-      : '=($D$36*$K$24*$K$25)-$D$26+$K$26'
+      ? `=(${avVal}*$K$24*$K$25*$K$27)-$D$26+$K$26`
+      : '=($D$36*$K$24*$K$25*$K$27)-$D$26+$K$26'
     erow(26,'Real Estate Taxes',t12.tax, taxFormula,
          taxMode === 'av' ? 'Current Cycle' : 'Reassess to PP')
 
@@ -421,9 +423,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(7,40,'=G33/D36',{b:true,sz:12,z:'0.00%',rgb:GOLD})
 
     ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
-    // Turn off gridlines
-    ws['!sheetView'] = { showGridLines: false }
     XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
+    // Turn off gridlines via workbook SheetViews
+    if (!wb.Workbook) wb.Workbook = {}
+    if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [{}]
+    wb.Workbook.Sheets[0].showGridLines = 0
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
   }
