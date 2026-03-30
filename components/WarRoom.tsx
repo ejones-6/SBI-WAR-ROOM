@@ -11,7 +11,7 @@ import CapRatesPage from './caprates/CapRatesPage'
 import AnalyticsPage from './analytics/AnalyticsPage'
 import dynamic from 'next/dynamic'
 
-const DealsMap = dynamic(() => import('./DealsMap'), { ssr: false })
+const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
 type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
