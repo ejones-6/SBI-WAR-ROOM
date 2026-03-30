@@ -273,23 +273,45 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   function handleExport() {
     const wb = XLSX.utils.book_new()
     const ws: any = {}
-    const A  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'
-    const A2 = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"_);_(@_)'
-    const S  = '#,##0 ;\\(#,##0\\)'
-    const BLUE = 'FF0070C0'
-    const BINP = 'FF0000FF'
-    function s(col: number, row: number, v: any, opts: { b?: boolean; sz?: number; rgb?: string; z?: string } = {}) {
+    const A   = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'
+    const A2  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"_);_(@_)'
+    const S   = '#,##0 ;\\(#,##0\\)'
+    // SBI brand colors
+    const NAVY   = 'FF0D1B2E'
+    const GOLD   = 'FFC9A84C'
+    const CREAM  = 'FFF5F4EF'
+    const MUTED  = 'FF8A9BB0'
+    const BLUE   = 'FF0070C0'  // adj inputs (matches template)
+    const BINP   = 'FFC9A84C'  // side table inputs — gold instead of red
+
+    function s(col: number, row: number, v: any,
+      opts: { b?: boolean; sz?: number; rgb?: string; z?: string; bg?: string } = {}) {
       const addr = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 })
       const isF = typeof v === 'string' && v.startsWith('=')
-      ws[addr] = { v: isF ? 0 : v, t: isF ? 'n' : typeof v === 'number' ? 'n' : 's', ...(isF ? { f: v.slice(1) } : {}),
-        s: { font: { name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false, ...(opts.rgb ? { color: { rgb: opts.rgb } } : {}) }, ...(opts.z ? { numFmt: opts.z } : {}) } }
+      ws[addr] = {
+        v: isF ? 0 : v,
+        t: isF ? 'n' : typeof v === 'number' ? 'n' : 's',
+        ...(isF ? { f: v.slice(1) } : {}),
+        s: {
+          font: {
+            name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false,
+            color: { rgb: opts.rgb ?? NAVY },
+          },
+          ...(opts.bg ? { fill: { patternType: 'solid', fgColor: { rgb: opts.bg } } } : {}),
+          numFmt: opts.z ?? 'General',
+        },
+      }
     }
+
     ws['!cols'] = [{wch:2.66},{wch:46.33},{wch:5.33},{wch:13.33},{wch:10.66},{wch:11.33},{wch:14.33},{wch:10.66},{wch:35.44},{wch:13},{wch:13},{wch:2.78},{wch:10.89},{wch:12},{wch:2.78}]
+
     s(2,1,deal.name,{b:true,sz:14}); s(4,1,period||'T12',{b:true,sz:11,z:'[$-409]mmm\\-yy;@'})
     s(2,2,'BOE Model',{b:true,sz:12}); s(3,2,units,{b:true,sz:10}); s(4,2,'Units',{b:true,sz:11})
-    s(4,3,'Hist Total',{b:true,sz:11}); s(5,3,'% / Per Unit',{b:true,sz:10})
-    s(6,3,'Adj',{b:true,sz:11}); s(7,3,'PF Total',{b:true,sz:11})
-    s(8,3,'% / Per Unit',{b:true,sz:10}); s(9,3,'Notes',{b:true,sz:10})
+    s(4,3,'Hist Total',  {b:true,sz:10,rgb:GOLD,bg:NAVY}); s(5,3,'% / Per Unit',{b:true,sz:9,rgb:GOLD,bg:NAVY})
+    s(6,3,'Adj',         {b:true,sz:10,rgb:GOLD,bg:NAVY}); s(7,3,'PF Total',    {b:true,sz:10,rgb:GOLD,bg:NAVY})
+    s(8,3,'% / Per Unit',{b:true,sz:9,rgb:GOLD,bg:NAVY}); s(9,3,'Notes',       {b:true,sz:9,rgb:GOLD,bg:NAVY})
+
+    // irow passes actual computed pfv — so lease-up GPR/OI/LTL all export correctly
     function irow(row: number, label: string, t12v: number, pfv: number, pctRow = false, note = '') {
       s(2,row,label,{sz:11,z:A2}); s(3,row,'T12',{sz:10,z:A2}); s(4,row,t12v,{sz:11,z:A})
       s(5,row,pctRow?`=-D${row}/SUM($D$5:$D$6)`:`=D${row}/$C$2`,{sz:10,z:pctRow?'0.0%':A})
@@ -302,13 +324,14 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       s(2,row,label,{b,sz:11}); s(4,row,dF,{b,sz:11,z:A}); s(5,row,`=D${row}/$C$2`,{b,sz:10,z:A})
       s(7,row,gF,{b,sz:11,z:A}); s(8,row,`=G${row}/$C$2`,{b,sz:10,z:A})
     }
-    irow(5,'Gross Potential Rent',gpr_t,gpr_p,false,notes['gpr']||'')
-    irow(6,'(Loss to Lease) / Gain to Lease',ltl_t,ltl_p,false,notes['ltl']||'')
-    irow(7,'Vacancy',vac_t,vac_p,true,notes['vac']||'')
-    irow(8,'Bad Debt',bad_t,bad_p,true,notes['bad']||'')
-    irow(9,'Concessions',conc_t,conc_p,true,notes['conc']||'')
-    irow(10,'Model Units',mod_t,mod_p,true,notes['mod']||'')
-    irow(11,'Employee Units',emp_t,emp_p,true,notes['emp']||'')
+
+    irow(5, 'Gross Potential Rent',            gpr_t, gpr_p, false, notes['gpr']||'')
+    irow(6, '(Loss to Lease) / Gain to Lease', ltl_t, ltl_p, false, notes['ltl']||'')
+    irow(7, 'Vacancy',      vac_t, vac_p, true,  notes['vac']||'')
+    irow(8, 'Bad Debt',     bad_t, bad_p, true,  notes['bad']||'')
+    irow(9, 'Concessions',  conc_t,conc_p,true,  notes['conc']||'')
+    irow(10,'Model Units',  mod_t, mod_p, true,  notes['mod']||'')
+    irow(11,'Employee Units',emp_t,emp_p, true,  notes['emp']||'')
     sub(12,'Base Rental Revenue','=SUM(D5:D11)','=SUM(G5:G11)')
     s(2,14,'Other Income',{b:true,sz:11}); s(3,14,'T12',{b:true,sz:10})
     s(4,14,oi_t,{b:true,sz:11,z:A}); s(5,14,'=D14/$C$2',{b:true,sz:10,z:A})
@@ -316,15 +339,17 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(7,14,'=SUM(D14,F14)',{b:true,sz:11,z:A}); s(8,14,'=G14/$C$2',{b:true,sz:10,z:A})
     if(notes['oi']) s(9,14,notes['oi'],{sz:10})
     sub(16,'Effective Gross Revenue','=SUM(D12,D14)','=SUM(G12,G14)')
+
+    // R&M side — rmi values are already $/unit/yr, no *12
     s(10,17,'R&M:',{b:true,sz:8}); s(13,17,'Payroll:',{b:true,sz:8})
-    s(10,18,'R&M',{b:true,sz:8,z:S}); s(11,18,parseFloat(rmi['rmi-rm']||'750'),{sz:8,rgb:BINP,z:S})
-    s(10,19,'Contracts',{b:true,sz:8,z:S}); s(11,19,parseFloat(rmi['rmi-ct']||'420')*12,{sz:8,rgb:BINP,z:S})
-    s(10,20,'Turnover',{b:true,sz:8,z:S}); s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:BINP,z:S})
-    s(10,21,'Per unit',{b:true,sz:8,z:S}); s(11,21,'=+SUM(K18:K20)',{sz:10,z:A})
+    s(10,18,'R&M',{b:true,sz:8,z:S});       s(11,18,parseFloat(rmi['rmi-rm']||'750'),{sz:8,rgb:BINP,z:S})
+    s(10,19,'Contracts',{b:true,sz:8,z:S}); s(11,19,parseFloat(rmi['rmi-ct']||'420'),{sz:8,rgb:BINP,z:S})
+    s(10,20,'Turnover',{b:true,sz:8,z:S});  s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:BINP,z:S})
+    s(10,21,'Per unit',{b:true,sz:8,z:S});  s(11,21,'=+SUM(K18:K20)',{sz:10,z:A})
     s(13,18,'Inside / Office',{b:true,sz:8})
-    s(13,19,'Prop Mgr',{sz:8,rgb:BINP,z:S}); s(14,19,parseFloat(payroll['py-pm']||'85000'),{sz:8,rgb:BINP,z:S})
+    s(13,19,'Prop Mgr',{sz:8,rgb:BINP,z:S});   s(14,19,parseFloat(payroll['py-pm']||'85000'),{sz:8,rgb:BINP,z:S})
     s(13,20,'Assist Mgr',{sz:8,rgb:BINP,z:S}); s(14,20,parseFloat(payroll['py-am']||'60000'),{sz:8,rgb:BINP,z:S})
-    s(13,21,'Leasing',{sz:8,rgb:BINP,z:S}); s(14,21,parseFloat(payroll['py-la']||'45000'),{sz:8,rgb:BINP,z:S})
+    s(13,21,'Leasing',{sz:8,rgb:BINP,z:S});    s(14,21,parseFloat(payroll['py-la']||'45000'),{sz:8,rgb:BINP,z:S})
     s(10,23,'Taxes:',{b:true,sz:8}); s(13,23,'Bonus Inside',{sz:8})
     s(14,23,parseFloat(payroll['py-bi']||'0.25'),{sz:8,rgb:BINP,z:'0%'})
     s(10,24,'Ratio',{b:true,sz:8,z:S}); s(11,24,parseFloat(taxHelper['tx-rat']||'0')/100,{sz:8,rgb:BINP,z:'0%'})
@@ -333,45 +358,59 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     s(13,25,'Outside / Maintenance',{b:true,sz:8})
     s(10,26,'Non ad',{b:true,sz:8,z:S}); s(11,26,parseFloat(taxHelper['tx-nad']||'0'),{sz:8,rgb:BINP,z:'"$"#,##0'})
     s(13,26,'Maint Super',{sz:8,rgb:BINP,z:S}); s(14,26,parseFloat(payroll['py-ms']||'80000'),{sz:8,rgb:BINP,z:S})
-    s(13,27,'Maint Tech',{sz:8,rgb:BINP,z:S}); s(14,27,parseFloat(payroll['py-mt']||'60000'),{sz:8,rgb:BINP,z:S})
+    s(13,27,'Maint Tech',{sz:8,rgb:BINP,z:S});  s(14,27,parseFloat(payroll['py-mt']||'60000'),{sz:8,rgb:BINP,z:S})
     s(10,28,'Insurance',{b:true,sz:8})
     s(13,28,'Maint Assist',{sz:8,rgb:BINP,z:S}); s(14,28,parseFloat(payroll['py-ma']||'40000'),{sz:8,rgb:BINP,z:S})
     s(10,29,'Per Unit',{b:true,sz:8,z:S}); s(11,29,parseFloat(adjs['ins']||'550'),{sz:8,rgb:BINP,z:'"$"#,##0'})
     s(13,30,'Bonus Outside',{sz:8}); s(14,30,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:BINP,z:'0%'})
     s(13,31,'Total Outside',{b:true,sz:8}); s(14,31,'=SUM(N26:N29)+(SUM(N26:N29)*N30)',{b:true,sz:8,z:S})
-    s(13,32,'Total',{b:true,sz:8}); s(14,32,'=SUM(N24,N31)',{b:true,sz:8,z:S})
+    s(13,32,'Total',{b:true,sz:8});          s(14,32,'=SUM(N24,N31)',{b:true,sz:8,z:S})
     s(13,33,parseFloat(payroll['py-ben']||'0.325'),{sz:8,rgb:BINP,z:'0.0%\\ "Burden"'})
     s(14,33,'=M33*SUM(N19:N22,N26:N29)',{sz:8,z:S})
     s(13,34,'GRAND TOTAL',{b:true,sz:8}); s(14,34,'=SUM(N32:N33)',{b:true,sz:8,z:S})
-    s(13,35,'Per Unit',{b:true,sz:8}); s(14,35,'=+N34/C2',{sz:10,z:A})
+    s(13,35,'Per Unit',{b:true,sz:8});    s(14,35,'=+N34/C2',{sz:10,z:A})
+
     function erow(row: number, label: string, t12v: number, fAdj: string|null, note='') {
       s(2,row,label,{sz:11,z:A2}); s(3,row,'T12',{sz:10,z:A2}); s(4,row,t12v,{sz:11,z:A})
       s(5,row,`=D${row}/$C$2`,{sz:10,z:A}); if(fAdj) s(6,row,fAdj,{sz:11,rgb:BLUE,z:A})
       s(7,row,`=SUM(D${row},F${row})`,{sz:11,z:A}); s(8,row,`=G${row}/$C$2`,{sz:10,z:A})
       if(note) s(9,row,note,{sz:10})
     }
-    erow(18,'General & Administrative',t12.ga,null,notes['ga']||'')
-    erow(19,'Marketing / Advertising',t12.mkt,null,notes['mkt']||'')
-    erow(20,'Repairs & Maintenance',t12.rm,'=($K$21*$C$2)-D20',`$${rmi['rmi-rm']||750}/unit R&M · $${rmi['rmi-ct']||420}/unit Contracts · $${rmi['rmi-tu']||350}/unit Turnover`)
-    erow(21,'Payroll',t12.pay,'=(N35*$C$2)-D21',notes['pay']||'')
+
+    erow(18,'General & Administrative',t12.ga,  null, notes['ga']||'')
+    erow(19,'Marketing / Advertising', t12.mkt, null, notes['mkt']||'')
+    erow(20,'Repairs & Maintenance',   t12.rm,  '=($K$21*$C$2)-D20',
+         `$${rmi['rmi-rm']||750}/unit R&M · $${rmi['rmi-ct']||420}/unit Contracts · $${rmi['rmi-tu']||350}/unit Turnover`)
+    erow(21,'Payroll', t12.pay, '=(N35*$C$2)-D21', notes['pay']||'')
     sub(22,'Controllable Expenses','=SUM(D18:D21)','=SUM(G18:G21)')
     erow(24,'Property Management Fee',t12.mgt,'=(2.5%*G16)-D24')
     s(9,24,'=H24/H16',{sz:10,z:'0.0%'})
     erow(25,'Utlilities',t12.utl,null,notes['utl']||'')
-    erow(26,'Real Estate Taxes',t12.tax,'=($D$36*$K$24*$K$25)-$D$26+$K$26','tax adj')
+
+    // Tax formula: Current Cycle uses hardcoded AV; Reassess to PP uses D36
+    const avVal = parseFloat(currentAV.replace(/[,$]/g,'')) || 0
+    const taxFormula = taxMode === 'av' && avVal > 0
+      ? `=(${avVal}*$K$24*$K$25)-$D$26+$K$26`
+      : '=($D$36*$K$24*$K$25)-$D$26+$K$26'
+    erow(26,'Real Estate Taxes',t12.tax, taxFormula,
+         taxMode === 'av' ? 'Current Cycle' : 'Reassess to PP')
+
     erow(27,'Misc Taxes',t12.taxm,null,notes['taxm']||'')
-    erow(28,'Insurance',t12.ins,'=($K$29*$C$2)-D28',notes['ins']||'')
+    erow(28,'Insurance', t12.ins,'=($K$29*$C$2)-D28',notes['ins']||'')
     sub(29,'Non-Controllable Expenses','=SUM(D24:D28)','=SUM(G24:G28)')
     sub(31,'Operating Expenses','=SUM(D22,D29)','=SUM(G22,G29)')
-    s(2,33,'NET OPERATING INCOME',{b:true,sz:11})
-    s(4,33,'=D16-D31',{b:true,sz:11,z:A}); s(5,33,'=D33/$C$2',{b:true,sz:10,z:A})
-    s(7,33,'=G16-G31',{b:true,sz:11,z:A}); s(8,33,'=G33/$C$2',{b:true,sz:10,z:A})
-    s(2,36,'Purchase Price',{b:true,sz:11}); s(4,36,pp||0,{b:true,sz:11,z:'"$"#,##0'})
+
+    s(2,33,'NET OPERATING INCOME',{b:true,sz:11,rgb:CREAM,bg:NAVY})
+    s(4,33,'=D16-D31',{b:true,sz:11,z:A,rgb:CREAM,bg:NAVY}); s(5,33,'=D33/$C$2',{b:true,sz:10,z:A,rgb:CREAM,bg:NAVY})
+    s(7,33,'=G16-G31',{b:true,sz:11,z:A,rgb:GOLD,bg:NAVY}); s(8,33,'=G33/$C$2',{b:true,sz:10,z:A,rgb:GOLD,bg:NAVY})
+
+    s(2,36,ppLabel+' Price',{b:true,sz:11}); s(4,36,pp||0,{b:true,sz:11,z:'"$"#,##0'})
     s(2,37,'Per Unit',{sz:10}); s(4,37,'=D36/C2',{sz:10,z:A})
     s(4,39,'Non-Adj',{b:true,sz:11}); s(7,39,'Adj',{b:true,sz:11})
-    s(2,40,'Cap Rate',{b:true,sz:11})
-    s(4,40,'=D33/D36',{b:true,sz:11,z:'0.00%'})
-    s(7,40,'=G33/D36',{b:true,sz:11,z:'0.00%'})
+    s(2,40,'Cap Rate',{b:true,sz:11,rgb:NAVY})
+    s(4,40,'=D33/D36',{b:true,sz:12,z:'0.00%',rgb:NAVY})
+    s(7,40,'=G33/D36',{b:true,sz:12,z:'0.00%',rgb:GOLD})
+
     ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
     XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
