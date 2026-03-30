@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// ── Yahoo Finance — equities, REITs, BTC ─────────────────────────────────────
+// ── Yahoo Finance — equities, REITs, BTC, and treasury indices ───────────────
 async function fetchYahoo(symbol: string): Promise<{ close: number; prev: number } | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`
@@ -24,15 +24,8 @@ async function fetchYahoo(symbol: string): Promise<{ close: number; prev: number
   } catch { return null }
 }
 
-// ── Yahoo Finance treasury yields — ^FVX=5Y, ^TNX=10Y ────────────────────────
-// Yahoo quotes these as tenths of a percent (e.g. 41.53 = 4.153%)
-async function fetchYahooRate(symbol: string): Promise<{ close: number; prev: number } | null> {
-  const result = await fetchYahoo(symbol)
-  if (!result) return null
-  return { close: result.close / 10, prev: result.prev / 10 }
-}
-
-// ── FRED — fallback for any treasury yield ───────────────────────────────────
+// ── FRED — treasury yields and SOFR ─────────────────────────────────────────
+// Returns values already in percent (e.g. 4.153)
 async function fetchFred(seriesId: string): Promise<{ close: number; prev: number } | null> {
   try {
     const res = await fetch(
@@ -55,7 +48,6 @@ async function fetchFred(seriesId: string): Promise<{ close: number; prev: numbe
 
 // ── SOFR — NY Fed primary, FRED fallback ─────────────────────────────────────
 async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
-  // Primary: NY Fed
   try {
     const res = await fetch(
       'https://markets.newyorkfed.org/api/rates/sofr/last/2.json',
@@ -74,32 +66,17 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
       }
     }
   } catch {}
-  // Fallback: FRED
   return fetchFred('SOFR')
 }
 
-// ── 7Y Treasury — interpolated from 5Y and 10Y Yahoo data ───────────────────
-// Since there's no direct real-time 7Y symbol, we interpolate (very close in practice)
-async function fetchSevenY(fiveY: { close: number; prev: number } | null, tenY: { close: number; prev: number } | null): Promise<{ close: number; prev: number } | null> {
-  // Try FRED first (end of day but accurate)
-  const fred = await fetchFred('DGS7')
-  if (fred) return fred
-  // Fallback: interpolate between 5Y and 10Y (40% weight toward 10Y)
-  if (fiveY && tenY) {
-    return {
-      close: parseFloat((fiveY.close * 0.6 + tenY.close * 0.4).toFixed(3)),
-      prev:  parseFloat((fiveY.prev  * 0.6 + tenY.prev  * 0.4).toFixed(3)),
-    }
-  }
-  return null
-}
-
 export async function GET() {
-  // Fetch everything in parallel
-  const [sofr, fiveYRaw, tenYRaw, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+  // ^FVX = 5Y, ^TNX = 10Y — Yahoo returns these already in percent (e.g. 4.08)
+  // NO divide by 10 needed
+  const [sofr, fiveY, sevenY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
     fetchSofr(),
-    fetchYahooRate('^FVX'),   // 5Y — real time
-    fetchYahooRate('^TNX'),   // 10Y — real time
+    fetchYahoo('^FVX'),    // 5Y — real time, value already in % (e.g. 4.08)
+    fetchFred('DGS7'),     // 7Y — FRED end-of-day (no real-time symbol exists)
+    fetchYahoo('^TNX'),    // 10Y — real time, value already in % (e.g. 4.42)
     fetchYahoo('^GSPC'),
     fetchYahoo('^DJI'),
     fetchYahoo('BTC-USD'),
@@ -108,9 +85,6 @@ export async function GET() {
     fetchYahoo('MAA'),
     fetchYahoo('ESS'),
   ])
-
-  // 7Y: FRED if available, otherwise interpolate from 5Y+10Y
-  const sevenY = await fetchSevenY(fiveYRaw, tenYRaw)
 
   const rate = (d: { close: number; prev: number } | null) =>
     d ? { rate: d.close, change: parseFloat((d.close - d.prev).toFixed(3)) } : null
@@ -124,9 +98,9 @@ export async function GET() {
 
   return NextResponse.json({
     sofr:   rate(sofr),
-    fiveY:  rate(fiveYRaw),
+    fiveY:  rate(fiveY),
     sevenY: rate(sevenY),
-    tenY:   rate(tenYRaw),
+    tenY:   rate(tenY),
     sp500:  price(sp500),
     dow:    price(dow),
     btc:    price(btc),
