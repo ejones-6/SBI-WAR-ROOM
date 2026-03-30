@@ -274,7 +274,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
         const res = await fetch('/api/rates')
         if (!res.ok) throw new Error(`${res.status}`)
         const d = await res.json()
-        if (!d.error) setRates(d)
+        if (d && !d.error) setRates(d)
       } catch (e) {
         console.warn('Rates fetch failed:', e)
       }
@@ -351,7 +351,8 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       const d = new Date(now)
       d.setMonth(d.getMonth() - i)
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
-      const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' }).replace(' ', '-')
+      const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+      const label = `${MONTHS[d.getMonth()]}-${String(d.getFullYear()).slice(2)}`
       months.push({ label, key, count: 0, avgCapRate: null })
     }
     deals.forEach(d => {
