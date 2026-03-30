@@ -280,7 +280,26 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
       }
       setRatesLoading(false)
     }
+
     loadRates()
+
+    // 5 min during market hours (9:30am-5pm ET Mon-Fri), 30 min otherwise
+    function getRefreshMs() {
+      const et = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+      const day = et.getDay()
+      const timeVal = et.getHours() * 60 + et.getMinutes()
+      const isWeekday = day >= 1 && day <= 5
+      const isMarketHours = timeVal >= 9 * 60 + 30 && timeVal <= 17 * 60
+      return isWeekday && isMarketHours ? 5 * 60 * 1000 : 30 * 60 * 1000
+    }
+
+    let timer: ReturnType<typeof setTimeout>
+    function schedule() {
+      timer = setTimeout(() => { loadRates(); schedule() }, getRefreshMs())
+    }
+    schedule()
+
+    return () => clearTimeout(timer)
   }, [])
 
 
