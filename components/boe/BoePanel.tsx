@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Deal, BoeData, BoeT12, BoeAdjs } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -26,34 +26,112 @@ const BOE_MAP: Record<string, string[]> = {
   conc: ['conc'],
   mod:  ['mod'],
   emp:  ['emp'],
-  // All other income rows sum to oi
   oi:   ['app','admin','dam','mtm','pet_f','pet_r','int','term','cable','tran','nsf','late',
           'wash','park','stor','park_c','cell','bill','prem','pest','oi','comm',
           'reim_e','reim_w','reim_g','reim_o','reim_t','key','cc','leg','amn','fsd',
           'vend','p/d','p/d_u','gym','club','oi1','oi2','oi3','oi4','ri'],
-  // G&A = Administrative + Licenses
   ga:   ['ga','lic'],
-  // Marketing
   mkt:  ['adv'],
-  // R&M = repairs + contract services + turnover + landscaping
   rm:   ['rm','cont','turn','ls'],
-  // Payroll
   pay:  ['pay'],
-  // Management fee
   mgt:  ['mgt'],
-  // Utilities = all utility lines
   utl:  ['elec','wat','gas','utl','trash'],
-  // Real estate taxes = all tax lines
-  tax:  ['tax','tax_c','tax_o','tax_p'],
-  // Misc taxes
+  tax:  ['tax'],
   taxm: [],
-  // Insurance
   ins:  ['ins'],
 }
 
 function fmt(n: number) { return n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}` }
 function fmtpu(n: number, u: number) { if (!u) return '—'; return `$${Math.round(n/u).toLocaleString()}` }
 function fmtPct(n: number) { return n.toFixed(1) + '%' }
+
+const COL = '196px 88px 60px 60px 108px 88px 60px 1fr'
+
+// ── Row component defined OUTSIDE BoePanel so React never remounts it ──
+interface RowProps {
+  k: keyof BoeAdjs
+  label: string
+  t12v: number
+  pfv: number
+  isNeg?: boolean
+  adjType?: 'pct'|'dollar'|'ppu'
+  adjPlaceholder?: string
+  note?: boolean
+  adjValue: string
+  noteValue: string
+  units: number
+  gpr_t: number
+  gpr_p: number
+  ltl_t: number
+  ltl_p: number
+  onAdjChange: (k: keyof BoeAdjs, val: string) => void
+  onNoteChange: (k: string, val: string) => void
+  onTabNext: (k: string, shift: boolean) => void
+}
+
+function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholder='', note=true,
+  adjValue, noteValue, units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange, onNoteChange, onTabNext }: RowProps) {
+  const gprt = gpr_t || 1; const gprp = gpr_p || 1
+  const vacBaseT = (gpr_t+ltl_t)||1; const vacBaseP = (gpr_p+ltl_p)||1
+  const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
+  const pctP = isNeg ? (k==='vac' ? Math.abs(pfv/vacBaseP)*100 : Math.abs(pfv/gprp)*100) : 0
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
+      <div style={{ fontSize:12, color:'#334155', paddingLeft:14, paddingRight:8 }}>{label}</div>
+      <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>
+        {fmt(t12v)}
+        {isNeg && t12v !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctT)}</div>}
+      </div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>
+      <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>
+        {isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
+      </div>
+      <div style={{ padding:'2px 6px' }}>
+        <input
+          type="text"
+          value={adjValue}
+          placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
+          onChange={e => onAdjChange(k, e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Tab' || e.key === 'Enter') {
+              e.preventDefault()
+              onAdjChange(k, e.currentTarget.value)
+              onTabNext(k as string, e.shiftKey)
+            }
+          }}
+          data-adj-key={k}
+          style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
+      </div>
+      <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>
+        {fmt(pfv)}
+        {isNeg && pfv !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctP)}</div>}
+      </div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>
+      {note && <div style={{ padding:'2px 6px 2px 4px' }}>
+        <input type="text" tabIndex={-1} value={noteValue} onChange={e => onNoteChange(k as string, e.target.value)}
+          placeholder="Notes…" style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.1)', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
+      </div>}
+    </div>
+  )
+}
+
+function SubRow({ label, t12v, pfv, units }: { label: string; t12v: number; pfv: number; units: number }) {
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight:34 }}>
+      <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14 }}>{label}</div>
+      <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12v)}</div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v,units)}</div>
+      <div/><div/>
+      <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', color:'#0D1B2E', paddingRight:8 }}>{fmt(pfv)}</div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv,units)}</div>
+      <div/>
+    </div>
+  )
+}
+
+function SectionHead({ label }: { label: string }) {
+  return <div style={{ padding:'8px 14px', background:'rgba(13,27,46,0.05)', fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase' }}>{label}</div>
+}
 
 export default function BoePanel({ deal, boe, onSave }: Props) {
   const units = deal.units ?? 1
@@ -76,12 +154,47 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   })
   const [rmi, setRmi] = useState<Record<string,string>>(boe?.rmi ?? { 'rmi-rm':'750','rmi-ct':'420','rmi-tu':'350' })
   const [taxHelper, setTaxHelper] = useState<Record<string,string>>(boe?.tax_helper ?? { 'tx-mil':'','tx-rat':'','tx-nad':'','tx-sf':'100' })
+  const [taxMode, setTaxMode] = useState<'pp'|'av'>(boe?.tax_mode ?? 'pp')
+  const [currentAV, setCurrentAV] = useState<string>(boe?.current_av?.toString() ?? '')
+  const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
+  const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
+  const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
+  const [oiT3, setOiT3] = useState<number>((boe as any)?.oi_t3 ?? 0)
 
-  // Load from saved boe on deal change or whenever boe data changes
-  // Use JSON snapshot as dependency so T12 always reflects latest saved data
-  const boeKey = boe ? JSON.stringify({ t12: boe.t12, adjs: boe.adjs, period: boe.period }) : null
+  // Only reload state when the deal changes — never on save
+  const justSaved = useRef(false)
+  const prevDealName = useRef(deal.name)
   useEffect(() => {
-    if (boe) {
+    if (deal.name !== prevDealName.current) {
+      // Switched to a different deal — always reload
+      prevDealName.current = deal.name
+      justSaved.current = false
+      if (boe) {
+        setT12(boe.t12 && Object.keys(boe.t12).length ? boe.t12 : EMPTY_T12)
+        setAdjs(boe.adjs ?? DEFAULT_ADJS)
+        setNotes(boe.notes ?? {})
+        setPeriod(boe.period ?? '')
+        if (boe.payroll && Object.keys(boe.payroll).length) setPayroll(boe.payroll as any)
+        if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
+        if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper({...{'tx-sf':'100'}, ...boe.tax_helper as any})
+      if ((boe as any).tax_mode) setTaxMode((boe as any).tax_mode)
+      if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
+        setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
+        setNoiBadge(boe?.noi_badge ?? 'BOE')
+        setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
+        setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
+        setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
+        setOiT3((boe as any)?.oi_t3 ?? 0)
+      } else {
+        setT12(EMPTY_T12)
+        setAdjs(DEFAULT_ADJS)
+        setNotes({})
+        setPeriod('')
+        setPfNoiOverride('')
+        setNoiBadge('BOE')
+      }
+    } else if (!justSaved.current && boe) {
+      // Same deal, boe prop updated externally (e.g. initial load) — only load if we haven't saved yet
       setT12(boe.t12 && Object.keys(boe.t12).length ? boe.t12 : EMPTY_T12)
       setAdjs(boe.adjs ?? DEFAULT_ADJS)
       setNotes(boe.notes ?? {})
@@ -89,16 +202,30 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       if (boe.payroll && Object.keys(boe.payroll).length) setPayroll(boe.payroll as any)
       if (boe.rmi && Object.keys(boe.rmi).length) setRmi(boe.rmi as any)
       if (boe.tax_helper && Object.keys(boe.tax_helper).length) setTaxHelper({...{'tx-sf':'100'}, ...boe.tax_helper as any})
+      if ((boe as any).tax_mode) setTaxMode((boe as any).tax_mode)
+      if ((boe as any).current_av != null) setCurrentAV((boe as any).current_av.toString())
       setPfNoiOverride(boe?.pf_noi_override != null ? boe.pf_noi_override.toString() : '')
       setNoiBadge(boe?.noi_badge ?? 'BOE')
+      setLeaseUpMode((boe as any)?.lease_up_mode ?? 'stabilized')
+      setAvgRent((boe as any)?.avg_rent?.toString() ?? '')
+      setRentGrowth((boe as any)?.rent_growth?.toString() ?? '1.6')
+      setOiT3((boe as any)?.oi_t3 ?? 0)
+      justSaved.current = true // After first load, don't reload again until deal changes
     }
-  }, [deal.name, boeKey])
+  })
 
   const v = (k: keyof BoeAdjs) => { const raw = adjs[k]; if (raw === undefined || raw === '') return null; const num = parseFloat(String(raw).replace(/[%,\$\s]/g, '')); return isNaN(num) ? null : num }
 
   // ── Compute all PF values ──────────────────────────────────
-  const gpr_t = t12.gpr; const gpr_p = v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t
-  const ltl_t = t12.ltl; const ltl_p = t12.ltl*(1+(v('ltl')??3)/100)
+  const isLeaseUp = leaseUpMode === 'leaseup'
+  const avgRentNum = parseFloat(avgRent.replace(/[,$]/g,'')) || 0
+  const rentGrowthNum = parseFloat(rentGrowth) || 1.6
+  const gpr_t = t12.gpr
+  const gpr_p = isLeaseUp
+    ? (avgRentNum > 0 ? avgRentNum * units * 12 * (1 + rentGrowthNum/100) : gpr_t*(1+rentGrowthNum/100))
+    : (v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t)
+  const ltl_t = t12.ltl
+  const ltl_p = isLeaseUp ? 0 : t12.ltl*(1+(v('ltl')??3)/100)
   const vac_t = t12.vac; const vac_p = v('vac')!=null ? -(v('vac')!/100)*(gpr_p+ltl_p) : vac_t
   const bad_t = t12.bad; const bad_p = v('bad')!=null ? -(v('bad')!/100)*gpr_p : bad_t
   const conc_t= t12.conc;const conc_p= v('conc')!=null? -(v('conc')!/100)*gpr_p : conc_t
@@ -106,22 +233,21 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const emp_t = t12.emp; const emp_p = v('emp')!=null ? -(v('emp')!/100)*gpr_p : emp_t
   const brr_t = gpr_t+ltl_t+vac_t+bad_t+conc_t+mod_t+emp_t
   const brr_p = gpr_p+ltl_p+vac_p+bad_p+conc_p+mod_p+emp_p
-  const oi_t  = t12.oi;  const oi_p  = oi_t + (v('oi')??0)
+  const oi_t  = t12.oi
+  const oi_p  = isLeaseUp && oiT3 > 0 ? oiT3 : oi_t + (v('oi')??0)
   const egr_t = brr_t + oi_t; const egr_p = brr_p + oi_p
 
-  // Payroll calc
   const pv = (k: string) => parseFloat(payroll[k] ?? '0') || 0
   const inBase = pv('py-pm')+pv('py-am')+pv('py-la')
   const outBase= pv('py-ms')+pv('py-mt')+pv('py-ma')
   const payCalc = inBase*(1+pv('py-bi')) + outBase*(1+pv('py-bo')) + (inBase+outBase)*pv('py-ben')
 
-  // R&M calc
   const rv = (k: string) => parseFloat(rmi[k] ?? '0') || 0
   const rmCalc = (rv('rmi-rm')+rv('rmi-ct')+rv('rmi-tu'))*units
 
-  // Tax calc
   const tv = (k: string) => parseFloat(taxHelper[k] ?? '0') || 0
-  const taxCalc = pp * (tv('tx-rat')/100) * (tv('tx-mil')/1000) * (tv('tx-sf')/100) + tv('tx-nad')
+  const taxBase = taxMode === 'av' ? (parseFloat(currentAV.replace(/[,$]/g,'')) || 0) : pp
+  const taxCalc = taxBase * (tv('tx-mil')/100) * (tv('tx-rat')/100) * (tv('tx-sf')/100) + tv('tx-nad')
 
   const ga_t  = t12.ga;  const ga_p  = ga_t  + (v('ga')??0)
   const mkt_t = t12.mkt; const mkt_p = mkt_t + (v('mkt')??0)
@@ -144,102 +270,19 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const cap_na = pp ? (noi_t/pp)*100 : 0
   const cap_adj= pp ? (noi_p/pp)*100 : 0
 
-  function handleExport() {
-    const pp = deal.purchase_price || 0
-
-    // Build rows matching the BOE model format
-    const rows: any[][] = [
-      [null, deal.name, null, new Date().toLocaleDateString('en-US', {month:'long', year:'numeric'})],
-      [null, 'BOE Model', units, 'Units'],
-      [],
-      [null, null, null, 'Hist Total', '$/Unit', 'Adj', 'PF Total', '$/Unit', 'Notes'],
-      [],
-      [null, 'INCOME'],
-      [null, 'Gross Potential Rent',       'T12', gpr_t, fmtpu(gpr_t,units), gpr_p - gpr_t, gpr_p, fmtpu(gpr_p,units), notes['gpr'] || ''],
-      [null, '(Loss to Lease) / GTL',      'T12', ltl_t, fmtpu(ltl_t,units), ltl_p - ltl_t, ltl_p, fmtpu(ltl_p,units), notes['ltl'] || ''],
-      [null, 'Vacancy',                    'T12', vac_t, units > 0 && gpr_t+ltl_t ? Math.abs(vac_t/(gpr_t+ltl_t)) : 0, vac_p - vac_t, vac_p, units > 0 && gpr_p+ltl_p ? Math.abs(vac_p/(gpr_p+ltl_p)) : 0, notes['vac'] || ''],
-      [null, 'Bad Debt',                   'T12', bad_t, gpr_t ? Math.abs(bad_t/gpr_t) : 0, bad_p - bad_t, bad_p, gpr_p ? Math.abs(bad_p/gpr_p) : 0, notes['bad'] || ''],
-      [null, 'Concessions',                'T12', conc_t, gpr_t ? Math.abs(conc_t/gpr_t) : 0, conc_p - conc_t, conc_p, gpr_p ? Math.abs(conc_p/gpr_p) : 0, notes['conc'] || ''],
-      [null, 'Model Units',                'T12', mod_t, gpr_t ? Math.abs(mod_t/gpr_t) : 0, mod_p - mod_t, mod_p, gpr_p ? Math.abs(mod_p/gpr_p) : 0, notes['mod'] || ''],
-      [null, 'Employee Units',             'T12', emp_t, gpr_t ? Math.abs(emp_t/gpr_t) : 0, emp_p - emp_t, emp_p, gpr_p ? Math.abs(emp_p/gpr_p) : 0, notes['emp'] || ''],
-      [null, 'Base Rental Revenue',        null,  brr_t, fmtpu(brr_t,units), null, brr_p, fmtpu(brr_p,units)],
-      [],
-      [null, 'Other Income',               'T12', oi_t, fmtpu(oi_t,units), oi_p - oi_t, oi_p, fmtpu(oi_p,units), notes['oi'] || ''],
-      [],
-      [null, 'Effective Gross Revenue',    null, egr_t, fmtpu(egr_t,units), null, egr_p, fmtpu(egr_p,units)],
-      [],
-      [null, 'EXPENSES'],
-      [null, 'General & Administrative',   'T12', t12.ga,  fmtpu(t12.ga,units),  ga_p - t12.ga,  ga_p,  fmtpu(ga_p,units),  notes['ga']  || ''],
-      [null, 'Marketing / Advertising',    'T12', t12.mkt, fmtpu(t12.mkt,units), mkt_p - t12.mkt,mkt_p, fmtpu(mkt_p,units), notes['mkt'] || ''],
-      [null, 'Repairs & Maintenance',      'T12', t12.rm,  fmtpu(t12.rm,units),  rm_p - t12.rm,  rm_p,  fmtpu(rm_p,units),  rmi['rmi-rm'] ? `$${rmi['rmi-rm']}/unit R&M · $${rmi['rmi-ct']}/unit Contracts · $${rmi['rmi-tu']}/unit Turnover` : ''],
-      [null, 'Payroll',                    'T12', t12.pay, fmtpu(t12.pay,units), pay_p - t12.pay, pay_p, fmtpu(pay_p,units), notes['pay'] || ''],
-      [null, 'Controllable Expenses',      null,  ctrl_t, fmtpu(ctrl_t,units), null, ctrl_p, fmtpu(ctrl_p,units)],
-      [],
-      [null, 'Property Management Fee',    'T12', t12.mgt, fmtpu(t12.mgt,units), mgt_p - t12.mgt, mgt_p, fmtpu(mgt_p,units), adjs['mgt'] ? `${adjs['mgt']}% of EGR` : ''],
-      [null, 'Utilities',                  'T12', t12.utl, fmtpu(t12.utl,units), utl_p - t12.utl, utl_p, fmtpu(utl_p,units), notes['utl'] || ''],
-      [null, 'Real Estate Taxes',          'T12', t12.tax, fmtpu(t12.tax,units), tax_p - t12.tax, tax_p, fmtpu(tax_p,units), notes['tax'] || ''],
-      [null, 'Insurance',                  'T12', t12.ins, fmtpu(t12.ins,units), ins_p - t12.ins, ins_p, fmtpu(ins_p,units), adjs['ins'] ? `$${adjs['ins']}/unit` : ''],
-      [null, 'Non-Controllable Expenses',  null,  nctrl_t, fmtpu(nctrl_t,units), null, nctrl_p, fmtpu(nctrl_p,units)],
-      [],
-      [null, 'Operating Expenses',         null,  opex_t, fmtpu(opex_t,units), null, opex_p, fmtpu(opex_p,units)],
-      [],
-      [null, 'NET OPERATING INCOME',       null,  noi_t, fmtpu(noi_t,units), null, noi_p, fmtpu(noi_p,units)],
-      [],
-      [null, 'Purchase Price',             null,  pp],
-      [null, 'Per Unit',                   null,  units > 0 ? pp/units : 0],
-      [],
-      [null, null, null, 'Non-Adj', null, null, 'Adj'],
-      [null, 'Cap Rate',                   null,  pp > 0 ? noi_t/pp : 0, null, null, pp > 0 ? noi_p/pp : 0],
-    ]
-
-    const ws = XLSX.utils.aoa_to_sheet(rows)
-
-    // Column widths matching original
-    ws['!cols'] = [
-      {wch: 3},   // A
-      {wch: 46},  // B - line items
-      {wch: 6},   // C - T12 label
-      {wch: 14},  // D - Hist Total
-      {wch: 11},  // E - $/Unit
-      {wch: 12},  // F - Adj
-      {wch: 14},  // G - PF Total
-      {wch: 11},  // H - PF $/Unit
-      {wch: 35},  // I - Notes
-    ]
-
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
-    const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g, '').trim()
-    XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
-  }
-
   async function handleSave() {
     setSaving(true)
-    // Snapshot current T12 so we can restore it if parent re-renders boe as null
-    const savedT12 = { ...t12 }
-    const savedAdjs = { ...adjs }
-    const savedPeriod = period
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge }
+    justSaved.current = true
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6, oi_t3: oiT3 }
     await onSave(payload as any)
-    // Re-apply local state after save so T12 is never wiped waiting for parent refresh
-    setT12(savedT12)
-    setAdjs(savedAdjs)
-    setPeriod(savedPeriod)
-    // Save cap rate directly
     if (pp && cap_adj) {
       try {
         const crRes = await fetch('/api/cap-rates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            deal_name: deal.name,
-            noi_cap_rate: cap_adj,
-            broker_cap_rate: null,
-            purchase_price: pp / 1000,
-          }),
+          body: JSON.stringify({ deal_name: deal.name, noi_cap_rate: cap_adj, broker_cap_rate: null, purchase_price: pp / 1000 }),
         })
         if (!crRes.ok) console.error('cap-rate save failed', await crRes.text())
-        else console.log('cap-rate saved:', cap_adj)
       } catch(err) { console.error('cap-rate fetch error', err) }
     }
     setSaving(false)
@@ -253,72 +296,67 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     setTimeout(() => setStatus(''), 2000)
   }
 
-  // File upload
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
     setStatus('Parsing T12…')
     try {
       const buf = await file.arrayBuffer()
       const wb = XLSX.read(buf, { type:'array', cellDates:true })
-
-      // Prefer the monthly data sheet (not Overview or About)
-      const sheetName = wb.SheetNames.find(n => !/overview|about/i.test(n) && wb.SheetNames.indexOf(n) > 0)
-                     ?? wb.SheetNames[0]
+      // Always use Overview tab — it has the correct aggregated OI subtotal row
+      const sheetName = wb.SheetNames.find(n => /overview/i.test(n)) ?? wb.SheetNames[0]
       const ws = wb.Sheets[sheetName]
       const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' })
-
-      // Find header row (has 'Code' in col A)
       const hdrIdx = rows.findIndex(r => String(r[0]).trim().toLowerCase() === 'code')
       if (hdrIdx < 0) { setStatus('⚠ Could not find header row'); return }
       const hdr = rows[hdrIdx]
-
-      // Find monthly columns (date objects or month names) — cols 3+ in monthly sheet
+      // In Overview: cols 2,3,4 are annual totals — skip them, use monthly cols (col 5+)
       const monthlyCols: number[] = []
       hdr.forEach((h: any, i: number) => {
-        if (i >= 3) {
+        if (i >= 5) {
           if (typeof h === 'object' && h !== null) monthlyCols.push(i)
           else if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(String(h))) monthlyCols.push(i)
         }
       })
-      // Fallback: use cols 3-14 if no monthly cols found
-      const useCols = monthlyCols.length > 0 ? monthlyCols : Array.from({length:12},(_,i)=>i+3)
-
+      const useCols = monthlyCols.length > 0 ? monthlyCols : Array.from({length:12},(_,i)=>i+5)
       const sumRow = (row: any[]) => useCols.reduce((s, c) => s + (parseFloat(String(row[c] ?? '').replace(/[,$]/g,'')) || 0), 0)
-
-      // Build code map — accumulate values (same code can appear multiple times)
       const codeMap: Record<string, number> = {}
-      // Also capture subtotal rows by label
       const labelMap: Record<string, number> = {}
-
       for (let i = hdrIdx+1; i < rows.length; i++) {
         const row = rows[i]
         const code = String(row[0] ?? '').trim().toLowerCase().replace(/[^a-z0-9_/]/g,'_')
         const label = String(row[1] ?? '').trim().toUpperCase()
         const val = sumRow(row)
-        if (code) {
-          codeMap[code] = (codeMap[code] ?? 0) + val
-        }
-        if (label) {
-          labelMap[label] = val
-        }
+        if (code) codeMap[code] = (codeMap[code] ?? 0) + val
+        if (label) labelMap[label] = val
       }
-
-      // Map to BOE buckets
       const newT12: BoeT12 = { ...EMPTY_T12 }
-
-      // Direct code mappings (accumulates all rows with same code)
       newT12.gpr  = codeMap['gpr']  ?? 0
       newT12.ltl  = codeMap['ltl']  ?? 0
-      newT12.vac  = codeMap['vac']  ?? 0   // sum of all vac rows
-      newT12.bad  = codeMap['bad']  ?? 0   // sum of all bad rows
+      newT12.vac  = codeMap['vac']  ?? 0
+      newT12.bad  = codeMap['bad']  ?? 0
       newT12.conc = codeMap['conc'] ?? 0
       newT12.mod  = codeMap['mod']  ?? 0
       newT12.emp  = codeMap['emp']  ?? 0
-
-      // Other Income — use TOTAL OTHER INCOME subtotal row if available
-      newT12.oi = labelMap['TOTAL OTHER INCOME'] ?? BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
-
-      // Expenses — sum all matching codes
+      // OI: find the row with blank code and label 'Other Income' in Overview — this is the correct subtotal
+      let oiVal = 0
+      for (let i = hdrIdx+1; i < rows.length; i++) {
+        const c = String(rows[i][0] ?? '').trim()
+        const l = String(rows[i][1] ?? '').trim().toLowerCase()
+        if (!c && l === 'other income') { oiVal = sumRow(rows[i]); break }
+      }
+      newT12.oi = oiVal || BOE_MAP.oi.reduce((s, c) => s + (codeMap[c] ?? 0), 0)
+      // Capture T3 OI: last 3 months × 4 for lease-up mode
+      let oiT3Val = 0
+      const last3Cols = useCols.slice(-3)
+      for (let i = hdrIdx+1; i < rows.length; i++) {
+        const c = String(rows[i][0] ?? '').trim()
+        const l = String(rows[i][1] ?? '').trim().toLowerCase()
+        if (!c && l === 'other income') {
+          oiT3Val = last3Cols.reduce((s: number, col: number) => s + (parseFloat(String(rows[i][col] ?? '').replace(/[,$]/g,'')) || 0), 0) * 4
+          break
+        }
+      }
+      setOiT3(oiT3Val)
       newT12.ga   = (codeMap['ga']  ?? 0) + (codeMap['lic'] ?? 0)
       newT12.mkt  = codeMap['adv']  ?? 0
       newT12.rm   = (codeMap['rm']  ?? 0) + (codeMap['cont'] ?? 0) + (codeMap['turn'] ?? 0) + (codeMap['ls'] ?? 0)
@@ -328,15 +366,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       newT12.tax  = codeMap['tax'] ?? 0
       newT12.taxm = (codeMap['tax_c'] ?? 0) + (codeMap['tax_o'] ?? 0) + (codeMap['tax_p'] ?? 0)
       newT12.ins  = codeMap['ins']  ?? 0
-
-      // Ensure loss lines are negative
       for (const k of ['vac','bad','conc','mod','emp'] as const) {
         if (newT12[k] > 0) newT12[k] = -newT12[k]
       }
-
-      const periodLabel = `${useCols.length} months`
       setT12(newT12)
-      setPeriod(periodLabel)
+      setPeriod(`${useCols.length} months`)
       setStatus(`✓ Loaded ${useCols.length} months from ${file.name}`)
     } catch(err) {
       setStatus('⚠ Parse error: ' + String(err))
@@ -344,11 +378,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     e.target.value = ''
   }
 
-  const a = (k: keyof BoeAdjs) => adjs[k] ?? ''
-  const setA = (k: keyof BoeAdjs, val: string) => setAdjs(p => ({...p, [k]: val === '' ? '' : val}))
+  const setA = (k: keyof BoeAdjs, val: string) => setAdjs(p => ({...p, [k]: val}))
   const setN = (k: string, val: string) => setNotes(p => ({...p, [k]: val}))
-
-  const COL = '196px 88px 60px 60px 108px 88px 60px 1fr'
 
   function tabToNext(key: string, shiftKey: boolean) {
     const currentIdx = ADJ_ORDER.indexOf(key)
@@ -360,85 +391,17 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     }, 0)
   }
 
-  function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholder='', note=true }:
-    { k: keyof BoeAdjs; label: string; t12v: number; pfv: number; isNeg?: boolean; adjType?: 'pct'|'dollar'|'ppu'; adjPlaceholder?: string; note?: boolean }) {
-    const gprt = gpr_t || 1; const gprp = gpr_p || 1
-    const vacBaseT = (gpr_t+ltl_t)||1; const vacBaseP = (gpr_p+ltl_p)||1
-    const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
-    const pctP = isNeg ? (k==='vac' ? Math.abs(pfv/vacBaseP)*100 : Math.abs(pfv/gprp)*100) : 0
-    return (
-      <div style={{ display:'grid', gridTemplateColumns:COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
-        <div style={{ fontSize:12, color:'#334155', paddingLeft:14, paddingRight:8 }}>{label}</div>
-        <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>
-          {fmt(t12v)}
-          {isNeg && t12v !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctT)}</div>}
-        </div>
-        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>
-        <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>
-          {isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
-        </div>
-        <div style={{ padding:'2px 6px' }}>
-          <input
-            key={k + '_adj'}
-            type="text"
-            value={a(k)}
-            placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
-            onChange={e => setA(k, e.target.value)}
-            onBlur={e => setA(k, e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Tab' || e.key === 'Enter') {
-                e.preventDefault()
-                const val = e.currentTarget.value
-                setA(k, val)
-                tabToNext(k as string, e.shiftKey)
-              }
-            }}
-            data-adj-key={k}
-            style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
-        </div>
-        <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>
-          {fmt(pfv)}
-          {isNeg && pfv !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctP)}</div>}
-        </div>
-        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>
-        {note && <div style={{ padding:'2px 6px 2px 4px' }}>
-          <input type="text" tabIndex={-1} value={notes[k as string] ?? ''} onChange={e => setN(k as string, e.target.value)}
-            placeholder="Notes…" style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.1)', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
-        </div>}
-      </div>
-    )
-  }
-
-  function SubRow({ label, t12v, pfv }: { label: string; t12v: number; pfv: number }) {
-    return (
-      <div style={{ display:'grid', gridTemplateColumns:COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight:34 }}>
-        <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14 }}>{label}</div>
-        <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12v)}</div>
-        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v,units)}</div>
-        <div/>
-        <div/>
-        <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', color:'#0D1B2E', paddingRight:8 }}>{fmt(pfv)}</div>
-        <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv,units)}</div>
-        <div/>
-      </div>
-    )
-  }
-
-  function SectionHead(label: string) {
-    return <div style={{ padding:'8px 14px', background:'rgba(13,27,46,0.05)', fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase' }}>{label}</div>
-  }
+  const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext }
 
   return (
     <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
       {/* KPI Strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
-        {/* T12 NOI */}
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>T12 NOI</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{pp ? fmt(noi_t) : '—'}</div>
           {pp && <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{fmtpu(noi_t,units)}/unit</div>}
         </div>
-        {/* Pro Forma NOI — editable with badge picker */}
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
             <span style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Pro Forma NOI</span>
@@ -452,18 +415,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <div style={{ fontSize:20, fontWeight:700, color:'#F0B429', fontFamily:"'Cormorant Garamond',serif" }}>{fmt(noi_p)}</div>
             <input type="text" value={pfNoiOverride} onChange={e => setPfNoiOverride(e.target.value)}
-              placeholder="Enter NOI…"
+              placeholder="Override…"
               style={{ width:90, padding:'3px 7px', border:'1px solid rgba(240,180,41,0.4)', borderRadius:5, fontSize:11, background:'rgba(240,180,41,0.08)', color:'#F0B429', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
           </div>
           <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginTop:2 }}>{fmtpu(noi_p,units)}/unit{pfNoiOverride !== '' ? ' (manual)' : ''}</div>
         </div>
-        {/* Cap Rate Non-Adj */}
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>Cap Rate (Non-Adj)</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{pp && cap_na ? cap_na.toFixed(2)+'%' : '—'}</div>
           <div style={{ fontSize:10, color:'rgba(255,255,255,0.35)', marginTop:2 }}>T12 NOI ÷ Ask Price</div>
         </div>
-        {/* Cap Rate Adj */}
         <div style={{ padding:'8px 16px' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>Cap Rate (Adj)</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#F0B429', fontFamily:"'Cormorant Garamond',serif" }}>{pp && cap_adj ? cap_adj.toFixed(2)+'%' : '—'}</div>
@@ -479,7 +440,38 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </label>
         {period && <span style={{ fontSize:11, color:'#8A9BB0' }}>Period: {period}</span>}
         {status && <span style={{ fontSize:11, color: status.startsWith('⚠') ? '#C0392B' : status.startsWith('✓') ? '#2E7D50' : '#8A9BB0' }}>{status}</span>}
+        {/* Stabilized / Lease-Up toggle */}
+        <div style={{ marginLeft:'auto', display:'flex', borderRadius:6, overflow:'hidden', border:'1px solid rgba(13,27,46,0.15)' }}>
+          {(['stabilized','leaseup'] as const).map(mode => (
+            <button key={mode} onClick={() => setLeaseUpMode(mode)}
+              style={{ padding:'3px 12px', fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:"'DM Sans',sans-serif",
+                background: leaseUpMode===mode ? '#0D1B2E' : 'transparent',
+                color: leaseUpMode===mode ? '#F0B429' : '#8A9BB0' }}>
+              {mode === 'stabilized' ? 'Stabilized' : 'Lease-Up'}
+            </button>
+          ))}
+        </div>
       </div>
+      {/* Lease-Up inputs */}
+      {leaseUpMode === 'leaseup' && (
+        <div style={{ display:'flex', gap:12, alignItems:'flex-end', padding:'10px 14px', background:'rgba(240,180,41,0.06)', borderBottom:'1px solid rgba(13,27,46,0.07)', flexWrap:'wrap' }}>
+          <div>
+            <label style={{ fontSize:10, fontWeight:700, color:'#8A6500', display:'block', marginBottom:3, letterSpacing:'0.08em' }}>AVG IN-PLACE RENT ($/unit/mo)</label>
+            <input type="text" value={avgRent} onChange={e => setAvgRent(e.target.value)} placeholder="e.g. 1850"
+              style={{ width:140, padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, background:'rgba(240,180,41,0.08)', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
+          </div>
+          <div>
+            <label style={{ fontSize:10, fontWeight:700, color:'#8A6500', display:'block', marginBottom:3, letterSpacing:'0.08em' }}>RENT GROWTH %</label>
+            <input type="text" value={rentGrowth} onChange={e => setRentGrowth(e.target.value)} placeholder="1.6"
+              style={{ width:80, padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, background:'rgba(240,180,41,0.08)', fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
+          </div>
+          <div style={{ fontSize:11, color:'#8A6500' }}>
+            {avgRentNum > 0
+              ? <>PF GPR: <strong>{fmt(avgRentNum * units * 12 * (1 + rentGrowthNum/100))}</strong> · OI (T3×4): <strong>{oiT3 > 0 ? fmt(oiT3) : '—'}</strong> · LTL: <strong>$0</strong></>
+              : <span style={{color:'#8A9BB0'}}>Enter avg rent to calculate PF GPR</span>}
+          </div>
+        </div>
+      )}
 
       {/* Column headers */}
       <div style={{ display:'grid', gridTemplateColumns:COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)' }}>
@@ -489,16 +481,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
 
       {/* Income */}
-      {SectionHead('Income')}
-      <Row k="gpr" label="Gross Potential Rent" t12v={gpr_t} pfv={gpr_p} adjType="pct" adjPlaceholder="1.6%" />
-      <Row k="ltl" label="(Loss to Lease) / GTL" t12v={ltl_t} pfv={ltl_p} adjType="pct" adjPlaceholder="3%" />
-      <Row k="vac" label="Vacancy" t12v={vac_t} pfv={vac_p} isNeg adjType="pct" adjPlaceholder="5.0%" />
-      <Row k="bad" label="Bad Debt" t12v={bad_t} pfv={bad_p} isNeg adjType="pct" adjPlaceholder="% of GPR" />
-      <Row k="conc" label="Concessions" t12v={conc_t} pfv={conc_p} isNeg adjType="pct" adjPlaceholder="% of GPR" />
-      <Row k="mod" label="Model Units" t12v={mod_t} pfv={mod_p} isNeg adjType="pct" adjPlaceholder="% of GPR" />
-      <Row k="emp" label="Employee Units" t12v={emp_t} pfv={emp_p} isNeg adjType="pct" adjPlaceholder="% of GPR" />
-      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} />
-      <Row k="oi" label="Other Income" t12v={oi_t} pfv={oi_p} adjType="dollar" adjPlaceholder="$ adj" />
+      <SectionHead label="Income" />
+      <Row k="gpr" label="Gross Potential Rent" t12v={gpr_t} pfv={gpr_p} adjType="pct" adjPlaceholder="1.6%" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
+      <Row k="ltl" label="(Loss to Lease) / GTL" t12v={ltl_t} pfv={ltl_p} adjType="pct" adjPlaceholder="3%" adjValue={adjs['ltl']??''} noteValue={notes['ltl']??''} {...rowProps} />
+      <Row k="vac" label="Vacancy" t12v={vac_t} pfv={vac_p} isNeg adjType="pct" adjPlaceholder="5.0%" adjValue={adjs['vac']??''} noteValue={notes['vac']??''} {...rowProps} />
+      <Row k="bad" label="Bad Debt" t12v={bad_t} pfv={bad_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['bad']??''} noteValue={notes['bad']??''} {...rowProps} />
+      <Row k="conc" label="Concessions" t12v={conc_t} pfv={conc_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['conc']??''} noteValue={notes['conc']??''} {...rowProps} />
+      <Row k="mod" label="Model Units" t12v={mod_t} pfv={mod_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['mod']??''} noteValue={notes['mod']??''} {...rowProps} />
+      <Row k="emp" label="Employee Units" t12v={emp_t} pfv={emp_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['emp']??''} noteValue={notes['emp']??''} {...rowProps} />
+      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} />
+      <Row k="oi" label="Other Income" t12v={oi_t} pfv={oi_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['oi']??''} noteValue={notes['oi']??''} {...rowProps} />
       <div style={{ display:'grid', gridTemplateColumns:COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight:36 }}>
         <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14, display:'flex', alignItems:'center' }}>Effective Gross Revenue</div>
         <div style={{ textAlign:'right', fontSize:13, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(egr_t)}</div>
@@ -510,9 +502,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
 
       {/* Controllable Expenses */}
-      {SectionHead('Controllable Expenses')}
-      <Row k="ga" label="G&A" t12v={ga_t} pfv={ga_p} adjType="dollar" adjPlaceholder="$ adj" />
-      <Row k="mkt" label="Marketing" t12v={mkt_t} pfv={mkt_p} adjType="dollar" adjPlaceholder="$ adj" />
+      <SectionHead label="Controllable Expenses" />
+      <Row k="ga" label="G&A" t12v={ga_t} pfv={ga_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['ga']??''} noteValue={notes['ga']??''} {...rowProps} />
+      <Row k="mkt" label="Marketing" t12v={mkt_t} pfv={mkt_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['mkt']??''} noteValue={notes['mkt']??''} {...rowProps} />
 
       {/* R&M with build-up */}
       <div style={{ display:'grid', gridTemplateColumns:COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
@@ -524,7 +516,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.rm,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="number" value={a('rm')} onChange={e => setA('rm',e.target.value)} placeholder="$/unit"
+          <input type="text" value={adjs['rm']??''} onChange={e => setA('rm',e.target.value)} placeholder="$/unit"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(rm_p)}</div>
@@ -542,7 +534,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} value={rmi[k]??''} placeholder={ph}
                   onChange={e => setRmi(p=>({...p,[k]:e.target.value}))}
-                  onBlur={e => setRmi(p=>({...p,[k]:e.target.value}))}
                   onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setRmi(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
@@ -562,7 +553,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.pay,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="number" value={a('pay')} onChange={e => setA('pay',e.target.value)} placeholder="$ override"
+          <input type="text" value={adjs['pay']??''} onChange={e => setA('pay',e.target.value)} placeholder="$ override"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(pay_p)}</div>
@@ -581,7 +572,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} value={payroll[k]??''} placeholder={ph}
                   onChange={e => setPayroll(p=>({...p,[k]:e.target.value}))}
-                  onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
                   onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
@@ -591,7 +581,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} value={payroll[k]??''} placeholder={ph}
                   onChange={e => setPayroll(p=>({...p,[k]:e.target.value}))}
-                  onBlur={e => setPayroll(p=>({...p,[k]:e.target.value}))}
                   onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
@@ -599,7 +588,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
             <div><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>Benefits %</label>
               <input type="text" data-adj-key="py-ben" value={payroll['py-ben']??''} placeholder="0.325"
                 onChange={e => setPayroll(p=>({...p,'py-ben':e.target.value}))}
-                onBlur={e => setPayroll(p=>({...p,'py-ben':e.target.value}))}
                 onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setPayroll(p=>({...p,'py-ben':v})); tabToNext('py-ben', e.shiftKey) } }}
                 style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
             </div>
@@ -608,10 +596,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </div>
       )}
 
-      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} />
+      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} units={units} />
 
       {/* Non-Controllable */}
-      {SectionHead('Non-Controllable Expenses')}
+      <SectionHead label="Non-Controllable Expenses" />
       <div style={{ display:'grid', gridTemplateColumns:COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14 }}>Mgmt Fee</div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12.mgt)}</div>
@@ -624,7 +612,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(mgt_p,units)}</div>
         <div/>
       </div>
-      <Row k="utl" label="Utilities" t12v={utl_t} pfv={utl_p} adjType="dollar" adjPlaceholder="$ adj" />
+      <Row k="utl" label="Utilities" t12v={utl_t} pfv={utl_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['utl']??''} noteValue={notes['utl']??''} {...rowProps} />
 
       {/* RE Tax with build-up */}
       <div style={{ display:'grid', gridTemplateColumns:COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36 }}>
@@ -636,17 +624,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.tax,units)}</div>
         <div/>
         <div style={{ padding:'2px 6px' }}>
-          <input type="text" data-adj-key="tax" value={a('tax')}
+          <input type="text" data-adj-key="tax" value={adjs['tax']??''}
             placeholder="$ adj"
             onChange={e => setA('tax', e.target.value)}
-            onBlur={e => setA('tax', e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Tab' || e.key === 'Enter') {
-                e.preventDefault()
-                setA('tax', e.currentTarget.value)
-                tabToNext('tax', e.shiftKey)
-              }
-            }}
+            onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); setA('tax', e.currentTarget.value); tabToNext('tax', e.shiftKey) } }}
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontWeight:600, color:'#0D1B2E', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(tax_p)}</div>
@@ -658,26 +639,45 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
       {showTax && (
         <div style={{ background:'rgba(13,27,46,0.02)', padding:'10px 14px 12px', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
-          <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', marginBottom:8 }}>TAX BUILD-UP</div>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em' }}>TAX BUILD-UP</div>
+            <div style={{ display:'flex', borderRadius:6, overflow:'hidden', border:'1px solid rgba(13,27,46,0.15)' }}>
+              {(['pp','av'] as const).map(mode => (
+                <button key={mode} onClick={() => setTaxMode(mode)}
+                  style={{ padding:'3px 12px', fontSize:10, fontWeight:600, cursor:'pointer', border:'none', fontFamily:"'DM Sans',sans-serif",
+                    background: taxMode===mode ? '#0D1B2E' : 'transparent',
+                    color: taxMode===mode ? '#F0B429' : '#8A9BB0' }}>
+                  {mode==='pp' ? 'Reassess to PP' : 'Current Cycle'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {taxMode === 'av' && (
+            <div style={{ marginBottom:8 }}>
+              <label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>Current Assessed Value ($)</label>
+              <input type="text" value={currentAV} placeholder="e.g. 42500000"
+                onChange={e => setCurrentAV(e.target.value)}
+                style={{ width:'100%', padding:'5px 8px', border:'1px solid #F0B429', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)' }} />
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-            {[['Millage Rate (per $1K)','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
+            {[['Millage %','tx-mil',''],['Assessment Ratio %','tx-rat',''],['State Factor %','tx-sf','100'],['Non-Ad Valorem ($)','tx-nad','']].map(([l,k,ph]) => (
               <div key={k}><label style={{ fontSize:10, color:'#8A9BB0', display:'block', marginBottom:3 }}>{l}</label>
                 <input type="text" data-adj-key={k} value={taxHelper[k]??''} placeholder={ph}
                   onChange={e => setTaxHelper(p=>({...p,[k]:e.target.value}))}
-                  onBlur={e => setTaxHelper(p=>({...p,[k]:e.target.value}))}
                   onKeyDown={e => { if (e.key==='Tab'||e.key==='Enter') { e.preventDefault(); const v=e.currentTarget.value; setTaxHelper(p=>({...p,[k]:v})); tabToNext(k, e.shiftKey) } }}
                   style={{ width:'100%', padding:'5px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:5, fontSize:12, fontFamily:"'DM Sans',sans-serif" }} />
               </div>
             ))}
           </div>
-          {taxCalc > 0 && <div style={{ marginTop:8, fontSize:11, color:'#0D1B2E', fontWeight:600 }}>Est. Tax: {fmt(taxCalc)}</div>}
+          {taxCalc > 0 && <div style={{ marginTop:8, fontSize:11, color:'#0D1B2E', fontWeight:600 }}>Est. Tax: {fmt(taxCalc)} {taxMode==='av' ? '(Current Cycle)' : '(Reassess to PP)'}</div>}
         </div>
       )}
 
-      <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" />
-      <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" />
-      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} />
-      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} />
+      <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['taxm']??''} noteValue={notes['taxm']??''} {...rowProps} />
+      <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
+      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
+      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} />
 
       {/* NOI */}
       <div style={{ display:'grid', gridTemplateColumns:COL, background:'#0D1B2E', minHeight:42 }}>
@@ -694,19 +694,19 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, borderTop:'2px solid rgba(13,27,46,0.08)' }}>
         <div style={{ padding:'16px 20px', borderRight:'1px solid rgba(13,27,46,0.08)' }}>
           <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:10 }}>Pricing</div>
-          {[['Purchase Price', pp ? fmt(pp) : '—'],['Per Unit', pp && units ? '$'+Math.round(pp/units).toLocaleString() : '—']].map(([l,v]) => (
+          {[['Purchase Price', pp ? fmt(pp) : '—'],['Per Unit', pp && units ? '$'+Math.round(pp/units).toLocaleString() : '—']].map(([l,val]) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom:'1px solid rgba(13,27,46,0.05)' }}>
               <span style={{ fontSize:12, color:'#8A9BB0' }}>{l}</span>
-              <span style={{ fontSize:13, fontWeight:600, color:'#0D1B2E' }}>{v}</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'#0D1B2E' }}>{val}</span>
             </div>
           ))}
         </div>
         <div style={{ padding:'16px 20px' }}>
           <div style={{ fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:10 }}>Cap Rates</div>
-          {[['T12 NOI',fmt(noi_t)],[`PF NOI (${noiBadge})`,fmt(noi_p)],['Cap Rate (Non-Adj)', pp ? cap_na.toFixed(2)+'%' : '—'],['Cap Rate (Adj)', pp ? cap_adj.toFixed(2)+'%' : '—']].map(([l,v]) => (
+          {[['T12 NOI',fmt(noi_t)],[`PF NOI (${noiBadge})`,fmt(noi_p)],['Cap Rate (Non-Adj)', pp ? cap_na.toFixed(2)+'%' : '—'],['Cap Rate (Adj)', pp ? cap_adj.toFixed(2)+'%' : '—']].map(([l,val]) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom:'1px solid rgba(13,27,46,0.05)' }}>
               <span style={{ fontSize:12, color:'#8A9BB0' }}>{l}</span>
-              <span style={{ fontSize:13, fontWeight:600, color: l.includes('Adj') ? '#2E7D50' : '#0D1B2E' }}>{v}</span>
+              <span style={{ fontSize:13, fontWeight:600, color: l.includes('Adj') ? '#2E7D50' : '#0D1B2E' }}>{val}</span>
             </div>
           ))}
         </div>
@@ -718,15 +718,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           <button onClick={handleReset} style={{ padding:'6px 14px', border:'1px solid rgba(13,27,46,0.15)', borderRadius:6, background:'#fff', color:'#8A9BB0', fontSize:11, cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>Reset ADJ</button>
           {status && <span style={{ fontSize:11, color: status.startsWith('✓') ? '#2E7D50' : '#8A9BB0' }}>{status}</span>}
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button onClick={handleExport}
-            style={{ padding:'8px 18px', background:'#fff', color:'#0D1B2E', border:'1px solid rgba(13,27,46,0.2)', borderRadius:7, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
-            ↓ Export BOE
-          </button>
-          <button onClick={handleSave} disabled={saving} style={{ padding:'8px 22px', background: saving?'#8A9BB0':'#0D1B2E', color:'#F0B429', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor: saving?'not-allowed':'pointer', fontFamily:"'DM Sans',sans-serif", letterSpacing:'0.05em' }}>
-            {saving ? 'Saving…' : 'Save BOE'}
-          </button>
-        </div>
+        <button onClick={handleSave} disabled={saving} style={{ padding:'8px 22px', background: saving?'#8A9BB0':'#0D1B2E', color:'#F0B429', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor: saving?'not-allowed':'pointer', fontFamily:"'DM Sans',sans-serif", letterSpacing:'0.05em' }}>
+          {saving ? 'Saving…' : 'Save BOE'}
+        </button>
       </div>
     </div>
   )
