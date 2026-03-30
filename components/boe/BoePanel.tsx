@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import type { Deal, BoeData, BoeT12, BoeAdjs } from '@/lib/types'
-import * as XLSX from 'xlsx'
+import * as XLSX from 'xlsx-js-style'
 
 interface Props {
   deal: Deal
