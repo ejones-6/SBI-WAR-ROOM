@@ -174,10 +174,15 @@ function MarketIntelligence({ deals }: { deals: Deal[] }) {
 // ── 2. Cap Rate Distribution ─────────────────────────────────────────────────
 function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
   const [view, setView] = useState<'dist' | 'market'>('dist')
+  const [yearFilter, setYearFilter] = useState<'all' | '2024' | '2025' | '2026'>('all')
+
+  const filteredDeals = useMemo(() =>
+    yearFilter === 'all' ? deals : deals.filter(d => d.added?.startsWith(yearFilter))
+  , [deals, yearFilter])
 
   // Build distribution buckets: 4.0–6.5% in 25bps increments
   const distData = useMemo(() => {
-    const rates = deals
+    const rates = filteredDeals
       .map(d => capRateMap[d.name]?.noi_cap_rate)
       .filter(Boolean)
       .map(Number)
@@ -199,7 +204,7 @@ function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap:
   // By market averages
   const marketData = useMemo(() => {
     const map: Record<string, number[]> = {}
-    deals.forEach(d => {
+    filteredDeals.forEach(d => {
       const cr = capRateMap[d.name]?.noi_cap_rate
       if (!cr) return
       const m = shortMarket(d.market || 'Unknown')
@@ -217,10 +222,10 @@ function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap:
       }))
       .sort((a, b) => a.avg - b.avg)
       .slice(0, 10)
-  }, [deals, capRateMap])
+  }, [filteredDeals, capRateMap])
 
-  const totalRates = deals.filter(d => capRateMap[d.name]?.noi_cap_rate).length
-  const allRates = deals.map(d => capRateMap[d.name]?.noi_cap_rate).filter(Boolean).map(Number)
+  const totalRates = filteredDeals.filter(d => capRateMap[d.name]?.noi_cap_rate).length
+  const allRates = filteredDeals.map(d => capRateMap[d.name]?.noi_cap_rate).filter(Boolean).map(Number)
   const avgRate = allRates.length ? allRates.reduce((a, b) => a + b, 0) / allRates.length : 0
   const medianRate = allRates.length ? [...allRates].sort((a,b)=>a-b)[Math.floor(allRates.length/2)] : 0
 
@@ -231,7 +236,18 @@ function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap:
           <div style={sectionLabel('rgba(232,160,32,0.55)')}>Underwriting Intelligence</div>
           <div style={darkCardTitle}>Cap Rate Distribution</div>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, marginRight: 6, paddingRight: 10, borderRight: '1px solid rgba(232,160,32,0.15)' }}>
+            {(['all', '2024', '2025', '2026'] as const).map(y => (
+              <button key={y} onClick={() => setYearFilter(y)} style={{
+                padding: '4px 10px', borderRadius: 5,
+                border: `1px solid rgba(232,160,32,${yearFilter === y ? '0.5' : '0.1'})`,
+                background: yearFilter === y ? 'rgba(232,160,32,0.15)' : 'transparent',
+                color: yearFilter === y ? SBI_ORANGE : 'rgba(245,244,239,0.3)',
+                fontSize: 10, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.05em'
+              }}>{y === 'all' ? 'All' : y}</button>
+            ))}
+          </div>
           {(['dist', 'market'] as const).map(v => (
             <button key={v} onClick={() => setView(v)} style={{
               padding: '4px 10px', borderRadius: 5,

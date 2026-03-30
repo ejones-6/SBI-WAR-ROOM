@@ -8,10 +8,6 @@ import DealModal from './deals/DealModal'
 import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
-import AnalyticsPage from './analytics/AnalyticsPage'
-import dynamic from 'next/dynamic'
-
-const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
 type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
 
@@ -150,8 +146,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     const data = JSON.parse(text)
     if (!res.ok) { console.error('saveDeal error:', data); return }
     const updated: Deal = data
-    setDeals(prev => prev.map(d => d.name === updated.name ? updated : d))
-    if (selectedDeal?.name === updated.name) setSelectedDeal(updated)
+    setDeals(prev => prev.map(d => d.id === updated.id ? updated : d))
+    if (selectedDeal?.id === updated.id) setSelectedDeal(updated)
     return updated
   }, [selectedDeal])
 
@@ -180,6 +176,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       setBoeMap(prev => ({ ...prev, [merged.deal_name]: merged }))
 
       // Auto-save cap rate whenever BOE is saved with a PF NOI override
+      // This ensures the cap rate tracker always reflects the manual NOI entry
       const deal = deals.find(d => d.name === boe.deal_name)
       if (deal?.purchase_price && boe.pf_noi_override) {
         const pfNoi = Number(boe.pf_noi_override)
@@ -260,13 +257,11 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   }, {})
 
   const NAV: { id: Page; label: string; icon: React.ReactNode; badgeKey?: string }[] = [
-    { id: 'dashboard',  label: 'Dashboard',      icon: <GridIcon /> },
-    { id: 'deals',      label: 'Deals',           icon: <ListIcon />,  badgeKey: '1 - New' },
-    { id: 'pipeline',   label: 'Pipeline',        icon: <PipeIcon />,  badgeKey: '2 - Active' },
-    { id: 'analytics',  label: 'Analytics',       icon: <ChartIcon /> },
-    { id: 'map',        label: 'Market Map',      icon: <MapIcon /> },
-    { id: 'caprates',   label: 'Cap Rate Tracker',icon: <CapIcon /> },
-    { id: 'upload',     label: 'Upload Pipeline', icon: <UploadIcon /> },
+    { id: 'dashboard', label: 'Dashboard', icon: <GridIcon /> },
+    { id: 'deals', label: 'Deals', icon: <ListIcon />, badgeKey: '1 - New' },
+    { id: 'pipeline', label: 'Pipeline', icon: <PipeIcon />, badgeKey: '2 - Active' },
+    { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
+    { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
   ]
 
   if (deals.length === 0) {
@@ -358,7 +353,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
         </div>
 
         {/* Page content */}
-        <div style={{ flex: 1, overflow: page === 'map' ? 'hidden' : 'auto' }}>
+        <div style={{ flex: 1, overflow: 'auto' }}>
           {page === 'dashboard' && (
             <DashboardPage deals={deals} capRateMap={capRateMap} boeMap={boeMap} onOpenDeal={setSelectedDeal} />
           )}
@@ -369,15 +364,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
           {page === 'analytics' && (
-            <AnalyticsPage deals={deals} boeMap={boeMap} capRateMap={capRateMap} />
-          )}
-          {page === 'map' && (
-            <div style={{ height: '100%' }}>
-              <DealsMap deals={deals} onOpenDeal={setSelectedDeal} />
-            </div>
-          )}
-          {page === 'caprates' && (
-            <CapRatesPage capRateMap={capRateMap} deals={deals} onSave={saveCapRate} />
+            <div style={{ padding: 32, color: '#8A9BB0', textAlign: 'center', marginTop: 80 }}>Analytics — coming soon</div>
           )}
           {page === 'upload' && (
             <UploadPipelinePage onDealsImported={refreshDeals} addDeal={addDeal} />
@@ -406,7 +393,6 @@ function GridIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
-function MapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
 

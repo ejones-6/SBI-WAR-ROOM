@@ -17,7 +17,7 @@ const ORANGE = '#E8A020'
 
 function fmtDate(s?: string | null) {
   if (!s) return '—'
-  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default function PipelinePage({ deals, onOpenDeal }: Props) {
