@@ -24,71 +24,46 @@ async function fetchYahoo(symbol: string): Promise<{ close: number; prev: number
   } catch { return null }
 }
 
-// ── US Treasury XML — all yields including 7Y, updated ~4:30pm ET daily ──────
-async function fetchTreasuryYields(): Promise<{
-  fiveY: number | null; sevenY: number | null; tenY: number | null
-  fiveYPrev: number | null; sevenYPrev: number | null; tenYPrev: number | null
-}> {
-  const empty = { fiveY: null, sevenY: null, tenY: null, fiveYPrev: null, sevenYPrev: null, tenYPrev: null }
-  try {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const url = `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=${year}${month}`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/xml, text/xml' },
-      cache: 'no-store',
-    })
-    if (!res.ok) return empty
-    const xml = await res.text()
-    const entries: { date: string; fiveY: number | null; sevenY: number | null; tenY: number | null }[] = []
-    const entryMatches = xml.match(/<entry>[\s\S]*?<\/entry>/g) ?? []
-    for (const entry of entryMatches) {
-      const dateMatch = entry.match(/<d:NEW_DATE[^>]*>([\d-]+)/)
-      const fiveMatch = entry.match(/<d:BC_5YEAR[^>]*>([\d.]+)/)
-      const sevenMatch = entry.match(/<d:BC_7YEAR[^>]*>([\d.]+)/)
-      const tenMatch = entry.match(/<d:BC_10YEAR[^>]*>([\d.]+)/)
-      if (!dateMatch) continue
-      entries.push({
-        date: dateMatch[1],
-        fiveY: fiveMatch ? parseFloat(fiveMatch[1]) : null,
-        sevenY: sevenMatch ? parseFloat(sevenMatch[1]) : null,
-        tenY: tenMatch ? parseFloat(tenMatch[1]) : null,
-      })
-    }
-    entries.sort((a, b) => b.date.localeCompare(a.date))
-    if (entries.length === 0) return empty
-    const latest = entries[0]
-    const prev = entries[1] ?? entries[0]
-    return {
-      fiveY: latest.fiveY, sevenY: latest.sevenY, tenY: latest.tenY,
-      fiveYPrev: prev.fiveY, sevenYPrev: prev.sevenY, tenYPrev: prev.tenY,
-    }
-  } catch { return empty }
+// ── Yahoo Finance treasury yields — ^FVX=5Y, ^TNX=10Y ────────────────────────
+// Yahoo quotes these as tenths of a percent (e.g. 41.53 = 4.153%)
+async function fetchYahooRate(symbol: string): Promise<{ close: number; prev: number } | null> {
+  const result = await fetchYahoo(symbol)
+  if (!result) return null
+  return { close: result.close / 10, prev: result.prev / 10 }
 }
 
-// ── SOFR — FRED primary, NY Fed fallback ─────────────────────────────────────
-async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
+// ── FRED — fallback for any treasury yield ───────────────────────────────────
+async function fetchFred(seriesId: string): Promise<{ close: number; prev: number } | null> {
   try {
-    const res = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=SOFR', {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/csv' },
-      cache: 'no-store',
-    })
-    if (res.ok) {
-      const text = await res.text()
-      const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('ND'))
-      if (lines.length >= 2) {
-        const close = parseFloat(lines[lines.length - 1].split(',')[1])
-        const prev  = parseFloat(lines[lines.length - 2].split(',')[1])
-        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+    const res = await fetch(
+      `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`,
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/csv' },
+        cache: 'no-store',
       }
-    }
-  } catch {}
+    )
+    if (!res.ok) return null
+    const text = await res.text()
+    const lines = text.trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('ND'))
+    if (lines.length < 2) return null
+    const close = parseFloat(lines[lines.length - 1].split(',')[1])
+    const prev  = parseFloat(lines[lines.length - 2].split(',')[1])
+    if (isNaN(close)) return null
+    return { close, prev: isNaN(prev) ? close : prev }
+  } catch { return null }
+}
+
+// ── SOFR — NY Fed primary, FRED fallback ─────────────────────────────────────
+async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
+  // Primary: NY Fed
   try {
-    const res = await fetch('https://markets.newyorkfed.org/api/rates/sofr/last/2.json', {
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
-      cache: 'no-store',
-    })
+    const res = await fetch(
+      'https://markets.newyorkfed.org/api/rates/sofr/last/2.json',
+      {
+        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' },
+        cache: 'no-store',
+      }
+    )
     if (res.ok) {
       const data = await res.json()
       const rates = data?.refRates
@@ -99,13 +74,32 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
       }
     }
   } catch {}
+  // Fallback: FRED
+  return fetchFred('SOFR')
+}
+
+// ── 7Y Treasury — interpolated from 5Y and 10Y Yahoo data ───────────────────
+// Since there's no direct real-time 7Y symbol, we interpolate (very close in practice)
+async function fetchSevenY(fiveY: { close: number; prev: number } | null, tenY: { close: number; prev: number } | null): Promise<{ close: number; prev: number } | null> {
+  // Try FRED first (end of day but accurate)
+  const fred = await fetchFred('DGS7')
+  if (fred) return fred
+  // Fallback: interpolate between 5Y and 10Y (40% weight toward 10Y)
+  if (fiveY && tenY) {
+    return {
+      close: parseFloat((fiveY.close * 0.6 + tenY.close * 0.4).toFixed(3)),
+      prev:  parseFloat((fiveY.prev  * 0.6 + tenY.prev  * 0.4).toFixed(3)),
+    }
+  }
   return null
 }
 
 export async function GET() {
-  const [sofr, treasuries, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+  // Fetch everything in parallel
+  const [sofr, fiveYRaw, tenYRaw, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
     fetchSofr(),
-    fetchTreasuryYields(),
+    fetchYahooRate('^FVX'),   // 5Y — real time
+    fetchYahooRate('^TNX'),   // 10Y — real time
     fetchYahoo('^GSPC'),
     fetchYahoo('^DJI'),
     fetchYahoo('BTC-USD'),
@@ -115,20 +109,24 @@ export async function GET() {
     fetchYahoo('ESS'),
   ])
 
+  // 7Y: FRED if available, otherwise interpolate from 5Y+10Y
+  const sevenY = await fetchSevenY(fiveYRaw, tenYRaw)
+
   const rate = (d: { close: number; prev: number } | null) =>
     d ? { rate: d.close, change: parseFloat((d.close - d.prev).toFixed(3)) } : null
 
-  const rateFromVal = (close: number | null, prev: number | null) =>
-    close != null ? { rate: close, change: parseFloat(((close - (prev ?? close))).toFixed(3)) } : null
-
   const price = (d: { close: number; prev: number } | null) =>
-    d ? { price: d.close, change: parseFloat((d.close - d.prev).toFixed(2)), pct: parseFloat(((d.close - d.prev) / d.prev * 100).toFixed(2)) } : null
+    d ? {
+      price: d.close,
+      change: parseFloat((d.close - d.prev).toFixed(2)),
+      pct: parseFloat(((d.close - d.prev) / d.prev * 100).toFixed(2)),
+    } : null
 
   return NextResponse.json({
     sofr:   rate(sofr),
-    fiveY:  rateFromVal(treasuries.fiveY,   treasuries.fiveYPrev),
-    sevenY: rateFromVal(treasuries.sevenY,  treasuries.sevenYPrev),
-    tenY:   rateFromVal(treasuries.tenY,    treasuries.tenYPrev),
+    fiveY:  rate(fiveYRaw),
+    sevenY: rate(sevenY),
+    tenY:   rate(tenYRaw),
     sp500:  price(sp500),
     dow:    price(dow),
     btc:    price(btc),
