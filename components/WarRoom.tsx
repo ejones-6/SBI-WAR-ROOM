@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
