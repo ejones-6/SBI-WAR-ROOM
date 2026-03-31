@@ -8,12 +8,13 @@ import DealModal from './deals/DealModal'
 import DashboardPage from './dashboard/DashboardPage'
 import PipelinePage from './pipeline/PipelinePage'
 import CapRatesPage from './caprates/CapRatesPage'
+import BrokersPage from './brokers/BrokersPage'
 import AnalyticsPage from './analytics/AnalyticsPage'
 import dynamic from 'next/dynamic'
 
 const DealsMap = dynamic(() => import('./dashboard/DealsMap'), { ssr: false })
 
-type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload'
+type Page = 'dashboard' | 'deals' | 'pipeline' | 'analytics' | 'map' | 'team' | 'caprates' | 'upload' | 'brokers'
 
 interface Props {
   initialDeals: Deal[]
@@ -276,6 +277,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
     { id: 'analytics',  label: 'Analytics',        icon: <ChartIcon /> },
     { id: 'map',        label: 'Market Map',       icon: <MapIcon /> },
     { id: 'caprates',   label: 'Cap Rate Tracker', icon: <CapIcon /> },
+    { id: 'brokers',  label: 'Brokers',          icon: <BrokerIcon /> },
     { id: 'upload', label: 'Upload Pipeline', icon: <UploadIcon /> },
   ]
 
@@ -421,6 +423,9 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
               <DealsMap deals={deals} onOpenDeal={setSelectedDeal} />
             </div>
           )}
+          {page === 'brokers' && (
+            <BrokersPage />
+          )}
           {page === 'caprates' && (
             <CapRatesPage capRateMap={capRateMap} deals={deals} onSave={saveCapRate} />
           )}
@@ -451,6 +456,7 @@ function GridIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fil
 function ListIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> }
 function PipeIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="8" rx="1"/></svg> }
 function ChartIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> }
+function BrokerIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> }
 function MapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> }
 function CapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> }
 function UploadIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> }
