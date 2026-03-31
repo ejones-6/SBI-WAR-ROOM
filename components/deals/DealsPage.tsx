@@ -268,7 +268,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           {paginated.length === 0 && (
             <div style={{ textAlign:'center', padding:'40px 20px', color:'#8A9BB0', fontSize:13 }}>No deals match your filters</div>
           )}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
             {paginated.map(deal => {
               const sc = statusClass(deal.status)
               const sl = statusLabel(deal.status)
@@ -282,39 +282,31 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
               const statusBg = sc==='s-bid' ? 'rgba(124,58,237,0.1)' : sc==='s-new' ? 'rgba(240,180,41,0.15)' : sc==='s-active' ? 'rgba(46,125,80,0.1)' : sc==='s-owned' ? 'rgba(0,112,192,0.1)' : 'rgba(13,27,46,0.06)'
               return (
                 <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                  style={{ background:'#fff', borderRadius:10, border:'1px solid rgba(13,27,46,0.08)', overflow:'hidden', cursor:'pointer', display:'flex', flexDirection:'column' }}>
-                  {/* Coloured top stripe = status */}
-                  <div style={{ height:3, background:statusColor, opacity:0.8 }} />
-                  {/* Name + market */}
-                  <div style={{ padding:'8px 9px 6px', flex:1 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', lineHeight:1.3, marginBottom:2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' } as any}>{deal.name}</div>
-                    <div style={{ fontSize:9, color:'#8A9BB0', marginBottom:5, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{deal.market}</div>
-                    <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'1px 5px', borderRadius:6, fontSize:8, fontWeight:700, background:statusBg, color:statusColor }}>
-                      <span style={{ width:4, height:4, borderRadius:'50%', background:'currentColor' }}/>
-                      {sl}
+                  style={{ background:'#fff', borderRadius:10, border:'1px solid rgba(13,27,46,0.08)', overflow:'hidden', cursor:'pointer', display:'flex', alignItems:'stretch' }}>
+                  {/* Left color bar = status */}
+                  <div style={{ width:4, background:statusColor, flexShrink:0 }} />
+                  {/* Name + badge */}
+                  <div style={{ padding:'8px 10px', flex:'0 0 38%', minWidth:0, borderRight:'1px solid rgba(13,27,46,0.06)', display:'flex', flexDirection:'column', justifyContent:'center' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', lineHeight:1.3, marginBottom:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{deal.name}</div>
+                    <div style={{ fontSize:9, color:'#8A9BB0', marginBottom:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{deal.market}</div>
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'1px 5px', borderRadius:5, fontSize:8, fontWeight:700, background:statusBg, color:statusColor, alignSelf:'flex-start' }}>
+                      <span style={{ width:4, height:4, borderRadius:'50%', background:'currentColor' }}/>{sl}
                     </div>
                   </div>
-                  {/* Stats — 2x2 grid */}
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid rgba(13,27,46,0.06)', background:'rgba(13,27,46,0.015)' }}>
-                    <div style={{ padding:'5px 8px', borderRight:'1px solid rgba(13,27,46,0.06)' }}>
-                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Price</div>
-                      <div style={{ fontSize:11, fontWeight:700, color:'#0D1B2E' }}>{fmtShort(deal.purchase_price)}</div>
-                    </div>
-                    <div style={{ padding:'5px 8px' }}>
-                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>$/Unit</div>
-                      <div style={{ fontSize:11, fontWeight:700, color:'#0D1B2E' }}>{fmtUnit(deal.price_per_unit)}</div>
-                    </div>
-                    <div style={{ padding:'5px 8px', borderRight:'1px solid rgba(13,27,46,0.06)', borderTop:'1px solid rgba(13,27,46,0.06)' }}>
-                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Cap Rate</div>
-                      <div style={{ fontSize:11, fontWeight:700, color: crVal ? '#C9A84C' : '#8A9BB0' }}>
-                        {crVal ? `${Number(crVal).toFixed(2)}%` : '—'}
-                        {cr?.noi_cap_rate && <sup style={{ fontSize:7, opacity:.5, marginLeft:1 }}>{badge}</sup>}
+                  {/* Stats — 5 across */}
+                  <div style={{ flex:1, display:'grid', gridTemplateColumns:'repeat(5,1fr)' }}>
+                    {[
+                      { label:'Price',    val:fmtShort(deal.purchase_price), color:'#0D1B2E' },
+                      { label:'$/Unit',   val:fmtUnit(deal.price_per_unit),  color:'#0D1B2E' },
+                      { label:'Yr Built', val:deal.year_built ?? '—',        color:'#0D1B2E' },
+                      { label:'Cap',      val:crVal ? `${Number(crVal).toFixed(2)}%` : '—', color:crVal?'#C9A84C':'#8A9BB0' },
+                      { label:'Bid Due',  val:deal.bid_due_date ? formatBidDate(deal.bid_due_date) : '—', color:'#0D1B2E', cls:bidClass },
+                    ].map((st,i) => (
+                      <div key={st.label} style={{ padding:'6px 6px', borderRight: i<4 ? '1px solid rgba(13,27,46,0.05)' : 'none', display:'flex', flexDirection:'column', justifyContent:'center' }}>
+                        <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.07em', textTransform:'uppercase', marginBottom:2 }}>{st.label}</div>
+                        <div className={st.cls||''} style={{ fontSize:10, fontWeight:700, color:st.cls?undefined:st.color, lineHeight:1.2 }}>{st.val}</div>
                       </div>
-                    </div>
-                    <div style={{ padding:'5px 8px', borderTop:'1px solid rgba(13,27,46,0.06)' }}>
-                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Bid Due</div>
-                      <div className={bidClass} style={{ fontSize: isUrgent ? 9 : 10, fontWeight:700, lineHeight:1.2 }}>{deal.bid_due_date ? formatBidDate(deal.bid_due_date) : '—'}</div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )
