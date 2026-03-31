@@ -72,11 +72,10 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
 export async function GET() {
   // ^FVX = 5Y, ^TNX = 10Y — Yahoo returns these already in percent (e.g. 4.08)
   // NO divide by 10 needed
-  const [sofr, fiveY, sevenY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+  const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
     fetchSofr(),
-    fetchYahoo('^FVX'),    // 5Y — real time, value already in % (e.g. 4.08)
-    fetchFred('DGS7'),     // 7Y — FRED end-of-day (no real-time symbol exists)
-    fetchYahoo('^TNX'),    // 10Y — real time, value already in % (e.g. 4.42)
+    fetchYahoo('^FVX'),    // 5Y — real time
+    fetchYahoo('^TNX'),    // 10Y — real time
     fetchYahoo('^GSPC'),
     fetchYahoo('^DJI'),
     fetchYahoo('BTC-USD'),
@@ -85,6 +84,12 @@ export async function GET() {
     fetchYahoo('MAA'),
     fetchYahoo('ESS'),
   ])
+
+  // 7Y interpolated from live 5Y and 10Y — no real-time symbol exists
+  const sevenY = (fiveY && tenY) ? {
+    close: parseFloat(((fiveY.close + tenY.close) / 2).toFixed(3)),
+    prev:  parseFloat(((fiveY.prev  + tenY.prev)  / 2).toFixed(3)),
+  } : null
 
   const rate = (d: { close: number; prev: number } | null) =>
     d ? { rate: d.close, change: parseFloat((d.close - d.prev).toFixed(3)) } : null
