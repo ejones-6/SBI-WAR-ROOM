@@ -262,68 +262,64 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       </div>
 
 
-      {/* Mobile card view */}
+      {/* Mobile card view — 2-col portrait grid */}
       {isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
           {paginated.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8A9BB0', fontSize: 13 }}>No deals match your filters</div>
+            <div style={{ textAlign:'center', padding:'40px 20px', color:'#8A9BB0', fontSize:13 }}>No deals match your filters</div>
           )}
-          {paginated.map(deal => {
-            const sc = statusClass(deal.status)
-            const sl = statusLabel(deal.status)
-            const cr = capRateMap[deal.name]
-            const crVal = cr?.noi_cap_rate || cr?.broker_cap_rate
-            const boe = boeMap[deal.name]
-            const badge = (boe as any)?.noi_badge ?? 'BOE'
-            const bidClass = bidDateClass(deal.bid_due_date)
-            const isUrgent = bidClass.includes('red')
-            return (
-              <div key={deal.id} onClick={() => onOpenDeal(deal)}
-                style={{ background: '#fff', borderRadius: 12, border: '1px solid rgba(13,27,46,0.09)', padding: '13px 15px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(13,27,46,0.06)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1B2E', marginBottom: 2 }}>{deal.name}</div>
-                    <div style={{ fontSize: 11, color: '#8A9BB0', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-                      <span>{deal.market}</span>
-                      {deal.broker && (deal.status.includes('1 -') || deal.status.includes('2 -') || deal.status.includes('3 -')) && (
-                        <span style={{ background: 'rgba(240,151,10,0.12)', color: '#b87200', fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3 }}>{deal.broker}</span>
-                      )}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+            {paginated.map(deal => {
+              const sc = statusClass(deal.status)
+              const sl = statusLabel(deal.status)
+              const cr = capRateMap[deal.name]
+              const crVal = cr?.noi_cap_rate || cr?.broker_cap_rate
+              const boe = boeMap[deal.name]
+              const badge = (boe as any)?.noi_badge ?? 'BOE'
+              const bidClass = bidDateClass(deal.bid_due_date)
+              const isUrgent = bidClass.includes('red')
+              const statusColor = sc==='s-bid' ? '#6d28d9' : sc==='s-new' ? '#b87200' : sc==='s-active' ? '#2E7D50' : sc==='s-owned' ? '#0070C0' : '#8A9BB0'
+              const statusBg = sc==='s-bid' ? 'rgba(124,58,237,0.1)' : sc==='s-new' ? 'rgba(240,180,41,0.15)' : sc==='s-active' ? 'rgba(46,125,80,0.1)' : sc==='s-owned' ? 'rgba(0,112,192,0.1)' : 'rgba(13,27,46,0.06)'
+              return (
+                <div key={deal.id} onClick={() => onOpenDeal(deal)}
+                  style={{ background:'#fff', borderRadius:10, border:'1px solid rgba(13,27,46,0.08)', overflow:'hidden', cursor:'pointer', display:'flex', flexDirection:'column' }}>
+                  {/* Coloured top stripe = status */}
+                  <div style={{ height:3, background:statusColor, opacity:0.8 }} />
+                  {/* Name + market */}
+                  <div style={{ padding:'8px 9px 6px', flex:1 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', lineHeight:1.3, marginBottom:2, display:'-webkit-box', WebkitLineClamp:2, WebkitBoxOrient:'vertical', overflow:'hidden' } as any}>{deal.name}</div>
+                    <div style={{ fontSize:9, color:'#8A9BB0', marginBottom:5, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{deal.market}</div>
+                    <div style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'1px 5px', borderRadius:6, fontSize:8, fontWeight:700, background:statusBg, color:statusColor }}>
+                      <span style={{ width:4, height:4, borderRadius:'50%', background:'currentColor' }}/>
+                      {sl}
                     </div>
                   </div>
-                  <span className={`status-badge ${sc}`} style={{ display:'inline-flex', alignItems:'center', gap:3, padding:'3px 8px', borderRadius:10, fontSize:11, fontWeight:600, whiteSpace:'nowrap', flexShrink:0,
-                    ...(sc === 's-bid' ? { background:'rgba(124,58,237,0.1)', color:'#6d28d9' } : {}) }}>
-                    <span style={{ width:5, height:5, borderRadius:'50%', background:'currentColor', opacity:.7 }}/>
-                    {sl}
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', borderTop: '1px solid rgba(13,27,46,0.06)', paddingTop: 10, gap: 4 }}>
-                  <div>
-                    <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Price</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1B2E' }}>{fmtShort(deal.purchase_price)}</div>
-                    <div style={{ fontSize: 10, color: '#8A9BB0' }}>{fmtUnit(deal.price_per_unit)}/unit</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Units</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0D1B2E' }}>{deal.units?.toLocaleString() ?? '—'}</div>
-                    <div style={{ fontSize: 10, color: '#8A9BB0' }}>{deal.year_built ?? '—'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Cap Rate</div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: crVal ? '#C9A84C' : '#8A9BB0' }}>
-                      {crVal ? `${Number(crVal).toFixed(2)}%` : '—'}
-                      {cr?.noi_cap_rate && <sup style={{ fontSize: 7, opacity: .5, marginLeft: 1 }}>{badge}</sup>}
+                  {/* Stats — 2x2 grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid rgba(13,27,46,0.06)', background:'rgba(13,27,46,0.015)' }}>
+                    <div style={{ padding:'5px 8px', borderRight:'1px solid rgba(13,27,46,0.06)' }}>
+                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Price</div>
+                      <div style={{ fontSize:11, fontWeight:700, color:'#0D1B2E' }}>{fmtShort(deal.purchase_price)}</div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 9, color: '#8A9BB0', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>Bid Due</div>
-                    <div className={bidClass} style={{ fontSize: isUrgent ? 11 : 12, fontWeight: isUrgent ? 700 : 500 }}>
-                      {formatBidDate(deal.bid_due_date)}
+                    <div style={{ padding:'5px 8px' }}>
+                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>$/Unit</div>
+                      <div style={{ fontSize:11, fontWeight:700, color:'#0D1B2E' }}>{fmtUnit(deal.price_per_unit)}</div>
+                    </div>
+                    <div style={{ padding:'5px 8px', borderRight:'1px solid rgba(13,27,46,0.06)', borderTop:'1px solid rgba(13,27,46,0.06)' }}>
+                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Cap Rate</div>
+                      <div style={{ fontSize:11, fontWeight:700, color: crVal ? '#C9A84C' : '#8A9BB0' }}>
+                        {crVal ? `${Number(crVal).toFixed(2)}%` : '—'}
+                        {cr?.noi_cap_rate && <sup style={{ fontSize:7, opacity:.5, marginLeft:1 }}>{badge}</sup>}
+                      </div>
+                    </div>
+                    <div style={{ padding:'5px 8px', borderTop:'1px solid rgba(13,27,46,0.06)' }}>
+                      <div style={{ fontSize:7, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:1 }}>Bid Due</div>
+                      <div className={bidClass} style={{ fontSize: isUrgent ? 9 : 10, fontWeight:700, lineHeight:1.2 }}>{deal.bid_due_date ? formatBidDate(deal.bid_due_date) : '—'}</div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useEffect, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
@@ -284,9 +284,44 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#F5F4EF', fontFamily: "'DM Sans',sans-serif" }}>
-      {/* Sidebar */}
+      {/* Mobile menu overlay */}
+      {isMobile && showMobileNav && (
+        <div onClick={() => setShowMobileNav(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ position:'absolute', top:0, left:0, width:240, height:'100%', background:'#0D1B2E', display:'flex', flexDirection:'column', boxShadow:'4px 0 20px rgba(0,0,0,0.3)' }}>
+            <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <div style={{ fontFamily:"'Cormorant Garamond',serif", color:'#C9A84C', fontSize:15, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase' }}>StoneBridge</div>
+              <button onClick={() => setShowMobileNav(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.4)', fontSize:20, cursor:'pointer', padding:'0 4px' }}>✕</button>
+            </div>
+            <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
+              {NAV.map(n => (
+                <button key={n.id} onClick={() => { setPage(n.id); setShowMobileNav(false) }} style={{
+                  width:'100%', display:'flex', alignItems:'center', gap:10,
+                  padding:'12px 20px', border:'none',
+                  background: page===n.id ? 'rgba(201,168,76,0.12)' : 'transparent',
+                  borderLeft: page===n.id ? '3px solid #C9A84C' : '3px solid transparent',
+                  color: page===n.id ? '#F0B429' : 'rgba(255,255,255,0.55)',
+                  fontSize:14, fontWeight: page===n.id ? 600 : 400, cursor:'pointer',
+                  fontFamily:"'DM Sans',sans-serif", textAlign:'left'
+                }}>
+                  <span style={{ opacity: page===n.id ? 1 : 0.6 }}>{n.icon}</span>
+                  <span style={{ flex:1 }}>{n.label}</span>
+                  {n.badgeKey && (statusCounts[n.badgeKey] ?? 0) > 0 && (
+                    <span style={{ background:'#C9A84C', color:'#0D1B2E', borderRadius:10, padding:'1px 7px', fontSize:10, fontWeight:700 }}>
+                      {statusCounts[n.badgeKey]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar — desktop only */}
       <aside style={{
-        width: 220, background: '#0D1B2E', display: 'flex', flexDirection: 'column',
+        width: isMobile ? 0 : 220, background: '#0D1B2E', display: isMobile ? 'none' : 'flex', flexDirection: 'column',
         flexShrink: 0, position: 'relative', zIndex: 10
       }}>
         {/* Logo */}
