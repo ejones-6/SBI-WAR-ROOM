@@ -27,6 +27,8 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   const supabase = createClient()
   const router = useRouter()
   const [page, setPage] = useState<Page>('deals')
+  const [showMobileNav, setShowMobileNav] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const [resolvedEmail, setResolvedEmail] = useState(userEmail)
   const [deals, setDeals] = useState<Deal[]>(initialDeals)
   const [boeMap, setBoeMap] = useState<Record<string, BoeData>>(
@@ -40,6 +42,13 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   const [loadingAll, setLoadingAll] = useState(false)
 
   // Real-time subscription to deals
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   useEffect(() => {
     const channel = supabase
       .channel('deals-realtime')
