@@ -541,10 +541,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
     ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
     XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
-    // Turn off gridlines via workbook SheetViews
-    if (!wb.Workbook) wb.Workbook = {}
-    if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [{}]
-    (wb.Workbook.Sheets[0] as any).showGridLines = 0
+    ;(wb as any).Workbook = { Sheets: [{ showGridLines: 0 }] }
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
   }
