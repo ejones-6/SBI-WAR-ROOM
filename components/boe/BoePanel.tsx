@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import type { Deal, BoeData, BoeT12, BoeAdjs } from '@/lib/types'
-import * as XLSX from 'xlsx-js-style'
+import * as XLSX from 'xlsx'
 
 interface Props {
   deal: Deal
@@ -133,6 +133,122 @@ function SectionHead({ label }: { label: string }) {
   return <div style={{ padding:'8px 14px', background:'rgba(13,27,46,0.05)', fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase' }}>{label}</div>
 }
 
+
+// ── Scratch Pad Component ──────────────────────────────────────────────────
+const COLS = ['A','B','C','D']
+const NROWS = 20
+
+function evalCell(raw: string, grid: string[][]): string {
+  if (!raw) return ''
+  if (!raw.startsWith('=')) return raw
+  let expr = raw.slice(1).toUpperCase()
+  // Replace cell refs e.g. A1, B3
+  expr = expr.replace(/([A-D])([0-9]+)/g, (_: string, col: string, row: string) => {
+    const c = COLS.indexOf(col)
+    const r = parseInt(row) - 1
+    if (c < 0 || r < 0 || r >= NROWS) return '0'
+    const cellRaw = grid[r]?.[c] ?? ''
+    const v = evalCell(cellRaw, grid)
+    return isNaN(Number(v)) ? '0' : v
+  })
+  try {
+    const result = Function('"use strict";return(' + expr + ')')()
+    if (typeof result === 'number') {
+      return isNaN(result) ? '#ERR' : (Math.abs(result) >= 1000
+        ? result.toLocaleString('en-US', { maximumFractionDigits: 2 })
+        : parseFloat(result.toFixed(6)).toString())
+    }
+    return String(result)
+  } catch { return '#ERR' }
+}
+
+function ScratchPad({ savedData, onChange }: { savedData: string[][], onChange: (d: string[][]) => void }) {
+  const [grid, setGrid] = useState<string[][]>(savedData)
+  const [focus, setFocus] = useState<[number,number] | null>(null)
+  const [label, setLabel] = useState('')
+
+  function update(r: number, c: number, val: string) {
+    const next = grid.map(row => [...row])
+    next[r][c] = val
+    setGrid(next)
+    onChange(next)
+  }
+
+  function displayed(r: number, c: number): string {
+    const raw = grid[r]?.[c] ?? ''
+    if (focus && focus[0]===r && focus[1]===c) return raw
+    return raw.startsWith('=') ? evalCell(raw, grid) : raw
+  }
+
+  const thStyle: React.CSSProperties = { background:'#f0f0ec', border:'1px solid #ddd', padding:'2px 4px', textAlign:'center', fontSize:9, fontWeight:700, color:'#8A9BB0', width:24, userSelect:'none' }
+  const colStyle: React.CSSProperties = { ...thStyle, width:62 }
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      {/* Header */}
+      <div style={{ background:'#0D1B2E', padding:'7px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+        <span style={{ fontSize:9, fontWeight:700, color:'#C9A84C', letterSpacing:'0.15em', textTransform:'uppercase' }}>Scratch Pad</span>
+        <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>= for formulas</span>
+      </div>
+      {/* Formula bar */}
+      <div style={{ padding:'3px 6px', background:'#f7f7f5', borderBottom:'1px solid #e8e8e4', fontSize:10, fontFamily:"'DM Mono',monospace", color:'#555', minHeight:22, display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+        {focus ? (
+          <>
+            <span style={{ color:'#0D1B2E', fontWeight:700 }}>{COLS[focus[1]]}{focus[0]+1}</span>
+            <span style={{ color:'#8A9BB0' }}>:</span>
+            <span>{grid[focus[0]]?.[focus[1]] ?? ''}</span>
+          </>
+        ) : <span style={{ color:'#8A9BB0' }}>select a cell</span>}
+      </div>
+      {/* Grid */}
+      <div style={{ overflowY:'auto', flex:1 }}>
+        <table style={{ borderCollapse:'collapse', width:'100%', tableLayout:'fixed' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}></th>
+              {COLS.map(c => <th key={c} style={colStyle}>{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({length:NROWS},(_,r) => (
+              <tr key={r}>
+                <td style={{ ...thStyle, fontSize:9 }}>{r+1}</td>
+                {COLS.map((_,c) => {
+                  const isFormula = (grid[r]?.[c]??'').startsWith('=')
+                  const isFocused = focus?.[0]===r && focus?.[1]===c
+                  return (
+                    <td key={c} style={{ border:'1px solid #e8e8e4', padding:0, height:20 }}>
+                      <input
+                        value={displayed(r,c)}
+                        onChange={e => update(r,c,e.target.value)}
+                        onFocus={() => setFocus([r,c])}
+                        onBlur={() => { setFocus(null) }}
+                        onKeyDown={e => {
+                          if (e.key==='Enter') { e.preventDefault(); const next = document.querySelector<HTMLInputElement>(`input[data-cell="${r+1}-${c}"]`); next?.focus() }
+                          if (e.key==='Tab') { e.preventDefault(); const nc = e.shiftKey?c-1:c+1; if(nc>=0&&nc<4){ const next = document.querySelector<HTMLInputElement>(`input[data-cell="${r}-${nc}"]`); next?.focus() } }
+                        }}
+                        data-cell={`${r}-${c}`}
+                        style={{ width:'100%', height:'100%', border:'none', outline:'none', padding:'1px 4px', fontSize:11, fontFamily:"'DM Mono','Courier New',monospace", background: isFocused ? '#EDF4FF' : 'transparent', textAlign:'right', color: isFormula ? '#0070C0' : '#0D1B2E' }}
+                      />
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Clear button */}
+      <div style={{ padding:'6px 8px', borderTop:'1px solid #e8e8e4', display:'flex', justifyContent:'flex-end', flexShrink:0 }}>
+        <button onClick={() => { const empty = Array.from({length:NROWS},()=>Array(4).fill('')); setGrid(empty); onChange(empty) }}
+          style={{ fontSize:9, padding:'3px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:4, background:'#fff', color:'#8A9BB0', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+          Clear
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function BoePanel({ deal, boe, onSave }: Props) {
   const units = deal.units ?? 1
   const soldPrice = deal.sold_price ?? 0
@@ -161,6 +277,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
+  const [scratchData, setScratchData] = useState<string[][]>((boe as any)?.scratch ?? Array.from({length:20},()=>Array(4).fill('')))
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -424,7 +541,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
     ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
     XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
-    ;(wb as any).Workbook = { Sheets: [{ showGridLines: 0 }] }
+    // Turn off gridlines via workbook SheetViews
+    if (!wb.Workbook) wb.Workbook = {}
+    if (!wb.Workbook.Sheets) wb.Workbook.Sheets = [{}]
+    (wb.Workbook.Sheets[0] as any).showGridLines = 0
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
   }
@@ -432,7 +552,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     async function handleSave() {
     setSaving(true)
     justSaved.current = true
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6 }
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6, scratch: scratchData }
     await onSave(payload as any)
     if (pp && cap_adj) {
       try {
@@ -559,7 +679,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext }
 
   return (
-    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
+    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif", display:'flex', alignItems:'flex-start', gap:0 }}>
+      {/* ── Main BOE ── */}
+      <div style={{ flex:1, minWidth:0 }}>
       {/* KPI Strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
@@ -902,6 +1024,13 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <button onClick={handleSave} disabled={saving} style={{ padding:'8px 22px', background: saving?'#8A9BB0':'#0D1B2E', color:'#F0B429', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor: saving?'not-allowed':'pointer', fontFamily:"'DM Sans',sans-serif", letterSpacing:'0.05em' }}>
           {saving ? 'Saving…' : 'Save BOE'}
         </button>
+      </div>
+
+      </div>{/* end main BOE */}
+
+      {/* ── Scratch Pad ── */}
+      <div style={{ width:280, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch', fontFamily:"'DM Sans',sans-serif" }}>
+        <ScratchPad savedData={scratchData} onChange={setScratchData} />
       </div>
     </div>
   )
