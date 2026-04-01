@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import type { Deal, BoeData, BoeT12, BoeAdjs } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -134,101 +134,160 @@ function SectionHead({ label }: { label: string }) {
 }
 
 
-// ── Scratch Pad Component ──────────────────────────────────────────────────
-const COLS = ['A','B','C','D']
-const NROWS = 20
+// ── Scratch Pad ───────────────────────────────────────────────────────────────
+const SP_COLS = ['A','B','C','D']
+const SP_ROWS = 40
 
-function evalCell(raw: string, grid: string[][]): string {
+function evalSP(raw: string, grid: string[][]): string {
   if (!raw) return ''
-  if (!raw.startsWith('=')) return raw
-  let expr = raw.slice(1).toUpperCase()
-  // Replace cell refs e.g. A1, B3
+  // Support both = and + as formula prefix
+  if (!raw.startsWith('=') && !raw.startsWith('+')) return raw
+  let expr = raw.startsWith('+') ? raw : raw.slice(1)
+  expr = expr.toUpperCase()
   expr = expr.replace(/([A-D])([0-9]+)/g, (_: string, col: string, row: string) => {
-    const c = COLS.indexOf(col)
+    const c = SP_COLS.indexOf(col)
     const r = parseInt(row) - 1
-    if (c < 0 || r < 0 || r >= NROWS) return '0'
-    const cellRaw = grid[r]?.[c] ?? ''
-    const v = evalCell(cellRaw, grid)
-    return isNaN(Number(v)) ? '0' : v
+    if (c < 0 || r < 0 || r >= SP_ROWS) return '0'
+    const v = evalSP(grid[r]?.[c] ?? '', grid)
+    return isNaN(Number(v)) ? '0' : (v || '0')
   })
   try {
     const result = Function('"use strict";return(' + expr + ')')()
     if (typeof result === 'number') {
-      return isNaN(result) ? '#ERR' : (Math.abs(result) >= 1000
+      if (isNaN(result) || !isFinite(result)) return '#ERR'
+      return Math.abs(result) >= 1000
         ? result.toLocaleString('en-US', { maximumFractionDigits: 2 })
-        : parseFloat(result.toFixed(6)).toString())
+        : parseFloat(result.toFixed(6)).toString()
     }
     return String(result)
   } catch { return '#ERR' }
 }
 
-function ScratchPad({ savedData, onChange }: { savedData: string[][], onChange: (d: string[][]) => void }) {
-  const [grid, setGrid] = useState<string[][]>(savedData)
-  const [focus, setFocus] = useState<[number,number] | null>(null)
-  const [label, setLabel] = useState('')
+function ScratchPad({ data, onChange }: { data: string[][], onChange: (d: string[][]) => void }) {
+  const [grid, setGrid] = useState<string[][]>(data)
+  const [focus, setFocus] = useState<[number,number]>([0,0])
+  const [editing, setEditing] = useState(false)
+  const [editVal, setEditVal] = useState('')
+  const containerRef = React.useRef<HTMLDivElement>(null)
 
-  function update(r: number, c: number, val: string) {
+  function getRef(r: number, c: number) {
+    return containerRef.current?.querySelector<HTMLInputElement>(`input[data-sp="${r}-${c}"]`)
+  }
+
+  function moveTo(r: number, c: number) {
+    const nr = Math.max(0, Math.min(SP_ROWS-1, r))
+    const nc = Math.max(0, Math.min(3, c))
+    setFocus([nr, nc])
+    setEditing(false)
+    setTimeout(() => getRef(nr, nc)?.focus(), 0)
+  }
+
+  function commitEdit(r: number, c: number, val: string) {
     const next = grid.map(row => [...row])
     next[r][c] = val
     setGrid(next)
     onChange(next)
+    setEditing(false)
   }
 
-  function displayed(r: number, c: number): string {
+  function display(r: number, c: number): string {
     const raw = grid[r]?.[c] ?? ''
-    if (focus && focus[0]===r && focus[1]===c) return raw
-    return raw.startsWith('=') ? evalCell(raw, grid) : raw
+    const isActive = focus[0]===r && focus[1]===c && editing
+    if (isActive) return editVal
+    if (raw.startsWith('=') || raw.startsWith('+')) return evalSP(raw, grid)
+    return raw
   }
 
-  const thStyle: React.CSSProperties = { background:'#f0f0ec', border:'1px solid #ddd', padding:'2px 4px', textAlign:'center', fontSize:9, fontWeight:700, color:'#8A9BB0', width:24, userSelect:'none' }
-  const colStyle: React.CSSProperties = { ...thStyle, width:62 }
+  function handleKeyDown(e: React.KeyboardEvent, r: number, c: number) {
+    if (editing) {
+      if (e.key === 'Escape') { setEditing(false); setEditVal(grid[r]?.[c]??''); e.preventDefault() }
+      if (e.key === 'Enter') { commitEdit(r, c, editVal); moveTo(r+1, c); e.preventDefault() }
+      if (e.key === 'Tab') { commitEdit(r, c, editVal); moveTo(r, e.shiftKey ? c-1 : c+1); e.preventDefault() }
+      return
+    }
+    // Navigation mode
+    if (e.key === 'ArrowUp')    { moveTo(r-1, c); e.preventDefault() }
+    if (e.key === 'ArrowDown')  { moveTo(r+1, c); e.preventDefault() }
+    if (e.key === 'ArrowLeft')  { moveTo(r, c-1); e.preventDefault() }
+    if (e.key === 'ArrowRight') { moveTo(r, c+1); e.preventDefault() }
+    if (e.key === 'Tab')        { moveTo(r, e.shiftKey ? c-1 : c+1); e.preventDefault() }
+    if (e.key === 'Enter')      { setEditing(true); setEditVal(grid[r]?.[c]??''); e.preventDefault() }
+    if (e.key === 'Delete' || e.key === 'Backspace') { commitEdit(r, c, ''); e.preventDefault() }
+    if (e.key === 'Escape') { e.preventDefault() }
+    // Start typing to enter edit mode
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      setEditing(true)
+      setEditVal(e.key)
+      e.preventDefault()
+    }
+  }
+
+  const TH: React.CSSProperties = {
+    background:'#f0f0ec', border:'1px solid #ddd', padding:'2px 0',
+    textAlign:'center', fontSize:9, fontWeight:700, color:'#8A9BB0', userSelect:'none' as const
+  }
+
+  const raw = grid[focus[0]]?.[focus[1]] ?? ''
+  const isFormulaPfx = raw.startsWith('=') || raw.startsWith('+')
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }} ref={containerRef}>
       {/* Header */}
       <div style={{ background:'#0D1B2E', padding:'7px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
         <span style={{ fontSize:9, fontWeight:700, color:'#C9A84C', letterSpacing:'0.15em', textTransform:'uppercase' }}>Scratch Pad</span>
-        <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>= for formulas</span>
+        <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>= or + for formulas</span>
       </div>
       {/* Formula bar */}
-      <div style={{ padding:'3px 6px', background:'#f7f7f5', borderBottom:'1px solid #e8e8e4', fontSize:10, fontFamily:"'DM Mono',monospace", color:'#555', minHeight:22, display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-        {focus ? (
-          <>
-            <span style={{ color:'#0D1B2E', fontWeight:700 }}>{COLS[focus[1]]}{focus[0]+1}</span>
-            <span style={{ color:'#8A9BB0' }}>:</span>
-            <span>{grid[focus[0]]?.[focus[1]] ?? ''}</span>
-          </>
-        ) : <span style={{ color:'#8A9BB0' }}>select a cell</span>}
+      <div style={{ padding:'3px 8px', background:'#f7f7f5', borderBottom:'1px solid #e8e8e4', fontSize:10, fontFamily:"'DM Mono',monospace", minHeight:22, display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+        <span style={{ color:'#0D1B2E', fontWeight:700 }}>{SP_COLS[focus[1]]}{focus[0]+1}</span>
+        <span style={{ color:'#8A9BB0' }}>:</span>
+        <span style={{ color: isFormulaPfx ? '#0070C0' : '#0D1B2E' }}>
+          {editing ? editVal : raw}
+        </span>
       </div>
       {/* Grid */}
       <div style={{ overflowY:'auto', flex:1 }}>
         <table style={{ borderCollapse:'collapse', width:'100%', tableLayout:'fixed' }}>
+          <colgroup>
+            <col style={{ width:20 }}/>
+            <col/><col/><col/><col/>
+          </colgroup>
           <thead>
             <tr>
-              <th style={thStyle}></th>
-              {COLS.map(c => <th key={c} style={colStyle}>{c}</th>)}
+              <th style={TH}></th>
+              {SP_COLS.map(c => <th key={c} style={TH}>{c}</th>)}
             </tr>
           </thead>
           <tbody>
-            {Array.from({length:NROWS},(_,r) => (
+            {Array.from({length:SP_ROWS}, (_, r) => (
               <tr key={r}>
-                <td style={{ ...thStyle, fontSize:9 }}>{r+1}</td>
-                {COLS.map((_,c) => {
-                  const isFormula = (grid[r]?.[c]??'').startsWith('=')
-                  const isFocused = focus?.[0]===r && focus?.[1]===c
+                <td style={{ ...TH, fontSize:9 }}>{r+1}</td>
+                {SP_COLS.map((_, c) => {
+                  const isSelected = focus[0]===r && focus[1]===c
+                  const cellRaw = grid[r]?.[c] ?? ''
+                  const isFormula = cellRaw.startsWith('=') || cellRaw.startsWith('+')
+                  const val = display(r, c)
                   return (
-                    <td key={c} style={{ border:'1px solid #e8e8e4', padding:0, height:20 }}>
+                    <td key={c} style={{ border: isSelected ? '2px solid #0070C0' : '1px solid #e8e8e4', padding:0, height:20, background: isSelected ? '#EDF4FF' : 'transparent' }}>
                       <input
-                        value={displayed(r,c)}
-                        onChange={e => update(r,c,e.target.value)}
-                        onFocus={() => setFocus([r,c])}
-                        onBlur={() => { setFocus(null) }}
-                        onKeyDown={e => {
-                          if (e.key==='Enter') { e.preventDefault(); const next = document.querySelector<HTMLInputElement>(`input[data-cell="${r+1}-${c}"]`); next?.focus() }
-                          if (e.key==='Tab') { e.preventDefault(); const nc = e.shiftKey?c-1:c+1; if(nc>=0&&nc<4){ const next = document.querySelector<HTMLInputElement>(`input[data-cell="${r}-${nc}"]`); next?.focus() } }
+                        data-sp={`${r}-${c}`}
+                        value={val}
+                        readOnly={!isSelected || !editing}
+                        onChange={e => { if (isSelected && editing) setEditVal(e.target.value) }}
+                        onFocus={() => { setFocus([r,c]); if (!editing) setEditVal(cellRaw) }}
+                        onClick={() => { setFocus([r,c]) }}
+                        onDoubleClick={() => { setEditing(true); setEditVal(cellRaw) }}
+                        onKeyDown={e => handleKeyDown(e, r, c)}
+                        onBlur={() => { if (editing) { commitEdit(r,c,editVal) } }}
+                        style={{
+                          width:'100%', height:'100%', border:'none', outline:'none',
+                          padding:'1px 4px', fontSize:11,
+                          fontFamily:"'DM Mono','Courier New',monospace",
+                          background:'transparent', textAlign:'right',
+                          color: isFormula ? '#0070C0' : '#0D1B2E',
+                          cursor: 'default',
+                          caretColor: isSelected && editing ? 'auto' : 'transparent',
                         }}
-                        data-cell={`${r}-${c}`}
-                        style={{ width:'100%', height:'100%', border:'none', outline:'none', padding:'1px 4px', fontSize:11, fontFamily:"'DM Mono','Courier New',monospace", background: isFocused ? '#EDF4FF' : 'transparent', textAlign:'right', color: isFormula ? '#0070C0' : '#0D1B2E' }}
                       />
                     </td>
                   )
@@ -238,10 +297,10 @@ function ScratchPad({ savedData, onChange }: { savedData: string[][], onChange: 
           </tbody>
         </table>
       </div>
-      {/* Clear button */}
-      <div style={{ padding:'6px 8px', borderTop:'1px solid #e8e8e4', display:'flex', justifyContent:'flex-end', flexShrink:0 }}>
-        <button onClick={() => { const empty = Array.from({length:NROWS},()=>Array(4).fill('')); setGrid(empty); onChange(empty) }}
-          style={{ fontSize:9, padding:'3px 8px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:4, background:'#fff', color:'#8A9BB0', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Clear */}
+      <div style={{ padding:'6px 8px', borderTop:'1px solid #e8e8e4', flexShrink:0 }}>
+        <button onClick={() => { const e=Array.from({length:SP_ROWS},()=>Array(4).fill('')); setGrid(e); onChange(e) }}
+          style={{ fontSize:9, padding:'3px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:4, background:'#fff', color:'#8A9BB0', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
           Clear
         </button>
       </div>
@@ -277,7 +336,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
-  const [scratchData, setScratchData] = useState<string[][]>((boe as any)?.scratch ?? Array.from({length:20},()=>Array(4).fill('')))
+  const [scratchData, setScratchData] = useState<string[][]>(
+    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(4).fill(''))
+  )
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -390,158 +451,344 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   function handleExport() {
     const wb = XLSX.utils.book_new()
     const ws: any = {}
-    const A   = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'
-    const A2  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"_);_(@_)'
-    const S   = '#,##0 ;\\(#,##0\\)'
-    // Colors as ARGB hex — works with standard xlsx
+
+    // ── Formats ───────────────────────────────────────────────────────────────
+    const A  = '_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)'
+    const P  = '0.0%'
+
+    // ── SBI Colors (ARGB) ─────────────────────────────────────────────────────
     const NAVY  = 'FF0D1B2E'
     const GOLD  = 'FFC9A84C'
     const WHITE = 'FFFFFFFF'
-    const BLUE  = 'FF0070C0'  // adj col
+    const BLUE  = 'FF0070C0'  // input cells
+    const BLACK = 'FF000000'  // formula cells
+    const LTGRY = 'FFF7F7F5'  // subtotal rows
+    const MIDGY = 'FFE8E8E5'  // section divider
 
+    // ── Cell writer ───────────────────────────────────────────────────────────
     function s(col: number, row: number, v: any,
-      opts: { b?: boolean; sz?: number; rgb?: string; z?: string; bg?: string } = {}) {
+      opts: { b?: boolean; sz?: number; rgb?: string; bg?: string; z?: string; italic?: boolean; align?: string } = {}) {
       const addr = XLSX.utils.encode_cell({ r: row - 1, c: col - 1 })
       const isF = typeof v === 'string' && v.startsWith('=')
-      const cell: any = {
+      ws[addr] = {
         v: isF ? 0 : v,
         t: isF ? 'n' : typeof v === 'number' ? 'n' : 's',
         ...(isF ? { f: v.slice(1) } : {}),
+        s: {
+          font: { name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false,
+                  italic: opts.italic ?? false,
+                  color: { rgb: opts.rgb ?? BLACK } },
+          fill: opts.bg ? { fgColor: { rgb: opts.bg }, patternType: 'solid' } : { patternType: 'none' },
+          numFmt: opts.z ?? 'General',
+          alignment: { horizontal: opts.align ?? 'left', vertical: 'center', wrapText: false },
+          border: {
+            bottom: { style: 'thin', color: { rgb: 'FFE0E0DC' } },
+          },
+        },
       }
-      // Build style string for xlsx (HTML-style bgcolor via richtext not supported,
-      // but font color and bold work fine)
-      cell.s = {
-        font: { name: 'Calibri', sz: opts.sz ?? 11, bold: opts.b ?? false,
-                color: { rgb: opts.rgb ?? NAVY } },
-        ...(opts.bg ? { fill: { fgColor: { rgb: opts.bg }, patternType: 'solid' } } : {}),
-        numFmt: opts.z ?? 'General',
+    }
+
+    // ── Col widths ────────────────────────────────────────────────────────────
+    ws['!cols'] = [
+      {wch:1},      // A - margin
+      {wch:28},     // B - line item
+      {wch:4},      // C - T12 label
+      {wch:13},     // D - Hist Total
+      {wch:9},      // E - $/unit
+      {wch:12},     // F - Adj
+      {wch:13},     // G - PF Total
+      {wch:9},      // H - PF $/unit
+      {wch:32},     // I - Notes
+      {wch:11},     // J - side label
+      {wch:10},     // K - side value
+      {wch:1},      // L - spacer
+      {wch:14},     // M - payroll label
+      {wch:10},     // N - payroll value
+    ]
+
+    // ── Row heights ───────────────────────────────────────────────────────────
+    ws['!rows'] = Array.from({length: 45}, (_, i) => {
+      if (i === 0) return {hpt: 22}  // logo row
+      if (i === 1) return {hpt: 16}  // subtitle
+      if (i === 2) return {hpt: 14}  // col headers
+      return {hpt: 16}
+    })
+
+    // ── Helper: fill a full row background ───────────────────────────────────
+    function rowBg(row: number, bg: string, cols = [2,3,4,5,6,7,8,9]) {
+      cols.forEach(c => {
+        const addr = XLSX.utils.encode_cell({ r: row-1, c: c-1 })
+        if (!ws[addr]) ws[addr] = { v: '', t: 's' }
+        if (!ws[addr].s) ws[addr].s = {}
+        ws[addr].s.fill = { fgColor: { rgb: bg }, patternType: 'solid' }
+      })
+    }
+
+    // ── ROW 1: Logo / Header ──────────────────────────────────────────────────
+    // Navy background across full header
+    for (let c = 1; c <= 14; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c: c-1 })
+      ws[addr] = { v: '', t: 's', s: { fill: { fgColor: { rgb: NAVY }, patternType: 'solid' }, font: { name: 'Calibri', sz: 11, color: { rgb: NAVY } }, numFmt: 'General', border: {} } }
+    }
+    s(2,1, 'STONEBRIDGE INVESTMENTS', {b:true, sz:13, rgb:GOLD, bg:NAVY})
+    s(3,1, '', {bg:NAVY})
+    s(9,1, deal.name, {b:true, sz:13, rgb:GOLD, bg:NAVY, align:'right'})
+
+    // ROW 2: subtitle
+    for (let c = 1; c <= 14; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 1, c: c-1 })
+      ws[addr] = { v: '', t: 's', s: { fill: { fgColor: { rgb: NAVY }, patternType: 'solid' }, font: { name: 'Calibri', sz: 9, color: { rgb: NAVY } }, numFmt: 'General', border: {} } }
+    }
+    s(2,2, 'BOE Model  ·  Acquisitions', {sz:9, rgb:'FFB0B8C4', bg:NAVY})
+    s(9,2, `${units} Units  ·  ${period||'T12'}`, {sz:9, rgb:'FFB0B8C4', bg:NAVY, align:'right'})
+
+    // ROW 3: Column headers
+    const hdrCells: [number, string][] = [[2,'Line Item'],[4,'Hist Total'],[5,'$/Unit'],[6,'Adj'],[7,'PF Total'],[8,'PF $/Unit'],[9,'Notes']]
+    hdrCells.forEach(([c, label]) => {
+      s(c, 3, label, {b:true, sz:9, rgb:GOLD, bg:NAVY, align: c===2?'left':'right'})
+    })
+    // fill remaining header cols navy
+    ;[1,3,10,11,12,13,14].forEach(c => {
+      const addr = XLSX.utils.encode_cell({ r: 2, c: c-1 })
+      ws[addr] = { v:'', t:'s', s:{ fill:{fgColor:{rgb:NAVY},patternType:'solid'}, font:{name:'Calibri',sz:9,color:{rgb:NAVY}}, numFmt:'General', border:{} } }
+    })
+
+    // ── Section header helper ─────────────────────────────────────────────────
+    function sectionHead(row: number, label: string) {
+      for (let c = 1; c <= 9; c++) {
+        const addr = XLSX.utils.encode_cell({ r: row-1, c: c-1 })
+        ws[addr] = { v: c===2?label:'', t:'s', s:{
+          fill: { fgColor:{rgb:MIDGY}, patternType:'solid' },
+          font: { name:'Calibri', sz:9, bold:true, color:{rgb:'FF666666'} },
+          numFmt:'General', alignment:{horizontal:'left',vertical:'center'},
+          border:{}
+        }}
       }
-      ws[addr] = cell
     }
 
-    ws['!cols'] = [{wch:2.66},{wch:46.33},{wch:5.33},{wch:13.33},{wch:10.66},{wch:11.33},{wch:14.33},{wch:10.66},{wch:35.44},{wch:13},{wch:13},{wch:2.78},{wch:10.89},{wch:12},{wch:2.78}]
-
-    s(2,1,deal.name,{b:true,sz:14}); s(4,1,period||'T12',{b:true,sz:11,z:'[$-409]mmm\\-yy;@'})
-    s(2,2,'BOE Model',{b:true,sz:12}); s(3,2,units,{b:true,sz:10}); s(4,2,'Units',{b:true,sz:11})
-    s(4,3,'Hist Total',  {b:true,sz:10,rgb:GOLD,bg:NAVY}); s(5,3,'% / Per Unit',{b:true,sz:9,rgb:GOLD,bg:NAVY})
-    s(6,3,'Adj',         {b:true,sz:10,rgb:GOLD,bg:NAVY}); s(7,3,'PF Total',    {b:true,sz:10,rgb:GOLD,bg:NAVY})
-    s(8,3,'% / Per Unit',{b:true,sz:9,rgb:GOLD,bg:NAVY}); s(9,3,'Notes',       {b:true,sz:9,rgb:GOLD,bg:NAVY})
-
-    // irow passes actual computed pfv — so lease-up GPR/OI/LTL all export correctly
-    function irow(row: number, label: string, t12v: number, pfv: number, pctRow = false, note = '') {
-      s(2,row,label,{sz:11,z:A2}); s(3,row,'T12',{sz:10,z:A2}); s(4,row,t12v,{sz:11,z:A})
-      s(5,row,pctRow?`=-D${row}/SUM($D$5:$D$6)`:`=D${row}/$C$2`,{sz:10,z:pctRow?'0.0%':A})
-      const adj=pfv-t12v; if(adj!==0) s(6,row,adj,{sz:11,rgb:BLUE,z:A})
-      s(7,row,`=SUM(D${row},F${row})`,{sz:11,z:A})
-      s(8,row,pctRow?`=-G${row}/SUM($G$5:$G$6)`:`=G${row}/$C$2`,{sz:10,z:pctRow?'0.0%':A})
-      if(note) s(9,row,note,{sz:10})
-    }
-    function sub(row: number, label: string, dF: string, gF: string, b=true) {
-      s(2,row,label,{b,sz:11}); s(4,row,dF,{b,sz:11,z:A}); s(5,row,`=D${row}/$C$2`,{b,sz:10,z:A})
-      s(7,row,gF,{b,sz:11,z:A}); s(8,row,`=G${row}/$C$2`,{b,sz:10,z:A})
-    }
-
-    irow(5, 'Gross Potential Rent',            gpr_t, gpr_p, false, notes['gpr']||'')
-    irow(6, '(Loss to Lease) / Gain to Lease', ltl_t, ltl_p, false, notes['ltl']||'')
-    irow(7, 'Vacancy',      vac_t, vac_p, true,  notes['vac']||'')
-    irow(8, 'Bad Debt',     bad_t, bad_p, true,  notes['bad']||'')
-    irow(9, 'Concessions',  conc_t,conc_p,true,  notes['conc']||'')
-    irow(10,'Model Units',  mod_t, mod_p, true,  notes['mod']||'')
-    irow(11,'Employee Units',emp_t,emp_p, true,  notes['emp']||'')
-    sub(12,'Base Rental Revenue','=SUM(D5:D11)','=SUM(G5:G11)')
-    s(2,14,'Other Income',{b:true,sz:11}); s(3,14,'T12',{b:true,sz:10})
-    s(4,14,oi_t,{b:true,sz:11,z:A}); s(5,14,'=D14/$C$2',{b:true,sz:10,z:A})
-    const oiAdj=oi_p-oi_t; if(oiAdj!==0) s(6,14,oiAdj,{sz:11,rgb:BLUE,z:A})
-    s(7,14,'=SUM(D14,F14)',{b:true,sz:11,z:A}); s(8,14,'=G14/$C$2',{b:true,sz:10,z:A})
-    if(notes['oi']) s(9,14,notes['oi'],{sz:10})
-    sub(16,'Effective Gross Revenue','=SUM(D12,D14)','=SUM(G12,G14)')
-
-    // R&M side — rmi values are already $/unit/yr, no *12
-    s(10,17,'R&M:',{b:true,sz:8}); s(13,17,'Payroll:',{b:true,sz:8})
-    s(10,18,'R&M',{b:true,sz:8,z:S});       s(11,18,parseFloat(rmi['rmi-rm']||'750'),{sz:8,rgb:GOLD,z:S})
-    s(10,19,'Contracts',{b:true,sz:8,z:S}); s(11,19,parseFloat(rmi['rmi-ct']||'420'),{sz:8,rgb:GOLD,z:S})
-    s(10,20,'Turnover',{b:true,sz:8,z:S});  s(11,20,parseFloat(rmi['rmi-tu']||'350'),{sz:8,rgb:GOLD,z:S})
-    s(10,21,'Per unit',{b:true,sz:8,z:S});  s(11,21,'=+SUM(K18:K20)',{sz:10,z:A})
-    s(13,18,'Inside / Office',{b:true,sz:8})
-    s(13,19,'Prop Mgr',{sz:8,rgb:GOLD,z:S});   s(14,19,parseFloat(payroll['py-pm']||'0'),{sz:8,rgb:GOLD,z:S})
-    s(13,20,'Assist Mgr',{sz:8,rgb:GOLD,z:S}); s(14,20,parseFloat(payroll['py-am']||'0'),{sz:8,rgb:GOLD,z:S})
-    s(13,21,'Leasing',{sz:8,rgb:GOLD,z:S});    s(14,21,parseFloat(payroll['py-la']||'0'),{sz:8,rgb:GOLD,z:S})
-    // N22 is blank in template but included in SUM(N19:N22) — write 0 so formula is clean
-    ws[XLSX.utils.encode_cell({r:21,c:13})] = {v:0,t:'n',s:{font:{name:'Calibri',sz:8,color:{rgb:NAVY}},numFmt:S}}
-    s(10,23,'Taxes:',{b:true,sz:8}); s(13,23,'Bonus Inside',{sz:8})
-    s(14,23,parseFloat(payroll['py-bi']||'0.25'),{sz:8,rgb:GOLD,z:'0%'})
-    s(10,24,'Ratio',{b:true,sz:8,z:S}); s(11,24,parseFloat(taxHelper['tx-rat']||'0')/100,{sz:8,rgb:GOLD,z:'0%'})
-    s(13,24,'Total Inside',{b:true,sz:8}); s(14,24,'=SUM(N19:N22)+(SUM(N19:N22)*N23)',{b:true,sz:8,z:S})
-    s(10,25,'Millage',{b:true,sz:8,z:S}); s(11,25,parseFloat(taxHelper['tx-mil']||'0')/100,{sz:8,rgb:GOLD,z:'0.0000%'})
-    s(13,25,'Outside / Maintenance',{b:true,sz:8})
-    s(10,26,'Non ad',{b:true,sz:8,z:S}); s(11,26,parseFloat(taxHelper['tx-nad']||'0'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
-    s(10,27,'State Factor',{b:true,sz:8,z:S}); s(11,27,parseFloat(taxHelper['tx-sf']||'100')/100,{sz:8,rgb:GOLD,z:'0%'})
-    s(13,26,'Maint Super',{sz:8,rgb:GOLD,z:S}); s(14,26,parseFloat(payroll['py-ms']||'0'),{sz:8,rgb:GOLD,z:S})
-    s(13,27,'Maint Tech',{sz:8,rgb:GOLD,z:S});  s(14,27,parseFloat(payroll['py-mt']||'0'),{sz:8,rgb:GOLD,z:S})
-    s(10,28,'Insurance',{b:true,sz:8})
-    s(13,28,'Maint Assist',{sz:8,rgb:GOLD,z:S}); s(14,28,parseFloat(payroll['py-ma']||'0'),{sz:8,rgb:GOLD,z:S})
-    s(10,29,'Per Unit',{b:true,sz:8,z:S}); s(11,29,parseFloat(adjs['ins']||'550'),{sz:8,rgb:GOLD,z:'"$"#,##0'})
-    s(13,30,'Bonus Outside',{sz:8}); s(14,30,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:GOLD,z:'0%'})
-    s(13,31,'Total Outside',{b:true,sz:8}); s(14,31,'=SUM(N26:N29)+(SUM(N26:N29)*N30)',{b:true,sz:8,z:S})
-    s(13,32,'Total',{b:true,sz:8});          s(14,32,'=SUM(N24,N31)',{b:true,sz:8,z:S})
-    s(13,33,parseFloat(payroll['py-ben']||'0.325'),{sz:8,rgb:GOLD,z:'0.0%\\ "Burden"'})
-    s(14,33,'=M33*SUM(N19:N22,N26:N29)',{sz:8,z:S})
-    s(13,34,'GRAND TOTAL',{b:true,sz:8}); s(14,34,'=SUM(N32:N33)',{b:true,sz:8,z:S})
-    s(13,35,'Per Unit',{b:true,sz:8});    s(14,35,'=+N34/C2',{sz:10,z:A})
-
-    function erow(row: number, label: string, t12v: number, fAdj: string|null, note='') {
-      s(2,row,label,{sz:11,z:A2}); s(3,row,'T12',{sz:10,z:A2}); s(4,row,t12v,{sz:11,z:A})
-      s(5,row,`=D${row}/$C$2`,{sz:10,z:A})
-      if(fAdj) {
-        const isFormula = fAdj.startsWith('=')
-        if (isFormula) s(6,row,fAdj,{sz:11,rgb:BLUE,z:A})
-        else s(6,row,parseFloat(fAdj),{sz:11,rgb:BLUE,z:A})
+    // ── Income row ────────────────────────────────────────────────────────────
+    // adjPct: the actual value the user typed (e.g. 1.6 for 1.6%)
+    // if blank → PF = T12 (adj=0)
+    function irow(row: number, label: string, t12v: number, pfv: number,
+                  adjPct: number|null, pctRow = false, note = '') {
+      s(2,row, label,  {sz:10, rgb:BLACK})
+      s(3,row, 'T12',  {sz:8,  rgb:'FF999999', align:'center'})
+      s(4,row, t12v,   {sz:10, rgb:BLACK, z:A, align:'right'})
+      // E: $/unit or % depending on row type
+      if (pctRow && t12v !== 0) {
+        s(5,row, `=-D${row}/SUM($D$5:$D$6)`, {sz:9, rgb:'FF888888', z:P, align:'right'})
+      } else {
+        s(5,row, `=D${row}/$C$2`, {sz:9, rgb:'FF888888', z:A, align:'right'})
       }
-      s(7,row,`=SUM(D${row},F${row})`,{sz:11,z:A}); s(8,row,`=G${row}/$C$2`,{sz:10,z:A})
-      if(note) s(9,row,note,{sz:10})
+      // F: adj formula using actual typed pct, or blank if no adj
+      if (adjPct !== null) {
+        if (pctRow) {
+          // e.g. vacancy: =(-3.5%*SUM($G$5:$G$6)-D7)
+          s(6,row, `=(-${adjPct}%*SUM($G$5:$G$6)-D${row})`, {sz:10, rgb:BLUE, z:A, align:'right'})
+        } else {
+          // GPR/LTL: T12 * pct
+          s(6,row, pfv - t12v, {sz:10, rgb:BLUE, z:A, align:'right'})
+        }
+      }
+      // G: PF Total
+      s(7,row, `=SUM(D${row},F${row})`, {sz:10, rgb:BLACK, z:A, align:'right'})
+      // H: PF $/unit or %
+      if (pctRow) {
+        s(8,row, `=-G${row}/SUM($G$5:$G$6)`, {sz:9, rgb:'FF888888', z:P, align:'right'})
+      } else {
+        s(8,row, `=G${row}/$C$2`, {sz:9, rgb:'FF888888', z:A, align:'right'})
+      }
+      if (note) s(9,row, note, {sz:9, rgb:'FF888888', italic:true})
     }
 
-    // Pass actual adj so any dollar adjustment shows in column F
-    const gaAdj  = (v('ga')  ?? 0) !== 0 ? String(v('ga')  ?? 0) : null
-    const mktAdj = (v('mkt') ?? 0) !== 0 ? String(v('mkt') ?? 0) : null
-    erow(18,'General & Administrative',t12.ga,  gaAdj,  notes['ga']||'')
-    erow(19,'Marketing / Advertising', t12.mkt, mktAdj, notes['mkt']||'')
-    erow(20,'Repairs & Maintenance',   t12.rm,  '=($K$21*$C$2)-D20',
+    // ── Subtotal row ──────────────────────────────────────────────────────────
+    function sub(row: number, label: string, dF: string, gF: string) {
+      s(2,row, label,  {b:true, sz:10, rgb:BLACK, bg:LTGRY})
+      s(3,row, '',     {bg:LTGRY})
+      s(4,row, dF,     {b:true, sz:10, rgb:BLACK, bg:LTGRY, z:A, align:'right'})
+      s(5,row, `=D${row}/$C$2`, {sz:9, rgb:'FF888888', bg:LTGRY, z:A, align:'right'})
+      s(6,row, '',     {bg:LTGRY})
+      s(7,row, gF,     {b:true, sz:10, rgb:BLACK, bg:LTGRY, z:A, align:'right'})
+      s(8,row, `=G${row}/$C$2`, {sz:9, rgb:'FF888888', bg:LTGRY, z:A, align:'right'})
+      s(9,row, '',     {bg:LTGRY})
+    }
+
+    // ── Expense row ───────────────────────────────────────────────────────────
+    function erow(row: number, label: string, t12v: number, fAdj: string|number|null, note='') {
+      s(2,row, label, {sz:10, rgb:BLACK})
+      s(3,row, 'T12', {sz:8, rgb:'FF999999', align:'center'})
+      s(4,row, t12v,  {sz:10, rgb:BLACK, z:A, align:'right'})
+      s(5,row, `=D${row}/$C$2`, {sz:9, rgb:'FF888888', z:A, align:'right'})
+      if (fAdj !== null) {
+        if (typeof fAdj === 'string' && fAdj.startsWith('=')) {
+          s(6,row, fAdj, {sz:10, rgb:BLUE, z:A, align:'right'})
+        } else if (typeof fAdj === 'number' && fAdj !== 0) {
+          s(6,row, fAdj, {sz:10, rgb:BLUE, z:A, align:'right'})
+        }
+      }
+      s(7,row, `=SUM(D${row},F${row})`, {sz:10, rgb:BLACK, z:A, align:'right'})
+      s(8,row, `=G${row}/$C$2`, {sz:9, rgb:'FF888888', z:A, align:'right'})
+      if (note) s(9,row, note, {sz:9, rgb:'FF888888', italic:true})
+    }
+
+    // ── Side table helper ─────────────────────────────────────────────────────
+    function side(row: number, label: string, val: any, isInput = true, fmt = 'General') {
+      s(10,row, label, {sz:8, b:true, rgb:'FF555555'})
+      if (val !== null) s(11,row, val, {sz:8, rgb: isInput ? BLUE : BLACK, z:fmt, align:'right'})
+    }
+    function payrow(row: number, label: string, val: number) {
+      s(13,row, label, {sz:8, rgb:'FF555555'})
+      s(14,row, val,   {sz:8, rgb: val > 0 ? BLUE : 'FF999999', z:'#,##0', align:'right'})
+    }
+
+    // ── C2: units ─────────────────────────────────────────────────────────────
+    s(3,2, units, {sz:10, rgb:BLACK})  // will be overwritten by subtitle but stored for formula refs
+
+    // ── INCOME ────────────────────────────────────────────────────────────────
+    sectionHead(4, 'INCOME')
+
+    const vacPct  = v('vac')  !== null ? v('vac')  : null
+    const badPct  = v('bad')  !== null ? v('bad')  : null
+    const concPct = v('conc') !== null ? v('conc') : null
+    const modPct  = v('mod')  !== null ? v('mod')  : null
+    const empPct  = v('emp')  !== null ? v('emp')  : null
+    const gprPct  = v('gpr')  !== null ? v('gpr')  : null
+    const ltlPct  = v('ltl')  !== null ? v('ltl')  : null
+
+    // Store units in C2 properly for formula refs
+    const c2addr = XLSX.utils.encode_cell({r:1,c:2})
+    ws[c2addr] = { v: units, t:'n', s:{ font:{name:'Calibri',sz:10,color:{rgb:BLACK}}, numFmt:'General', fill:{patternType:'none'}, border:{}, alignment:{horizontal:'left'} } }
+
+    irow(5,  'Gross Potential Rent',            gpr_t, gpr_p, gprPct,  false, notes['gpr']||'')
+    irow(6,  '(Loss to Lease) / Gain to Lease', ltl_t, ltl_p, ltlPct,  false, notes['ltl']||'')
+    irow(7,  'Vacancy',      vac_t,  vac_p,  vacPct,  true, notes['vac']||'')
+    irow(8,  'Bad Debt',     bad_t,  bad_p,  badPct,  true, notes['bad']||'')
+    irow(9,  'Concessions',  conc_t, conc_p, concPct, true, notes['conc']||'')
+    irow(10, 'Model Units',  mod_t,  mod_p,  modPct,  true, notes['mod']||'')
+    irow(11, 'Employee Units',emp_t, emp_p,  empPct,  true, notes['emp']||'')
+    sub(12, 'Base Rental Revenue', '=SUM(D5:D11)', '=SUM(G5:G11)')
+
+    // Other Income
+    s(2,13, 'Other Income',  {b:true, sz:10, rgb:BLACK})
+    s(3,13, 'T12',           {sz:8, rgb:'FF999999', align:'center'})
+    s(4,13, oi_t,            {b:true, sz:10, rgb:BLACK, z:A, align:'right'})
+    s(5,13, '=D13/$C$2',     {sz:9, rgb:'FF888888', z:A, align:'right'})
+    const oiAdj = oi_p - oi_t
+    if (oiAdj !== 0) s(6,13, oiAdj, {sz:10, rgb:BLUE, z:A, align:'right'})
+    s(7,13, '=SUM(D13,F13)', {b:true, sz:10, rgb:BLACK, z:A, align:'right'})
+    s(8,13, '=G13/$C$2',     {sz:9, rgb:'FF888888', z:A, align:'right'})
+    if (notes['oi']) s(9,13, notes['oi'], {sz:9, rgb:'FF888888', italic:true})
+
+    // EGR — stronger subtotal
+    for (let c = 1; c <= 9; c++) {
+      const addr = XLSX.utils.encode_cell({r:13,c:c-1})
+      ws[addr] = { v:'', t:'s', s:{ fill:{fgColor:{rgb:'FFEEECEA'},patternType:'solid'}, font:{name:'Calibri',sz:10,bold:true,color:{rgb:BLACK}}, numFmt:'General', border:{bottom:{style:'medium',color:{rgb:'FF0D1B2E'}}}, alignment:{horizontal:'left',vertical:'center'} } }
+    }
+    s(2,14, 'Effective Gross Revenue', {b:true, sz:11, rgb:BLACK, bg:'FFEEECEA'})
+    s(4,14, '=SUM(D12,D13)', {b:true, sz:11, rgb:BLACK, bg:'FFEEECEA', z:A, align:'right'})
+    s(5,14, '=D14/$C$2',     {sz:9, rgb:'FF888888', bg:'FFEEECEA', z:A, align:'right'})
+    s(7,14, '=SUM(G12,G13)', {b:true, sz:11, rgb:BLACK, bg:'FFEEECEA', z:A, align:'right'})
+    s(8,14, '=G14/$C$2',     {sz:9, rgb:'FF888888', bg:'FFEEECEA', z:A, align:'right'})
+
+    // ── EXPENSES ──────────────────────────────────────────────────────────────
+    sectionHead(15, 'CONTROLLABLE EXPENSES')
+
+    const gaAdj  = (v('ga')  ?? 0) !== 0 ? (v('ga') ?? 0) : null
+    const mktAdj = (v('mkt') ?? 0) !== 0 ? (v('mkt') ?? 0) : null
+    erow(16,'General & Administrative', t12.ga,  gaAdj,  notes['ga']||'')
+    erow(17,'Marketing / Advertising',  t12.mkt, mktAdj, notes['mkt']||'')
+    erow(18,'Repairs & Maintenance',    t12.rm,  '=($K$19*$C$2)-D18',
          `$${rmi['rmi-rm']||750}/unit R&M · $${rmi['rmi-ct']||420}/unit Contracts · $${rmi['rmi-tu']||350}/unit Turnover`)
-    erow(21,'Payroll', t12.pay, '=(N35*$C$2)-D21', notes['pay']||'')
-    sub(22,'Controllable Expenses','=SUM(D18:D21)','=SUM(G18:G21)')
-    erow(24,'Property Management Fee',t12.mgt,'=(2.5%*G16)-D24')
-    s(9,24,'=H24/H16',{sz:10,z:'0.0%'})
-    erow(25,'Utlilities',t12.utl,null,notes['utl']||'')
+    erow(19,'Payroll', t12.pay, '=(N33*$C$2)-D19', notes['pay']||'')
+    sub(20,'Controllable Expenses','=SUM(D16:D19)','=SUM(G16:G19)')
 
-    // Tax formula: Current Cycle uses hardcoded AV; Reassess to PP uses D36
+    sectionHead(21, 'NON-CONTROLLABLE EXPENSES')
+
+    erow(22,'Property Management Fee', t12.mgt, '=(2.5%*G14)-D22')
+    s(9,22, '2.5% of EGR', {sz:9, rgb:'FF888888', italic:true})
+    erow(23,'Utilities',        t12.utl, null, notes['utl']||'')
     const avVal = parseFloat(currentAV.replace(/[,$]/g,'')) || 0
-    // Tax formula includes state factor K27; Current Cycle uses hardcoded AV
     const taxFormula = taxMode === 'av' && avVal > 0
-      ? `=(${avVal}*$K$24*$K$25*$K$27)-$D$26+$K$26`
-      : '=($D$36*$K$24*$K$25*$K$27)-$D$26+$K$26'
-    erow(26,'Real Estate Taxes',t12.tax, taxFormula,
+      ? `=(${avVal}*$K$22*$K$23*$K$25)-$D$24+$K$24`
+      : '=($D$34*$K$22*$K$23*$K$25)-$D$24+$K$24'
+    erow(24,'Real Estate Taxes', t12.tax, taxFormula,
          taxMode === 'av' ? 'Current Cycle' : 'Reassess to PP')
+    erow(25,'Misc Taxes',  t12.taxm, null, notes['taxm']||'')
+    erow(26,'Insurance',   t12.ins,  '=($K$27*$C$2)-D26', notes['ins']||'')
+    sub(27,'Non-Controllable Expenses','=SUM(D22:D26)','=SUM(G22:G26)')
+    sub(28,'Operating Expenses','=SUM(D20,D27)','=SUM(G20,G27)')
 
-    erow(27,'Misc Taxes',t12.taxm,null,notes['taxm']||'')
-    erow(28,'Insurance', t12.ins,'=($K$29*$C$2)-D28',notes['ins']||'')
-    sub(29,'Non-Controllable Expenses','=SUM(D24:D28)','=SUM(G24:G28)')
-    sub(31,'Operating Expenses','=SUM(D22,D29)','=SUM(G22,G29)')
+    // ── NOI ───────────────────────────────────────────────────────────────────
+    const noiCols = [1,2,3,4,5,6,7,8,9]
+    noiCols.forEach(c => {
+      const addr = XLSX.utils.encode_cell({r:29,c:c-1})
+      ws[addr] = { v:'', t:'s', s:{ fill:{fgColor:{rgb:NAVY},patternType:'solid'}, font:{name:'Calibri',sz:12,bold:true,color:{rgb:WHITE}}, numFmt:'General', border:{}, alignment:{horizontal:'left',vertical:'center'} } }
+    })
+    s(2,30, 'NET OPERATING INCOME', {b:true, sz:12, rgb:WHITE, bg:NAVY})
+    s(4,30, '=D14-D28', {b:true, sz:12, rgb:WHITE, bg:NAVY, z:A, align:'right'})
+    s(5,30, '=D30/$C$2', {sz:9, rgb:'FFB0B8C4', bg:NAVY, z:A, align:'right'})
+    s(7,30, '=G14-G28', {b:true, sz:12, rgb:GOLD, bg:NAVY, z:A, align:'right'})
+    s(8,30, '=G30/$C$2', {sz:9, rgb:'FFB0B8C4', bg:NAVY, z:A, align:'right'})
+    ;[3,6,9].forEach(c => s(c,30,'',{bg:NAVY}))
 
-    s(2,33,'NET OPERATING INCOME',{b:true,sz:11,rgb:WHITE,bg:NAVY})
-    s(4,33,'=D16-D31',{b:true,sz:11,z:A,rgb:WHITE,bg:NAVY}); s(5,33,'=D33/$C$2',{b:true,sz:10,z:A,rgb:WHITE,bg:NAVY})
-    s(7,33,'=G16-G31',{b:true,sz:11,z:A,rgb:GOLD,bg:NAVY}); s(8,33,'=G33/$C$2',{b:true,sz:10,z:A,rgb:GOLD,bg:NAVY})
+    // ── PRICE + CAP RATE ──────────────────────────────────────────────────────
+    s(2,32, ppLabel+' Price', {b:true, sz:10, rgb:BLACK})
+    s(4,32, pp||0,            {b:true, sz:10, rgb:BLUE, z:'"$"#,##0', align:'right'})
+    s(2,33, 'Per Unit',       {sz:9, rgb:'FF888888'})
+    s(4,33, '=D32/$C$2',      {sz:9, rgb:'FF888888', z:A, align:'right'})
 
-    s(2,36,ppLabel+' Price',{b:true,sz:11}); s(4,36,pp||0,{b:true,sz:11,z:'"$"#,##0'})
-    s(2,37,'Per Unit',{sz:10}); s(4,37,'=D36/C2',{sz:10,z:A})
-    s(4,39,'Non-Adj',{b:true,sz:11}); s(7,39,'Adj',{b:true,sz:11})
-    s(2,40,'Cap Rate',{b:true,sz:11,rgb:NAVY})
-    s(4,40,'=D33/D36',{b:true,sz:12,z:'0.00%',rgb:NAVY})
-    s(7,40,'=G33/D36',{b:true,sz:12,z:'0.00%',rgb:GOLD})
+    // cap rate header labels
+    s(4,35, 'Non-Adj', {b:true, sz:9, rgb:'FF888888', align:'right'})
+    s(7,35, 'Adj',     {b:true, sz:9, rgb:'FF888888', align:'right'})
 
-    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:41,c:14}})
-    XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
+    // cap rate row — styled like a mini-NOI bar
+    ;[1,2,3,4,5,6,7,8,9].forEach(c => {
+      const addr = XLSX.utils.encode_cell({r:35,c:c-1})
+      ws[addr] = { v:'', t:'s', s:{ fill:{fgColor:{rgb:NAVY},patternType:'solid'}, font:{name:'Calibri',sz:12,bold:true,color:{rgb:WHITE}}, numFmt:'General', border:{}, alignment:{horizontal:'left',vertical:'center'} } }
+    })
+    s(2,36, 'Cap Rate',   {b:true, sz:12, rgb:WHITE, bg:NAVY})
+    s(4,36, '=D30/D32',   {b:true, sz:14, rgb:WHITE, bg:NAVY, z:'0.00%', align:'right'})
+    s(7,36, '=G30/D32',   {b:true, sz:14, rgb:GOLD,  bg:NAVY, z:'0.00%', align:'right'})
+    ;[3,5,6,8,9].forEach(c => s(c,36,'',{bg:NAVY}))
+
+    // ── R&M SIDE TABLE ────────────────────────────────────────────────────────
+    s(10,15,'R&M BUILD-UP',{b:true,sz:8,rgb:NAVY})
+    side(16,'R&M ($/unit/yr)',    parseFloat(rmi['rmi-rm']||'750'), true, '#,##0')
+    side(17,'Contracts ($/unit/yr)', parseFloat(rmi['rmi-ct']||'420'), true, '#,##0')
+    side(18,'Turnover ($/unit/yr)',  parseFloat(rmi['rmi-tu']||'350'), true, '#,##0')
+    side(19,'Per unit total', '=+SUM(K16:K18)', false, '#,##0')
+    s(10,21,'TAX BUILD-UP',{b:true,sz:8,rgb:NAVY})
+    side(22,'Ratio %',       parseFloat(taxHelper['tx-rat']||'0')/100, true, '0%')
+    side(23,'Millage %',     parseFloat(taxHelper['tx-mil']||'0')/100, true, '0.0000%')
+    side(24,'Non-Ad Val ($)',parseFloat(taxHelper['tx-nad']||'0'), true, '"$"#,##0')
+    side(25,'State Factor %',parseFloat(taxHelper['tx-sf']||'100')/100, true, '0%')
+    s(10,27,'INSURANCE',{b:true,sz:8,rgb:NAVY})
+    side(27,'Per Unit ($/yr)', parseFloat(adjs['ins']||'550'), true, '"$"#,##0')
+
+    // ── PAYROLL SIDE TABLE ────────────────────────────────────────────────────
+    s(13,15,'PAYROLL BUILD-UP',{b:true,sz:8,rgb:NAVY})
+    s(13,16,'Inside / Office',{sz:8,b:true,rgb:'FF555555'})
+    payrow(17, 'Prop Manager',    parseFloat(payroll['py-pm']||'0'))
+    payrow(18, 'Asst Manager',    parseFloat(payroll['py-am']||'0'))
+    payrow(19, 'Leasing Agent',   parseFloat(payroll['py-la']||'0'))
+    s(13,20,'Bonus Inside',{sz:8,rgb:'FF555555'}); s(14,20,parseFloat(payroll['py-bi']||'0.25'),{sz:8,rgb:BLUE,z:'0%',align:'right'})
+    s(13,21,'Total Inside',{sz:8,b:true,rgb:'FF555555'}); s(14,21,'=SUM(N17:N19)*(1+N20)',{sz:8,rgb:BLACK,z:'#,##0',align:'right'})
+    s(13,22,'Outside / Maint',{sz:8,b:true,rgb:'FF555555'})
+    payrow(23, 'Maint Supervisor',parseFloat(payroll['py-ms']||'0'))
+    payrow(24, 'Maint Tech',      parseFloat(payroll['py-mt']||'0'))
+    payrow(25, 'Maint Asst',      parseFloat(payroll['py-ma']||'0'))
+    s(13,26,'Bonus Outside',{sz:8,rgb:'FF555555'}); s(14,26,parseFloat(payroll['py-bo']||'0.05'),{sz:8,rgb:BLUE,z:'0%',align:'right'})
+    s(13,27,'Total Outside',{sz:8,b:true,rgb:'FF555555'}); s(14,27,'=SUM(N23:N25)*(1+N26)',{sz:8,rgb:BLACK,z:'#,##0',align:'right'})
+    s(13,28,'Benefits %',{sz:8,rgb:'FF555555'}); s(14,28,parseFloat(payroll['py-ben']||'0.325'),{sz:8,rgb:BLUE,z:'0%',align:'right'})
+    s(13,29,'Burden $',{sz:8,rgb:'FF555555'}); s(14,29,'=(N21+N27)*N28',{sz:8,rgb:BLACK,z:'#,##0',align:'right'})
+    s(13,30,'',{bg:LTGRY}); s(14,30,'',{bg:LTGRY})
+    s(13,31,'GRAND TOTAL',{sz:9,b:true,rgb:NAVY}); s(14,31,'=SUM(N21,N27,N29)',{sz:9,b:true,rgb:NAVY,z:'#,##0',align:'right'})
+    s(13,32,'Per Unit',{sz:8,rgb:'FF888888'}); s(14,32,'=N31/$C$2',{sz:8,rgb:'FF888888',z:'#,##0',align:'right'})
+
+    // Store units ref properly
+    ws['!ref'] = XLSX.utils.encode_range({s:{r:0,c:0},e:{r:37,c:14}})
     ;(wb as any).Workbook = { Sheets: [{ showGridLines: 0 }] }
+    XLSX.utils.book_append_sheet(wb, ws, 'Cap Rate Calc')
     const safeName = deal.name.replace(/[^a-zA-Z0-9 ]/g,'').trim()
     XLSX.writeFile(wb, `BOE Model - ${safeName}.xlsx`)
   }
@@ -676,8 +923,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext }
 
   return (
-    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif", display:'flex', alignItems:'flex-start', gap:0 }}>
-      {/* ── Main BOE ── */}
+    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif", display:'flex', alignItems:'flex-start' }}>
       <div style={{ flex:1, minWidth:0 }}>
       {/* KPI Strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
@@ -1023,11 +1269,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </button>
       </div>
 
-      </div>{/* end main BOE */}
-
-      {/* ── Scratch Pad ── */}
-      <div style={{ width:280, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch', fontFamily:"'DM Sans',sans-serif" }}>
-        <ScratchPad savedData={scratchData} onChange={setScratchData} />
+      </div>{/* end BOE */}
+      <div style={{ width:260, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
+        <ScratchPad data={scratchData} onChange={setScratchData} />
       </div>
     </div>
   )
