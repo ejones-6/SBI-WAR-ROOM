@@ -1,10 +1,22 @@
 // app/api/rates/route.ts
 import { NextResponse } from 'next/server'
+import yahooFinance from 'yahoo-finance2'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// ── FRED — reliable fallback for treasuries ───────────────────────────────────
+// ── yahoo-finance2 — handles cookies/crumbs automatically ────────────────────
+async function fetchYF2(symbol: string): Promise<{ close: number; prev: number } | null> {
+  try {
+    const quote = await yahooFinance.quote(symbol, {}, { validateResult: false })
+    const close = quote?.regularMarketPrice
+    const prev  = quote?.regularMarketPreviousClose
+    if (close == null || isNaN(close)) return null
+    return { close, prev: prev ?? close }
+  } catch { return null }
+}
+
+// ── FRED — fallback for treasuries if yahoo-finance2 fails ───────────────────
 async function fetchFred(seriesId: string): Promise<{ close: number; prev: number } | null> {
   try {
     const res = await fetch(
@@ -20,37 +32,6 @@ async function fetchFred(seriesId: string): Promise<{ close: number; prev: numbe
     if (isNaN(close)) return null
     return { close, prev: isNaN(prev) ? close : prev }
   } catch { return null }
-}
-
-// ── Yahoo Finance ─────────────────────────────────────────────────────────────
-async function fetchYahoo(symbol: string): Promise<{ close: number; prev: number } | null> {
-  const HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'application/json, text/plain, */*',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Origin': 'https://finance.yahoo.com',
-    'Referer': 'https://finance.yahoo.com/',
-  }
-  for (const host of ['query1', 'query2']) {
-    try {
-      const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`
-      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' })
-      if (!res.ok) continue
-      const data = await res.json()
-      const closes: number[] = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []
-      const valid = closes.filter((v: number) => v != null && !isNaN(v))
-      if (valid.length >= 2) return { close: valid[valid.length - 1], prev: valid[valid.length - 2] }
-    } catch {}
-  }
-  return null
-}
-
-// ── Treasury: Yahoo primary, FRED fallback ────────────────────────────────────
-// ^FVX and ^TNX return values already in % (e.g. 4.08) — no divide by 10
-async function fetchTreasury(yahooSymbol: string, fredId: string): Promise<{ close: number; prev: number } | null> {
-  const yahoo = await fetchYahoo(yahooSymbol)
-  if (yahoo) return yahoo
-  return fetchFred(fredId)
 }
 
 // ── SOFR — NY Fed primary, FRED fallback ─────────────────────────────────────
@@ -73,21 +54,28 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
   return fetchFred('SOFR')
 }
 
+// ── Treasury: yahoo-finance2 primary, FRED fallback ──────────────────────────
+async function fetchTreasury(yahooSymbol: string, fredId: string): Promise<{ close: number; prev: number } | null> {
+  const yf = await fetchYF2(yahooSymbol)
+  if (yf) return yf
+  return fetchFred(fredId)
+}
+
 export async function GET() {
   const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
     fetchSofr(),
-    fetchTreasury('^FVX', 'DGS5'),   // 5Y: Yahoo real-time, FRED fallback
-    fetchTreasury('^TNX', 'DGS10'),  // 10Y: Yahoo real-time, FRED fallback
-    fetchYahoo('^GSPC'),
-    fetchYahoo('^DJI'),
-    fetchYahoo('BTC-USD'),
-    fetchYahoo('AVB'),
-    fetchYahoo('EQR'),
-    fetchYahoo('MAA'),
-    fetchYahoo('ESS'),
+    fetchTreasury('^FVX', 'DGS5'),
+    fetchTreasury('^TNX', 'DGS10'),
+    fetchYF2('^GSPC'),
+    fetchYF2('^DJI'),
+    fetchYF2('BTC-USD'),
+    fetchYF2('AVB'),
+    fetchYF2('EQR'),
+    fetchYF2('MAA'),
+    fetchYF2('ESS'),
   ])
 
-  // 7Y: interpolate from live 5Y + 10Y (no real-time symbol exists)
+  // 7Y interpolated from live 5Y + 10Y
   const sevenY = (fiveY && tenY) ? {
     close: parseFloat(((fiveY.close + tenY.close) / 2).toFixed(3)),
     prev:  parseFloat(((fiveY.prev  + tenY.prev)  / 2).toFixed(3)),
