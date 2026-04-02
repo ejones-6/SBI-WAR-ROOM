@@ -1,14 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['xlsx'],
+    serverComponentsExternalPackages: ['xlsx', 'yahoo-finance2'],
   },
-  // Force webpack to treat these as server-only
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Prevent server-only modules from being bundled client-side
       config.resolve.alias['@/lib/supabase/server'] = false
     }
+    // Ignore yahoo-finance2 test files that pull in Deno deps
+    config.resolve.alias['@std/testing/mock'] = false
+    config.resolve.alias['@std/testing/bdd'] = false
+    config.resolve.alias['@gadicc/fetch-mock-cache/runtimes/deno.ts'] = false
+    config.resolve.alias['@gadicc/fetch-mock-cache/stores/fs.ts'] = false
     return config
   },
 }
