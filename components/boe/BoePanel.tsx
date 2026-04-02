@@ -135,7 +135,7 @@ function SectionHead({ label }: { label: string }) {
 
 
 // ── Scratch Pad ───────────────────────────────────────────────────────────────
-const SP_COLS = ['A','B']
+const SP_COLS = ['A','B','C','D']
 const SP_ROWS = 40
 
 function evalSP(raw: string, grid: string[][]): string {
@@ -144,7 +144,7 @@ function evalSP(raw: string, grid: string[][]): string {
   if (!raw.startsWith('=') && !raw.startsWith('+')) return raw
   let expr = raw.startsWith('+') ? raw : raw.slice(1)
   expr = expr.toUpperCase()
-  expr = expr.replace(/([A-B])([0-9]+)/g, (_: string, col: string, row: string) => {
+  expr = expr.replace(/([A-D])([0-9]+)/g, (_: string, col: string, row: string) => {
     const c = SP_COLS.indexOf(col)
     const r = parseInt(row) - 1
     if (c < 0 || r < 0 || r >= SP_ROWS || c >= SP_COLS.length) return '0'
@@ -176,7 +176,7 @@ function ScratchPad({ data, onChange }: { data: string[][], onChange: (d: string
 
   function moveTo(r: number, c: number) {
     const nr = Math.max(0, Math.min(SP_ROWS-1, r))
-    const nc = Math.max(0, Math.min(1, c))
+    const nc = Math.max(0, Math.min(3, c))
     setFocus([nr, nc])
     setEditing(false)
     setTimeout(() => getRef(nr, nc)?.focus(), 0)
@@ -337,7 +337,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
   const [scratchData, setScratchData] = useState<string[][]>(
-    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(2).fill(''))
+    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(4).fill(''))
   )
 
   // Only reload state when the deal changes — never on save
@@ -1221,7 +1221,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
       <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
         </div>{/* end rows col */}
-        <div style={{ width:140, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
+        <div style={{ width:260, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
           <ScratchPad data={scratchData} onChange={setScratchData} />
         </div>
       </div>{/* end rows flex */}
