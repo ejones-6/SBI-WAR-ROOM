@@ -53,8 +53,8 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
 export async function GET() {
   const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess, eurusd] = await Promise.all([
     fetchSofr(),
-    fetchFred('DGS5'),
-    fetchFred('DGS10'),
+    fhQuote('^FVX'),   // 5Y Treasury index
+    fhQuote('^TNX'),   // 10Y Treasury index
     fhQuote('SPY'),
     fhQuote('DIA'),
     fhQuote('BINANCE:BTCUSDT'),
