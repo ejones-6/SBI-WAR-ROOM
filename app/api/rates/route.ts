@@ -6,22 +6,28 @@ export const revalidate = 0
 
 // ── Yahoo Finance — equities, REITs, BTC, and treasury indices ───────────────
 async function fetchYahoo(symbol: string): Promise<{ close: number; prev: number } | null> {
-  try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-      cache: 'no-store',
-    })
-    if (!res.ok) return null
-    const data = await res.json()
-    const closes: number[] = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []
-    const valid = closes.filter((v: number) => v != null && !isNaN(v))
-    if (valid.length < 2) return null
-    return { close: valid[valid.length - 1], prev: valid[valid.length - 2] }
-  } catch { return null }
+  const HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Origin': 'https://finance.yahoo.com',
+    'Referer': 'https://finance.yahoo.com/',
+  }
+  const endpoints = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
+  ]
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, { headers: HEADERS, cache: 'no-store' })
+      if (!res.ok) continue
+      const data = await res.json()
+      const closes: number[] = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []
+      const valid = closes.filter((v: number) => v != null && !isNaN(v))
+      if (valid.length >= 2) return { close: valid[valid.length - 1], prev: valid[valid.length - 2] }
+    } catch {}
+  }
+  return null
 }
 
 // ── FRED — treasury yields and SOFR ─────────────────────────────────────────
