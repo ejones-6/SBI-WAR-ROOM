@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Deal, BoeData, BoeT12, BoeAdjs } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -133,181 +133,6 @@ function SectionHead({ label }: { label: string }) {
   return <div style={{ padding:'8px 14px', background:'rgba(13,27,46,0.05)', fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase' }}>{label}</div>
 }
 
-
-// ── Scratch Pad ───────────────────────────────────────────────────────────────
-const SP_COLS = ['A','B','C','D']
-const SP_ROWS = 40
-
-function evalSP(raw: string, grid: string[][]): string {
-  if (!raw) return ''
-  // Support both = and + as formula prefix
-  if (!raw.startsWith('=') && !raw.startsWith('+')) return raw
-  let expr = raw.startsWith('+') ? raw : raw.slice(1)
-  expr = expr.toUpperCase()
-  expr = expr.replace(/([A-D])([0-9]+)/g, (_: string, col: string, row: string) => {
-    const c = SP_COLS.indexOf(col)
-    const r = parseInt(row) - 1
-    if (c < 0 || r < 0 || r >= SP_ROWS || c >= SP_COLS.length) return '0'
-    const v = evalSP(grid[r]?.[c] ?? '', grid)
-    return isNaN(Number(v)) ? '0' : (v || '0')
-  })
-  try {
-    const result = Function('"use strict";return(' + expr + ')')()
-    if (typeof result === 'number') {
-      if (isNaN(result) || !isFinite(result)) return '#ERR'
-      return Math.abs(result) >= 1000
-        ? result.toLocaleString('en-US', { maximumFractionDigits: 2 })
-        : parseFloat(result.toFixed(6)).toString()
-    }
-    return String(result)
-  } catch { return '#ERR' }
-}
-
-function ScratchPad({ data, onChange }: { data: string[][], onChange: (d: string[][]) => void }) {
-  const [grid, setGrid] = useState<string[][]>(data)
-  const [focus, setFocus] = useState<[number,number]>([0,0])
-  const [editing, setEditing] = useState(false)
-  const [editVal, setEditVal] = useState('')
-  const containerRef = React.useRef<HTMLDivElement>(null)
-
-  function getRef(r: number, c: number) {
-    return containerRef.current?.querySelector<HTMLInputElement>(`input[data-sp="${r}-${c}"]`)
-  }
-
-  function moveTo(r: number, c: number) {
-    const nr = Math.max(0, Math.min(SP_ROWS-1, r))
-    const nc = Math.max(0, Math.min(3, c))
-    setFocus([nr, nc])
-    setEditing(false)
-    setTimeout(() => getRef(nr, nc)?.focus(), 0)
-  }
-
-  function commitEdit(r: number, c: number, val: string) {
-    const next = grid.map(row => [...row])
-    next[r][c] = val
-    setGrid(next)
-    onChange(next)
-    setEditing(false)
-  }
-
-  function display(r: number, c: number): string {
-    const raw = grid[r]?.[c] ?? ''
-    const isActive = focus[0]===r && focus[1]===c && editing
-    if (isActive) return editVal
-    if (raw.startsWith('=') || raw.startsWith('+')) return evalSP(raw, grid)
-    return raw
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent, r: number, c: number) {
-    if (editing) {
-      if (e.key === 'Escape') { setEditing(false); setEditVal(grid[r]?.[c]??''); e.preventDefault() }
-      if (e.key === 'Enter') { commitEdit(r, c, editVal); moveTo(r+1, c); e.preventDefault() }
-      if (e.key === 'Tab') { commitEdit(r, c, editVal); moveTo(r, e.shiftKey ? c-1 : c+1); e.preventDefault() }
-      return
-    }
-    // Navigation mode
-    if (e.key === 'ArrowUp')    { moveTo(r-1, c); e.preventDefault() }
-    if (e.key === 'ArrowDown')  { moveTo(r+1, c); e.preventDefault() }
-    if (e.key === 'ArrowLeft')  { moveTo(r, c-1); e.preventDefault() }
-    if (e.key === 'ArrowRight') { moveTo(r, c+1); e.preventDefault() }
-    if (e.key === 'Tab')        { moveTo(r, e.shiftKey ? c-1 : c+1); e.preventDefault() }
-    if (e.key === 'Enter')      { setEditing(true); setEditVal(grid[r]?.[c]??''); e.preventDefault() }
-    if (e.key === 'Delete' || e.key === 'Backspace') { commitEdit(r, c, ''); e.preventDefault() }
-    if (e.key === 'Escape') { e.preventDefault() }
-    // Start typing to enter edit mode
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-      setEditing(true)
-      setEditVal(e.key)
-      e.preventDefault()
-    }
-  }
-
-  const TH: React.CSSProperties = {
-    background:'#f0f0ec', border:'1px solid #ddd', padding:'2px 0',
-    textAlign:'center', fontSize:9, fontWeight:700, color:'#8A9BB0', userSelect:'none' as const
-  }
-
-  const raw = grid[focus[0]]?.[focus[1]] ?? ''
-  const isFormulaPfx = raw.startsWith('=') || raw.startsWith('+')
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%' }} ref={containerRef}>
-      {/* Header */}
-      <div style={{ background:'#0D1B2E', padding:'7px 10px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-        <span style={{ fontSize:9, fontWeight:700, color:'#C9A84C', letterSpacing:'0.15em', textTransform:'uppercase' }}>Scratch Pad</span>
-        <span style={{ fontSize:9, color:'rgba(255,255,255,0.3)' }}>= or + for formulas</span>
-      </div>
-      {/* Formula bar */}
-      <div style={{ padding:'3px 8px', background:'#f7f7f5', borderBottom:'1px solid #e8e8e4', fontSize:10, fontFamily:"'DM Mono',monospace", minHeight:22, display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-        <span style={{ color:'#0D1B2E', fontWeight:700 }}>{SP_COLS[focus[1]]}{focus[0]+1}</span>
-        <span style={{ color:'#8A9BB0' }}>:</span>
-        <span style={{ color: isFormulaPfx ? '#0070C0' : '#0D1B2E' }}>
-          {editing ? editVal : raw}
-        </span>
-      </div>
-      {/* Grid */}
-      <div style={{ overflowY:'auto', flex:1 }}>
-        <table style={{ borderCollapse:'collapse', width:'100%', tableLayout:'fixed' }}>
-          <colgroup>
-            <col style={{ width:20 }}/>
-            <col/><col/><col/><col/>
-          </colgroup>
-          <thead>
-            <tr>
-              <th style={TH}></th>
-              {SP_COLS.map(c => <th key={c} style={TH}>{c}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({length:SP_ROWS}, (_, r) => (
-              <tr key={r}>
-                <td style={{ ...TH, fontSize:9 }}>{r+1}</td>
-                {SP_COLS.map((_, c) => {
-                  const isSelected = focus[0]===r && focus[1]===c
-                  const cellRaw = grid[r]?.[c] ?? ''
-                  const isFormula = cellRaw.startsWith('=') || cellRaw.startsWith('+')
-                  const val = display(r, c)
-                  return (
-                    <td key={c} style={{ border: isSelected ? '2px solid #0070C0' : '1px solid #e8e8e4', padding:0, height:20, background: isSelected ? '#EDF4FF' : 'transparent' }}>
-                      <input
-                        data-sp={`${r}-${c}`}
-                        value={val}
-                        readOnly={!isSelected || !editing}
-                        onChange={e => { if (isSelected && editing) setEditVal(e.target.value) }}
-                        onFocus={() => { setFocus([r,c]); if (!editing) setEditVal(cellRaw) }}
-                        onClick={() => { setFocus([r,c]) }}
-                        onDoubleClick={() => { setEditing(true); setEditVal(cellRaw) }}
-                        onKeyDown={e => handleKeyDown(e, r, c)}
-                        onBlur={() => { if (editing) { commitEdit(r,c,editVal) } }}
-                        style={{
-                          width:'100%', height:'100%', border:'none', outline:'none',
-                          padding:'1px 4px', fontSize:11,
-                          fontFamily:"'DM Mono','Courier New',monospace",
-                          background:'transparent', textAlign:'right',
-                          color: isFormula ? '#0070C0' : '#0D1B2E',
-                          cursor: 'default',
-                          caretColor: isSelected && editing ? 'auto' : 'transparent',
-                        }}
-                      />
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {/* Clear */}
-      <div style={{ padding:'6px 8px', borderTop:'1px solid #e8e8e4', flexShrink:0 }}>
-        <button onClick={() => { const e=Array.from({length:SP_ROWS},()=>Array(4).fill('')); setGrid(e); onChange(e) }}
-          style={{ fontSize:9, padding:'3px 10px', border:'1px solid rgba(13,27,46,0.12)', borderRadius:4, background:'#fff', color:'#8A9BB0', cursor:'pointer', fontFamily:"'DM Sans',sans-serif" }}>
-          Clear
-        </button>
-      </div>
-    </div>
-  )
-}
-
 export default function BoePanel({ deal, boe, onSave }: Props) {
   const units = deal.units ?? 1
   const soldPrice = deal.sold_price ?? 0
@@ -336,9 +161,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [leaseUpMode, setLeaseUpMode] = useState<'stabilized'|'leaseup'>((boe as any)?.lease_up_mode ?? 'stabilized')
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
-  const [scratchData, setScratchData] = useState<string[][]>(
-    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(4).fill(''))
-  )
 
   // Only reload state when the deal changes — never on save
   const justSaved = useRef(false)
@@ -796,7 +618,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     async function handleSave() {
     setSaving(true)
     justSaved.current = true
-    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6, scratch: scratchData }
+    const payload = { deal_name: deal.name, t12, adjs, notes, payroll: payroll as any, rmi: rmi as any, tax_helper: taxHelper as any, period, pf_noi_override: pfNoiOverride !== '' ? parseFloat(pfNoiOverride) : null, noi_badge: noiBadge, tax_mode: taxMode, current_av: currentAV !== '' ? parseFloat(currentAV.replace(/[,$]/g,'')) : null, lease_up_mode: leaseUpMode, avg_rent: avgRent !== '' ? parseFloat(avgRent.replace(/[,$]/g,'')) : null, rent_growth: parseFloat(rentGrowth) || 1.6 }
     await onSave(payload as any)
     if (pp && cap_adj) {
       try {
@@ -1022,8 +844,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
 
       {/* Income */}
-      <div style={{ display:'flex', alignItems:'flex-start' }}>
-        <div style={{ flex:1, minWidth:0 }}>
       <SectionHead label="Income" />
       <Row k="gpr" label="Gross Potential Rent" t12v={gpr_t} pfv={gpr_p} adjType="pct" adjPlaceholder="1.6%" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
       <Row k="ltl" label="(Loss to Lease) / GTL" t12v={ltl_t} pfv={ltl_p} adjType="pct" adjPlaceholder="3%" adjValue={adjs['ltl']??''} noteValue={notes['ltl']??''} {...rowProps} />
@@ -1220,11 +1040,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['taxm']??''} noteValue={notes['taxm']??''} {...rowProps} />
       <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
       <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
-        </div>{/* end rows col */}
-        <div style={{ width:260, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
-          <ScratchPad data={scratchData} onChange={setScratchData} />
-        </div>
-      </div>{/* end rows flex */}
       <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} />
 
       {/* NOI */}
@@ -1274,8 +1089,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           {saving ? 'Saving…' : 'Save BOE'}
         </button>
       </div>
-
-
     </div>
   )
 }
