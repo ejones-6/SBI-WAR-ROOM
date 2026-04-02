@@ -8,7 +8,7 @@ export const revalidate = 0
 // ── yahoo-finance2 — handles cookies/crumbs automatically ────────────────────
 async function fetchYF2(symbol: string): Promise<{ close: number; prev: number } | null> {
   try {
-    const quote = await yahooFinance.quote(symbol, {}, { validateResult: false })
+    const quote = await (yahooFinance.quote as any)(symbol)
     const close = quote?.regularMarketPrice
     const prev  = quote?.regularMarketPreviousClose
     if (close == null || isNaN(close)) return null
