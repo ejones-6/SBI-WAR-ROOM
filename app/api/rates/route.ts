@@ -55,8 +55,8 @@ export async function GET() {
     fetchSofr(),
     fhQuote('^FVX'),   // 5Y Treasury index
     fhQuote('^TNX'),   // 10Y Treasury index
-    fhQuote('SPY'),
-    fhQuote('DIA'),
+    fhQuote('^GSPC'),
+    fhQuote('^DJI'),
     fhQuote('BINANCE:BTCUSDT'),
     fhQuote('AVB'),
     fhQuote('EQR'),
