@@ -135,7 +135,7 @@ function SectionHead({ label }: { label: string }) {
 
 
 // ── Scratch Pad ───────────────────────────────────────────────────────────────
-const SP_COLS = ['A','B','C','D']
+const SP_COLS = ['A','B']
 const SP_ROWS = 40
 
 function evalSP(raw: string, grid: string[][]): string {
@@ -144,10 +144,10 @@ function evalSP(raw: string, grid: string[][]): string {
   if (!raw.startsWith('=') && !raw.startsWith('+')) return raw
   let expr = raw.startsWith('+') ? raw : raw.slice(1)
   expr = expr.toUpperCase()
-  expr = expr.replace(/([A-D])([0-9]+)/g, (_: string, col: string, row: string) => {
+  expr = expr.replace(/([A-B])([0-9]+)/g, (_: string, col: string, row: string) => {
     const c = SP_COLS.indexOf(col)
     const r = parseInt(row) - 1
-    if (c < 0 || r < 0 || r >= SP_ROWS) return '0'
+    if (c < 0 || r < 0 || r >= SP_ROWS || c >= SP_COLS.length) return '0'
     const v = evalSP(grid[r]?.[c] ?? '', grid)
     return isNaN(Number(v)) ? '0' : (v || '0')
   })
@@ -176,7 +176,7 @@ function ScratchPad({ data, onChange }: { data: string[][], onChange: (d: string
 
   function moveTo(r: number, c: number) {
     const nr = Math.max(0, Math.min(SP_ROWS-1, r))
-    const nc = Math.max(0, Math.min(3, c))
+    const nc = Math.max(0, Math.min(1, c))
     setFocus([nr, nc])
     setEditing(false)
     setTimeout(() => getRef(nr, nc)?.focus(), 0)
@@ -337,7 +337,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const [avgRent, setAvgRent] = useState<string>((boe as any)?.avg_rent?.toString() ?? '')
   const [rentGrowth, setRentGrowth] = useState<string>((boe as any)?.rent_growth?.toString() ?? '1.6')
   const [scratchData, setScratchData] = useState<string[][]>(
-    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(4).fill(''))
+    (boe as any)?.scratch ?? Array.from({length:40}, () => Array(2).fill(''))
   )
 
   // Only reload state when the deal changes — never on save
@@ -923,8 +923,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext }
 
   return (
-    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif", display:'flex', alignItems:'flex-start' }}>
-      <div style={{ flex:1, minWidth:0 }}>
+    <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
       {/* KPI Strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', background:'#0D1B2E', padding:'16px 20px', gap:1 }}>
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
@@ -1023,6 +1022,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       </div>
 
       {/* Income */}
+      <div style={{ display:'flex', alignItems:'flex-start' }}>
+        <div style={{ flex:1, minWidth:0 }}>
       <SectionHead label="Income" />
       <Row k="gpr" label="Gross Potential Rent" t12v={gpr_t} pfv={gpr_p} adjType="pct" adjPlaceholder="1.6%" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
       <Row k="ltl" label="(Loss to Lease) / GTL" t12v={ltl_t} pfv={ltl_p} adjType="pct" adjPlaceholder="3%" adjValue={adjs['ltl']??''} noteValue={notes['ltl']??''} {...rowProps} />
@@ -1219,6 +1220,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['taxm']??''} noteValue={notes['taxm']??''} {...rowProps} />
       <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
       <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
+        </div>{/* end rows col */}
+        <div style={{ width:140, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
+          <ScratchPad data={scratchData} onChange={setScratchData} />
+        </div>
+      </div>{/* end rows flex */}
       <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} />
 
       {/* NOI */}
@@ -1269,10 +1275,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </button>
       </div>
 
-      </div>{/* end BOE */}
-      <div style={{ width:260, flexShrink:0, borderLeft:'1px solid rgba(13,27,46,0.1)', display:'flex', flexDirection:'column', alignSelf:'stretch' }}>
-        <ScratchPad data={scratchData} onChange={setScratchData} />
-      </div>
+
     </div>
   )
 }
