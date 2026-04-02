@@ -21,6 +21,22 @@ async function fetchFinnhub(symbol: string): Promise<{ close: number; prev: numb
   } catch { return null }
 }
 
+// ── Finnhub Forex ────────────────────────────────────────────────────────────
+async function fetchForex(from: string, to: string): Promise<{ close: number; prev: number } | null> {
+  try {
+    const res = await fetch(
+      `https://finnhub.io/api/v1/forex/candle?symbol=OANDA:${from}_${to}&resolution=D&count=2&token=${FINNHUB_KEY}`,
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return null
+    const d = await res.json()
+    if (d.s !== 'ok' || !d.c?.length) return null
+    const close = d.c[d.c.length - 1]
+    const prev  = d.c[d.c.length - 2] ?? close
+    return { close, prev }
+  } catch { return null }
+}
+
 // ── FRED — treasuries fallback ────────────────────────────────────────────────
 async function fetchFred(seriesId: string): Promise<{ close: number; prev: number } | null> {
   try {
@@ -72,16 +88,16 @@ export async function GET() {
   // REITs and BTC use standard tickers
   const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess, eurusd] = await Promise.all([
     fetchSofr(),
-    fetchTreasury('^FVX', 'DGS5'),
-    fetchTreasury('^TNX', 'DGS10'),
-    fetchFinnhub('^GSPC'),
-    fetchFinnhub('^DJI'),
+    fetchFred('DGS5'),
+    fetchFred('DGS10'),
+    fetchFinnhub('SPY'),
+    fetchFinnhub('DIA'),
     fetchFinnhub('BINANCE:BTCUSDT'),
     fetchFinnhub('AVB'),
     fetchFinnhub('EQR'),
     fetchFinnhub('MAA'),
     fetchFinnhub('ESS'),
-    fetchFinnhub('OANDA:EUR_USD'),
+    fetchForex('EUR', 'USD'),
   ])
 
   // 7Y interpolated from 5Y + 10Y
