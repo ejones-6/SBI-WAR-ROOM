@@ -449,6 +449,7 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
             <TickerRow label="S&P 500" value={fmtPrice(rates?.sp500?.price)} change={fmtDelta(rates?.sp500?.change)} pct={fmtPct(rates?.sp500?.pct)} loading={ratesLoading} />
             <TickerRow label="DOW" value={fmtPrice(rates?.dow?.price, 0)} change={fmtDelta(rates?.dow?.change)} pct={fmtPct(rates?.dow?.pct)} loading={ratesLoading} />
             <TickerRow label="BTC" value={rates?.btc?.price != null ? `$${Number(rates.btc.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} change={fmtDelta(rates?.btc?.change)} pct={fmtPct(rates?.btc?.pct)} loading={ratesLoading} />
+            <TickerRow label="EUR/USD" value={rates?.eurusd?.price != null ? Number(rates.eurusd.price).toFixed(4) : '—'} change={fmtDelta(rates?.eurusd?.change, 4)} pct={fmtPct(rates?.eurusd?.pct)} loading={ratesLoading} />
           </div>
           <div style={{ padding: '12px 18px' }}>
             <div style={secLabel}>Multifamily REITs</div>

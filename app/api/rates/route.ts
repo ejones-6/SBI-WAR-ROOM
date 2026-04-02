@@ -1,22 +1,27 @@
 // app/api/rates/route.ts
 import { NextResponse } from 'next/server'
-import yahooFinance from 'yahoo-finance2'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-// ── yahoo-finance2 — handles cookies/crumbs automatically ────────────────────
-async function fetchYF2(symbol: string): Promise<{ close: number; prev: number } | null> {
+const FINNHUB_KEY = 'd778f7pr01qp6afkknjgd778f7pr01qp6afkknk0'
+
+// ── Finnhub — reliable, real-time, works from Vercel ─────────────────────────
+async function fetchFinnhub(symbol: string): Promise<{ close: number; prev: number } | null> {
   try {
-    const quote = await (yahooFinance.quote as any)(symbol)
-    const close = quote?.regularMarketPrice
-    const prev  = quote?.regularMarketPreviousClose
-    if (close == null || isNaN(close)) return null
-    return { close, prev: prev ?? close }
+    const res = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`,
+      { cache: 'no-store' }
+    )
+    if (!res.ok) return null
+    const d = await res.json()
+    // c = current price, pc = previous close
+    if (!d.c || d.c === 0) return null
+    return { close: d.c, prev: d.pc ?? d.c }
   } catch { return null }
 }
 
-// ── FRED — fallback for treasuries if yahoo-finance2 fails ───────────────────
+// ── FRED — treasuries fallback ────────────────────────────────────────────────
 async function fetchFred(seriesId: string): Promise<{ close: number; prev: number } | null> {
   try {
     const res = await fetch(
@@ -54,28 +59,32 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
   return fetchFred('SOFR')
 }
 
-// ── Treasury: yahoo-finance2 primary, FRED fallback ──────────────────────────
-async function fetchTreasury(yahooSymbol: string, fredId: string): Promise<{ close: number; prev: number } | null> {
-  const yf = await fetchYF2(yahooSymbol)
-  if (yf) return yf
+// ── Treasury: Finnhub primary, FRED fallback ──────────────────────────────────
+// Finnhub uses different symbols for treasury indices
+async function fetchTreasury(finnhubSymbol: string, fredId: string): Promise<{ close: number; prev: number } | null> {
+  const fh = await fetchFinnhub(finnhubSymbol)
+  if (fh) return fh
   return fetchFred(fredId)
 }
 
 export async function GET() {
-  const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess] = await Promise.all([
+  // Finnhub symbols: ^FVX=5Y, ^TNX=10Y, ^GSPC=S&P, ^DJI=Dow
+  // REITs and BTC use standard tickers
+  const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess, eurusd] = await Promise.all([
     fetchSofr(),
     fetchTreasury('^FVX', 'DGS5'),
     fetchTreasury('^TNX', 'DGS10'),
-    fetchYF2('^GSPC'),
-    fetchYF2('^DJI'),
-    fetchYF2('BTC-USD'),
-    fetchYF2('AVB'),
-    fetchYF2('EQR'),
-    fetchYF2('MAA'),
-    fetchYF2('ESS'),
+    fetchFinnhub('^GSPC'),
+    fetchFinnhub('^DJI'),
+    fetchFinnhub('BINANCE:BTCUSDT'),
+    fetchFinnhub('AVB'),
+    fetchFinnhub('EQR'),
+    fetchFinnhub('MAA'),
+    fetchFinnhub('ESS'),
+    fetchFinnhub('OANDA:EUR_USD'),
   ])
 
-  // 7Y interpolated from live 5Y + 10Y
+  // 7Y interpolated from 5Y + 10Y
   const sevenY = (fiveY && tenY) ? {
     close: parseFloat(((fiveY.close + tenY.close) / 2).toFixed(3)),
     prev:  parseFloat(((fiveY.prev  + tenY.prev)  / 2).toFixed(3)),
@@ -103,5 +112,6 @@ export async function GET() {
     eqr:    price(eqr),
     maa:    price(maa),
     ess:    price(ess),
+    eurusd: price(eurusd),
   })
 }
