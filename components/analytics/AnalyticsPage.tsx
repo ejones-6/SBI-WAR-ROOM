@@ -7,6 +7,7 @@ interface Props {
   deals: Deal[]
   boeMap: Record<string, BoeData>
   capRateMap: Record<string, CapRate>
+  onOpenDeal?: (deal: Deal) => void
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -633,7 +634,7 @@ function BoeBenchmarking({ deals, boeMap, capRateMap }: { deals: Deal[]; boeMap:
 }
 
 // ── 7. Market Comp Tracker ────────────────────────────────────────────────────
-function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
+function MarketCompTracker({ deals, capRateMap, onOpenDeal }: { deals: Deal[]; capRateMap: Record<string, CapRate>; onOpenDeal?: (deal: Deal) => void }) {
   const [marketFilter, setMarketFilter] = useState('all')
   const [search, setSearch] = useState('')
 
@@ -712,7 +713,7 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: NAVY }}>
-                {['Deal', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer', 'Yr 1 Cap (Adj)', 'Updated'].map(h => (
+                {['Deal', 'Units', 'Yr Built', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer', 'Yr 1 Cap (Adj)', 'Updated'].map(h => (
                   <th key={h} style={{ padding: '8px 14px', textAlign: 'left', color: SBI_ORANGE, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -721,13 +722,17 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
               {filtered.slice(0, 50).map((d, i) => {
                 const isRecent = d.modified && (Date.now() - new Date(d.modified).getTime()) < 7 * 24 * 60 * 60 * 1000
                 return (
-                  <tr key={d.id} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: isRecent ? 'rgba(201,168,76,0.08)' : i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '8px 14px', fontWeight: 600, color: NAVY, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <tr key={d.id} onClick={() => onOpenDeal?.(d)} style={{ borderBottom: '1px solid rgba(13,27,46,0.05)', background: isRecent ? 'rgba(201,168,76,0.08)' : i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)', transition: 'background 0.2s', cursor: onOpenDeal ? 'pointer' : 'default' }}
+                    onMouseEnter={e => { if(onOpenDeal) e.currentTarget.style.background = 'rgba(13,27,46,0.04)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = isRecent ? 'rgba(201,168,76,0.08)' : i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.01)' }}>
+                    <td style={{ padding: '8px 14px', fontWeight: 600, color: NAVY, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         {isRecent && <span style={{ fontSize: 8, fontWeight: 800, color: '#8A6500', background: 'rgba(201,168,76,0.2)', padding: '1px 5px', borderRadius: 3, letterSpacing: '0.1em', flexShrink: 0 }}>NEW</span>}
                         {d.name}
                       </div>
                     </td>
+                    <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap', fontFamily: "'DM Mono',monospace" }}>{d.units ?? '—'}</td>
+                    <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap', fontFamily: "'DM Mono',monospace" }}>{d.year_built ?? '—'}</td>
                     <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap' }}>{d.market}</td>
                     <td style={{ padding: '8px 14px', color: MUTED, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.purchase_price)}</td>
                     <td style={{ padding: '8px 14px', color: NAVY, fontWeight: 600, fontFamily: "'DM Mono',monospace" }}>{fmtShort(d.sold_price)}</td>
@@ -776,7 +781,7 @@ export default function AnalyticsPage({ deals, boeMap, capRateMap }: Props) {
 
       {/* Row 3: Market Comp Tracker — full width */}
       <div style={{ marginBottom: 16 }}>
-        <MarketCompTracker deals={deals} capRateMap={capRateMap} />
+        <MarketCompTracker deals={deals} capRateMap={capRateMap} onOpenDeal={onOpenDeal} />
       </div>
     </div>
   )

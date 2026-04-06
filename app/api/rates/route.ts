@@ -10,7 +10,7 @@ async function fhQuote(symbol: string): Promise<{ close: number; prev: number } 
   try {
     const res = await fetch(
       `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FH}`,
-      { cache: 'no-store', signal: AbortSignal.timeout(4000) }
+      { cache: 'no-store', signal: AbortSignal.timeout(5000) }
     )
     if (!res.ok) return null
     const d = await res.json()
@@ -23,7 +23,7 @@ async function fetchFred(id: string): Promise<{ close: number; prev: number } | 
   try {
     const res = await fetch(
       `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${id}`,
-      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(4000) }
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) }
     )
     if (!res.ok) return null
     const lines = (await res.text()).trim().split('\n').filter(l => l && !l.startsWith('DATE') && !l.includes('ND'))
@@ -38,7 +38,7 @@ async function fetchFred(id: string): Promise<{ close: number; prev: number } | 
 async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
   try {
     const res = await fetch('https://markets.newyorkfed.org/api/rates/sofr/last/2.json',
-      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(4000) })
+      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) })
     if (!res.ok) return null
     const rates = (await res.json())?.refRates
     if (rates?.length >= 2) {
@@ -53,16 +53,16 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
 export async function GET() {
   const [sofr, fiveY, tenY, sp500, dow, btc, avb, eqr, maa, ess, eurusd] = await Promise.all([
     fetchSofr(),
-    fhQuote('^FVX'),   // 5Y Treasury index
-    fhQuote('^TNX'),   // 10Y Treasury index
-    fhQuote('^GSPC'),
-    fhQuote('^DJI'),
-    fhQuote('BINANCE:BTCUSDT'),
-    fhQuote('AVB'),
+    fetchFred('DGS5'),    // 5Y Treasury — daily
+    fetchFred('DGS10'),   // 10Y Treasury — daily
+    fhQuote('^GSPC'),     // S&P 500 — real time
+    fhQuote('^DJI'),      // Dow — real time
+    fhQuote('BINANCE:BTCUSDT'), // BTC — real time
+    fhQuote('AVB'),       // REITs — real time
     fhQuote('EQR'),
     fhQuote('MAA'),
     fhQuote('ESS'),
-    fhQuote('OANDA:EUR_USD'),
+    fhQuote('OANDA:EUR_USD'), // EUR/USD — real time
   ])
 
   const sevenY = (fiveY && tenY) ? {

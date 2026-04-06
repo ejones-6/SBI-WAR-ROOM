@@ -416,7 +416,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             <PipelinePage deals={deals} onOpenDeal={setSelectedDeal} onSaveDeal={saveDeal} />
           )}
           {page === 'analytics' && (
-            <AnalyticsPage deals={deals} boeMap={boeMap} capRateMap={capRateMap} />
+            <AnalyticsPage deals={deals} boeMap={boeMap} capRateMap={capRateMap} onOpenDeal={setSelectedDeal} />
           )}
           {page === 'map' && (
             <div style={{ height: '100%' }}>
