@@ -80,7 +80,10 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
   return (
     <div style={{ display:'grid', gridTemplateColumns: isMobile ? '100px 72px 48px 72px' : COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
       <div style={{ fontSize: isMobile?10:12, color:'#334155', paddingLeft: isMobile?6:14, paddingRight:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{isMobile?(abbrev[label]??label):label}</div>
-      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', paddingRight: isMobile?4:8 }}>{fmt(t12v)}</div>
+      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', paddingRight: isMobile?4:8 }}>
+        {fmt(t12v)}
+        {isMobile && isNeg && pctT > 0 && <div style={{ fontSize:8, color:'#E57373', lineHeight:1 }}>{fmtPct(pctT)}</div>}
+      </div>
       {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>}
       {!isMobile && <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>{isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}</div>}
       <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
@@ -99,7 +102,10 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
           data-adj-key={k}
           style={{ width:'100%', padding: isMobile?'2px 3px':'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize: isMobile?9:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
       </div>
-      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight: isMobile?4:8 }}>{fmt(pfv)}</div>
+      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight: isMobile?4:8 }}>
+        {fmt(pfv)}
+        {isMobile && isNeg && pctP > 0 && <div style={{ fontSize:8, color:'#E57373', lineHeight:1 }}>{fmtPct(pctP)}</div>}
+      </div>
       {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>}
       {note && !isMobile && <div style={{ padding:'2px 6px 2px 4px' }}>
         <input type="text" tabIndex={-1} value={noteValue} onChange={e => onNoteChange(k as string, e.target.value)}
