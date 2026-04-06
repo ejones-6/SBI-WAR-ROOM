@@ -38,6 +38,13 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   const nameInputRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   function regionFromMarket(market: string | null | undefined): Region | '' {
     if (!market) return ''
@@ -117,13 +124,13 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   const labelStyle = { display: 'block' as const, fontSize: 10, fontWeight: 600 as const, color: '#8A9BB0', letterSpacing: '0.1em', textTransform: 'uppercase' as const, marginBottom: 5 }
 
   return (
-    <div style={{ position:'fixed', inset:0, background:'rgba(13,27,46,0.55)', zIndex:2000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+    <div style={{ position:'fixed', inset:0, background:'rgba(13,27,46,0.55)', zIndex:2000, display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}
       onClick={onClose}>
-      <div style={{ background:'#fff', borderRadius:16, width:'min(1080px,96vw)', maxHeight:'94vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+      <div style={{ background:'#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, width: isMobile ? '100vw' : 'min(1080px,96vw)', height: isMobile ? '92vh' : 'auto', maxHeight: isMobile ? '92vh' : '94vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div style={{ padding:'20px 28px 0', borderBottom:'1px solid rgba(13,27,46,0.08)', flexShrink:0 }}>
+        <div style={{ padding: isMobile ? '14px 16px 0' : '20px 28px 0', borderBottom:'1px solid rgba(13,27,46,0.08)', flexShrink:0 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
             <div style={{ flex:1, minWidth:0, paddingRight:16 }}>
               {/* Editable deal name */}
@@ -147,7 +154,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                     rel="noopener noreferrer"
                     title="Search on Google Maps"
                     onClick={e => e.stopPropagation()}
-                    style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:22, fontWeight:700, color:'#0D1B2E', textDecoration:'none', display:'inline-block' }}
+                    style={{ fontFamily:"'Cormorant Garamond',serif", fontSize: isMobile ? 17 : 22, fontWeight:700, color:'#0D1B2E', textDecoration:'none', display:'inline-block' }}
                     onMouseEnter={e => (e.currentTarget.style.color = '#C9A84C')}
                     onMouseLeave={e => (e.currentTarget.style.color = '#0D1B2E')}
                   >
@@ -162,7 +169,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
             </div>
             <div style={{ display:'flex', alignItems:'flex-start', gap:12, flexShrink:0 }}>
               {/* Property photo */}
-              <div style={{ width:160, height:100, borderRadius:10, overflow:'hidden', background:'rgba(13,27,46,0.08)', flexShrink:0, position:'relative' }}>
+              <div style={{ width: isMobile ? 60 : 160, height: isMobile ? 60 : 100, borderRadius:10, overflow:'hidden', background:'rgba(13,27,46,0.08)', flexShrink:0, position:'relative' }}>
                 <img
                   src={`https://maps.googleapis.com/maps/api/streetview?size=320x200&location=${encodeURIComponent((form as any).address || editName + ' ' + (deal.market ?? ''))}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? ''}&source=outdoor`}
                   alt={editName}
@@ -224,8 +231,8 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
         {/* Body */}
         <div style={{ flex:1, overflowY:'auto' }}>
           {tab === 'details' && (
-            <div style={{ padding:'24px 28px' }}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+            <div style={{ padding: isMobile ? '16px' : '24px 28px' }}>
+              <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? 12 : 16 }}>
                 {/* Status */}
                 <div style={{ gridColumn:'span 1' }}>
                   <label style={labelStyle}>Status</label>
