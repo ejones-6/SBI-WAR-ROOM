@@ -229,7 +229,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
         </div>
 
         {/* Body */}
-        <div style={{ flex:1, overflowY:'auto', overflowX: 'auto' }}>
+        <div style={{ flex:1, overflowY:'auto', overflowX: tab === 'boe' ? 'auto' : 'hidden' }}>
           {tab === 'details' && (
             <div style={{ padding: isMobile ? '16px' : '24px 28px' }}>
               <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? 12 : 16 }}>
