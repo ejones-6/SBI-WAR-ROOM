@@ -126,7 +126,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   return (
     <div style={{ position:'fixed', inset:0, background:'rgba(13,27,46,0.55)', zIndex:2000, display:'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent:'center', padding: isMobile ? 0 : 16 }}
       onClick={onClose}>
-      <div style={{ background:'#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, width: isMobile ? '100vw' : 'min(1080px,96vw)', height: isMobile ? '92vh' : 'auto', maxHeight: isMobile ? '92vh' : '94vh', display:'flex', flexDirection:'column', overflow:'hidden' }}
+      <div style={{ background:'#fff', borderRadius: isMobile ? '16px 16px 0 0' : 16, width: isMobile ? '100vw' : 'min(1080px,96vw)', height: isMobile ? '92vh' : 'auto', maxHeight: isMobile ? '92vh' : '94vh', display:'flex', flexDirection:'column', overflow: 'hidden' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
@@ -229,7 +229,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
         </div>
 
         {/* Body */}
-        <div style={{ flex:1, overflowY:'auto' }}>
+        <div style={{ flex:1, overflowY:'auto', overflowX: 'auto' }}>
           {tab === 'details' && (
             <div style={{ padding: isMobile ? '16px' : '24px 28px' }}>
               <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: isMobile ? 12 : 16 }}>

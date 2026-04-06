@@ -755,8 +755,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
   return (
     <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
+      <div style={{ minWidth: isMobile ? 680 : 'auto', overflowX: isMobile ? 'auto' : 'visible' } as any}>
       {/* KPI Strip */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile ? '12px 14px' : '16px 20px', gap:1, position: isMobile ? 'sticky' : 'static', top:0, zIndex:10 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile ? '12px 14px' : '16px 20px', gap:1, position: 'static' }}>
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>T12 NOI</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{pp ? fmt(noi_t) : '—'}</div>
@@ -1102,6 +1103,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           {saving ? 'Saving…' : 'Save BOE'}
         </button>
       </div>
+      </div>{/* end mobile scroll */}
     </div>
   )
 }
