@@ -712,7 +712,7 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: NAVY }}>
-                {['Deal', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer', 'Updated'].map(h => (
+                {['Deal', 'Market', 'Guidance', 'Sold', 'Delta', 'Seller', 'Buyer', 'Yr 1 Cap (Adj)', 'Updated'].map(h => (
                   <th key={h} style={{ padding: '8px 14px', textAlign: 'left', color: SBI_ORANGE, fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -736,6 +736,9 @@ function MarketCompTracker({ deals, capRateMap }: { deals: Deal[]; capRateMap: R
                     </td>
                     <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.seller || '—'}</td>
                     <td style={{ padding: '8px 14px', color: MUTED, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.buyer || '—'}</td>
+                    <td style={{ padding: '8px 14px', fontWeight: 600, fontFamily: "'DM Mono',monospace", color: NAVY, whiteSpace: 'nowrap' }}>
+                      {d.cr?.noi_cap_rate ? `${Number(d.cr.noi_cap_rate).toFixed(2)}%` : ''}
+                    </td>
                     <td style={{ padding: '8px 14px', color: MUTED, whiteSpace: 'nowrap', fontSize: 11 }}>{d.modified ? new Date(d.modified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'}</td>
                   </tr>
                 )
@@ -771,9 +774,8 @@ export default function AnalyticsPage({ deals, boeMap, capRateMap }: Props) {
         <VintageProfile deals={deals} capRateMap={capRateMap} />
       </div>
 
-      {/* Row 3: BOE Benchmarking + Market Comp Tracker */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-        <BoeBenchmarking deals={deals} boeMap={boeMap} capRateMap={capRateMap} />
+      {/* Row 3: Market Comp Tracker — full width */}
+      <div style={{ marginBottom: 16 }}>
         <MarketCompTracker deals={deals} capRateMap={capRateMap} />
       </div>
     </div>
