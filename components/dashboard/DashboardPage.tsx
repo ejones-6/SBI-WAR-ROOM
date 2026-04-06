@@ -449,7 +449,8 @@ export default function DashboardPage({ deals, capRateMap, boeMap, onOpenDeal }:
             <TickerRow label="S&P 500" value={rates?.sp500?.price != null ? `$${Number(rates.sp500.price * 10).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} change={fmtDelta(rates?.sp500?.change)} pct={fmtPct(rates?.sp500?.pct)} loading={ratesLoading} />
             <TickerRow label="DOW" value={rates?.dow?.price != null ? `$${Number(rates.dow.price * 100).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} change={fmtDelta(rates?.dow?.change)} pct={fmtPct(rates?.dow?.pct)} loading={ratesLoading} />
             <TickerRow label="BTC" value={rates?.btc?.price != null ? `$${Number(rates.btc.price).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'} change={fmtDelta(rates?.btc?.change)} pct={fmtPct(rates?.btc?.pct)} loading={ratesLoading} />
-            <TickerRow label="EUR/USD" value={rates?.eurusd?.price != null ? Number(rates.eurusd.price).toFixed(4) : '—'} change={fmtDelta(rates?.eurusd?.change, 4)} pct={fmtPct(rates?.eurusd?.pct)} loading={ratesLoading} />
+            <TickerRow label="EUR → USD" value={rates?.eurusd?.price != null ? Number(rates.eurusd.price).toFixed(4) : '—'} change={fmtDelta(rates?.eurusd?.change, 4)} pct={fmtPct(rates?.eurusd?.pct)} loading={ratesLoading} />
+            <TickerRow label="USD → EUR" value={rates?.eurusd?.price != null ? Number(1 / rates.eurusd.price).toFixed(4) : '—'} change={rates?.eurusd?.price != null && rates?.eurusd?.change ? fmtDelta(-(rates.eurusd.change / (rates.eurusd.price * rates.eurusd.price)), 4) : '—'} pct={rates?.eurusd?.pct != null ? fmtPct(-rates.eurusd.pct) : '—'} loading={ratesLoading} />
           </div>
           <div style={{ padding: '12px 18px' }}>
             <div style={secLabel}>Multifamily REITs</div>
