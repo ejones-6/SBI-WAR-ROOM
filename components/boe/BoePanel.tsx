@@ -100,7 +100,7 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
             }
           }}
           data-adj-key={k}
-          style={{ width:'100%', padding: isMobile?'2px 3px':'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize: isMobile?9:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
+          style={{ width:'100%', padding: isMobile?'2px 3px':'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize: isMobile?'16px':'11px', fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
       </div>
       <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight: isMobile?4:8 }}>
         {fmt(pfv)}

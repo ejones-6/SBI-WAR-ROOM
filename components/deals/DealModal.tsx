@@ -93,7 +93,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
       status: form.status,
       purchase_price: pp,
       units: u,
-      year_built: parseInt(form.year_built) || null,
+      year_built: form.year_built?.trim() || null,
       broker: form.broker || null,
       bid_due_date: form.bid_due_date || null,
       price_per_unit: ppu,
@@ -252,7 +252,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                 </div>
 
                 <div><label style={labelStyle}>Year Built</label>
-                  <input style={inputStyle} type="number" value={form.year_built} onChange={e => setForm(p => ({...p, year_built:e.target.value}))} /></div>
+                  <input style={inputStyle} type="text" placeholder="e.g. 2000 / 2023" value={form.year_built} onChange={e => setForm(p => ({...p, year_built:e.target.value}))} /></div>
 
                 <div><label style={labelStyle}>Broker</label>
                   <input style={inputStyle} type="text" value={form.broker} onChange={e => setForm(p => ({...p, broker:e.target.value}))} /></div>

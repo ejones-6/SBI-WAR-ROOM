@@ -108,7 +108,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
       name: newDeal.name, market: newDeal.market,
       address,
       units: newDeal.units ? parseInt(newDeal.units) : null,
-      year_built: newDeal.yearBuilt ? parseInt(newDeal.yearBuilt) : null,
+      year_built: newDeal.yearBuilt?.trim() || null,
       purchase_price: newDeal.purchasePrice ? parseFloat(newDeal.purchasePrice) : null,
       price_per_unit: (newDeal.purchasePrice && newDeal.units) ? Math.round(parseFloat(newDeal.purchasePrice) / parseInt(newDeal.units)) : null,
       status: newDeal.status, broker: newDeal.broker || null,
