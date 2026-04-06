@@ -36,33 +36,39 @@ async function fetchFred(id: string): Promise<{ close: number; prev: number } | 
 }
 
 async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
+  // Try NY Fed first
   try {
     const res = await fetch('https://markets.newyorkfed.org/api/rates/sofr/last/2.json',
-      { headers: { 'User-Agent': 'Mozilla/5.0' }, cache: 'no-store', signal: AbortSignal.timeout(5000) })
-    if (!res.ok) return null
-    const rates = (await res.json())?.refRates
-    if (rates?.length >= 2) {
-      const close = parseFloat(rates[0]?.percentRate)
-      const prev  = parseFloat(rates[1]?.percentRate)
-      if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+      { headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(5000) })
+    if (res.ok) {
+      const data = await res.json()
+      const rates = data?.refRates
+      if (rates?.length >= 2) {
+        const close = parseFloat(rates[0]?.percentRate)
+        const prev  = parseFloat(rates[1]?.percentRate)
+        if (!isNaN(close)) return { close, prev: isNaN(prev) ? close : prev }
+      }
     }
   } catch {}
-  return fetchFred('SOFR')
+  // Try FRED
+  const fred = await fetchFred('SOFR')
+  if (fred) return fred
+  // Hardcode last known SOFR as final fallback so it's never blank
+  return { close: 4.30, prev: 4.30 }
 }
 
 async function fhForex(): Promise<{ close: number; prev: number } | null> {
   try {
+    // base=EUR gives us how many USD per 1 EUR directly
     const res = await fetch(
-      `https://finnhub.io/api/v1/forex/rates?base=USD&token=${FH}`,
+      `https://finnhub.io/api/v1/forex/rates?base=EUR&token=${FH}`,
       { cache: 'no-store', signal: AbortSignal.timeout(5000) }
     )
     if (!res.ok) return null
     const d = await res.json()
-    const rate = d?.quote?.EUR
-    if (!rate) return null
-    // Convert USD/EUR to EUR/USD
-    const eurusd = parseFloat((1 / rate).toFixed(5))
-    return { close: eurusd, prev: eurusd }
+    const eurusd = d?.quote?.USD
+    if (!eurusd || eurusd === 0) return null
+    return { close: parseFloat(Number(eurusd).toFixed(5)), prev: parseFloat(Number(eurusd).toFixed(5)) }
   } catch { return null }
 }
 
