@@ -141,6 +141,13 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const pp = soldPrice > 0 ? soldPrice : (deal.purchase_price ?? 0)
   const ppLabel = soldPrice > 0 ? 'Sold Price' : 'Ask Price'
 
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [t12, setT12] = useState<BoeT12>(boe?.t12 && Object.keys(boe.t12).length ? boe.t12 : EMPTY_T12)
   const [adjs, setAdjs] = useState<BoeAdjs>(boe?.adjs ?? DEFAULT_ADJS)
   const [notes, setNotes] = useState<Record<string,string>>(boe?.notes ?? {})
