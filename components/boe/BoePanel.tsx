@@ -46,7 +46,6 @@ function fmtpu(n: number, u: number) { if (!u) return '—'; return `$${Math.rou
 function fmtPct(n: number) { return n.toFixed(1) + '%' }
 
 const COL = '196px 88px 60px 60px 108px 88px 60px 1fr'
-const COL_MOB = '1fr 80px 72px 72px'  // mobile: label | T12 | ADJ | PF
 
 // ── Row component defined OUTSIDE BoePanel so React never remounts it ──
 interface RowProps {
@@ -79,17 +78,12 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
   const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
   const pctP = isNeg ? (k==='vac' ? Math.abs(pfv/vacBaseP)*100 : Math.abs(pfv/gprp)*100) : 0
   return (
-    <div className={isMobile ? 'boe-mob-grid' : ''} style={{ display:'grid', gridTemplateColumns: COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 30 : 36 }}>
-      <div style={{ fontSize: isMobile ? 10 : 12, color:'#334155', paddingLeft: isMobile ? 6 : 14, paddingRight:4 }}>{isMobile ? (abbrev[label] ?? label) : label}</div>
-      <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>
-        {fmt(t12v)}
-        {isNeg && t12v !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctT)}</div>}
-      </div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>
-      <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>
-        {isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
-      </div>
-      <div style={{ padding:'2px 6px' }}>
+    <div style={{ display:'grid', gridTemplateColumns: isMobile ? '100px 72px 48px 72px' : COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
+      <div style={{ fontSize: isMobile?10:12, color:'#334155', paddingLeft: isMobile?6:14, paddingRight:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{isMobile?(abbrev[label]??label):label}</div>
+      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', paddingRight: isMobile?4:8 }}>{fmt(t12v)}</div>
+      {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>}
+      {!isMobile && <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>{isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}</div>}
+      <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
         <input
           type="text"
           value={adjValue}
@@ -103,14 +97,11 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
             }
           }}
           data-adj-key={k}
-          style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
+          style={{ width:'100%', padding: isMobile?'2px 3px':'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize: isMobile?9:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
       </div>
-      <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>
-        {fmt(pfv)}
-        {isNeg && pfv !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctP)}</div>}
-      </div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>
-      {note && <div style={{ padding:'2px 6px 2px 4px' }}>
+      <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight: isMobile?4:8 }}>{fmt(pfv)}</div>
+      {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>}
+      {note && !isMobile && <div style={{ padding:'2px 6px 2px 4px' }}>
         <input type="text" tabIndex={-1} value={noteValue} onChange={e => onNoteChange(k as string, e.target.value)}
           placeholder="Notes…" style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.1)', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
       </div>}
@@ -118,9 +109,9 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
   )
 }
 
-function SubRow({ label, t12v, pfv, units, isMobile=false }: { label: string; t12v: number; pfv: number; units: number; isMobile?: boolean }) {
+function SubRow({ label, t12v, pfv, units }: { label: string; t12v: number; pfv: number; units: number }) {
   return (
-    <div className={isMobile ? 'boe-mob-grid' : ''} style={{ display:'grid', gridTemplateColumns: COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight: isMobile ? 28 : 34 }}>
+    <div style={{ display:'grid', gridTemplateColumns: isMobile ? '100px 72px 48px 72px' : COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight: isMobile?26:34 }}>
       <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14 }}>{label}</div>
       <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12v)}</div>
       <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v,units)}</div>
@@ -752,41 +743,20 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     }, 0)
   }
 
-  const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext }
+  const ABBREV: Record<string,string> = {
+    'Gross Potential Rent':'GPR','(Loss to Lease) / GTL':'LTL','Vacancy':'Vacancy',
+    'Bad Debt':'Bad Debt','Concessions':'Concess.','Model Units':'Model',
+    'Employee Units':'Emp.','Base Rental Revenue':'Base Rev.',
+    'Other Income':'Other Inc.','Effective Gross Revenue':'EGR',
+    'G&A':'G&A','Marketing':'Mktg','R&M':'R&M','Payroll':'Payroll',
+    'Management Fee':'Mgmt Fee','Taxes':'Taxes','Insurance':'Insurance',
+  }
+  const rowProps = { units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange: setA, onNoteChange: setN, onTabNext: tabToNext, isMobile, abbrev: ABBREV }
 
   return (
     <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
-      {isMobile && (
-        <style>{`
-          [data-boe-panel] .boe-mob-grid {
-            display: grid !important;
-            grid-template-columns: 110px 72px 72px 72px !important;
-            min-width: unset !important;
-          }
-          [data-boe-panel] .boe-mob-grid > div:nth-child(3),
-          [data-boe-panel] .boe-mob-grid > div:nth-child(4),
-          [data-boe-panel] .boe-mob-grid > div:nth-child(7),
-          [data-boe-panel] .boe-mob-grid > div:nth-child(8) {
-            display: none !important;
-          }
-          [data-boe-panel] .boe-mob-label {
-            font-size: 10px !important;
-            padding-left: 8px !important;
-            padding-right: 4px !important;
-          }
-          [data-boe-panel] .boe-mob-val {
-            font-size: 10px !important;
-            padding-right: 4px !important;
-          }
-          [data-boe-panel] .boe-mob-adj input {
-            font-size: 10px !important;
-            padding: 1px 3px !important;
-            width: 100% !important;
-          }
-        `}</style>
-      )}
-      {/* KPI Strip — sticky on mobile */}
-      <div className={isMobile ? "boe-kpi-sticky" : ""} style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile ? '12px 14px' : '16px 20px', gap:1 }}>
+      {/* KPI Strip */}
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'repeat(2,1fr)':'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile?'10px 12px':'16px 20px', gap:1 }}>
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>T12 NOI</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{pp ? fmt(noi_t) : '—'}</div>
@@ -876,12 +846,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       )}
 
       {/* Column headers */}
-      <div className={isMobile ? "boe-mob-grid" : ""} style={{ display:'grid', gridTemplateColumns: COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)', position: isMobile ? 'sticky' : 'static', top: isMobile ? 0 : 'auto', zIndex: isMobile ? 4 : 'auto' }}>
-        {(isMobile
-          ? ['Item','T12','','','ADJ','PF','','']
-          : ['Line Item','T12 Total','$/Unit','%','ADJ','PF Total','PF $/Unit','Notes']
-        ).map((h,i) => (
-          <div key={i} style={{ padding: isMobile ? '5px 4px' : '7px 8px', fontSize:9, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', textAlign: i===0?'left':'right', paddingLeft: i===0 ? (isMobile?6:14) : undefined }}>{h}</div>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)' }}>
+        {(isMobile?['Item','T12','ADJ','PF']:['Line Item','T12 Total','$/Unit','%','ADJ','PF Total','PF $/Unit','Notes']).map((h,i) => (
+          <div key={h} style={{ padding: isMobile?'5px 4px':'7px 8px', fontSize:9, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.08em', textTransform:'uppercase', textAlign: i===0?'left':'right', paddingLeft: i===0?(isMobile?6:14):undefined }}>{h}</div>
         ))}
       </div>
 
@@ -894,9 +861,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="conc" label="Concessions" t12v={conc_t} pfv={conc_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['conc']??''} noteValue={notes['conc']??''} {...rowProps} />
       <Row k="mod" label="Model Units" t12v={mod_t} pfv={mod_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['mod']??''} noteValue={notes['mod']??''} {...rowProps} />
       <Row k="emp" label="Employee Units" t12v={emp_t} pfv={emp_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['emp']??''} noteValue={notes['emp']??''} {...rowProps} />
-      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} isMobile={isMobile} />
+      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} />
       <Row k="oi" label="Other Income" t12v={oi_t} pfv={oi_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['oi']??''} noteValue={notes['oi']??''} {...rowProps} />
-      <div style={{ display:'grid', gridTemplateColumns: COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight: isMobile ? 30 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight: isMobile?28:36 }}>
         <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14, display:'flex', alignItems:'center' }}>Effective Gross Revenue</div>
         <div style={{ textAlign:'right', fontSize:13, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(egr_t)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(egr_t,units)}</div>
@@ -912,7 +879,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="mkt" label="Marketing" t12v={mkt_t} pfv={mkt_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['mkt']??''} noteValue={notes['mkt']??''} {...rowProps} />
 
       {/* R&M with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 30 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           R&M
           <button onClick={() => setShowRM(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -920,7 +887,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(t12.rm)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.rm,units)}</div>
         <div/>
-        <div style={{ padding:'2px 6px' }}>
+        <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
           <input type="text" value={adjs['rm']??''} onChange={e => setA('rm',e.target.value)} placeholder="$/unit"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
@@ -949,7 +916,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       )}
 
       {/* Payroll with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 30 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           Payroll
           <button onClick={() => setShowPayroll(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -957,7 +924,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(t12.pay)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.pay,units)}</div>
         <div/>
-        <div style={{ padding:'2px 6px' }}>
+        <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
           <input type="text" value={adjs['pay']??''} onChange={e => setA('pay',e.target.value)} placeholder="$ override"
             style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', fontFamily:"'DM Sans',sans-serif" }} />
         </div>
@@ -1001,16 +968,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </div>
       )}
 
-      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} units={units} isMobile={isMobile} />
+      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} units={units} />
 
       {/* Non-Controllable */}
       <SectionHead label="Non-Controllable Expenses" />
-      <div className={isMobile ? 'boe-mob-grid' : ''} style={{ display:'grid', gridTemplateColumns: COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 30 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? '100px 72px 48px 72px' : COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14 }}>Mgmt Fee</div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12.mgt)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12.mgt,units)}</div>
         <div/>
-        <div style={{ padding:'2px 6px' }}>
+        <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
           <div style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.08)', borderRadius:4, fontSize:11, background:'rgba(13,27,46,0.03)', textAlign:'right', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif" }}>2.5% 🔒</div>
         </div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight:8 }}>{fmt(mgt_p)}</div>
@@ -1020,7 +987,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="utl" label="Utilities" t12v={utl_t} pfv={utl_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['utl']??''} noteValue={notes['utl']??''} {...rowProps} />
 
       {/* RE Tax with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 30 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile?28:36 }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           Real Estate Taxes
           <button onClick={() => setShowTax(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -1028,7 +995,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(t12.tax)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(t12.tax,units)}</div>
         <div/>
-        <div style={{ padding:'2px 6px' }}>
+        <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
           <input type="text" data-adj-key="tax" value={adjs['tax']??''}
             placeholder="$ adj"
             onChange={e => setA('tax', e.target.value)}
@@ -1081,12 +1048,11 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
       <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['taxm']??''} noteValue={notes['taxm']??''} {...rowProps} />
       <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
-      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} isMobile={isMobile} />
-      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} isMobile={isMobile} />
-
+      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
+      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} />
 
       {/* NOI */}
-      <div style={{ display:'grid', gridTemplateColumns: COL, background:'#0D1B2E', minHeight: isMobile ? 36 : 42 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, background:'#0D1B2E', minHeight: isMobile?36:42 }}>
         <div style={{ fontSize:13, fontWeight:700, color:'#fff', paddingLeft:14, display:'flex', alignItems:'center' }}>NOI</div>
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(noi_t)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_t,units)}</div>
@@ -1132,7 +1098,6 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
           {saving ? 'Saving…' : 'Save BOE'}
         </button>
       </div>
-
     </div>
   )
 }
