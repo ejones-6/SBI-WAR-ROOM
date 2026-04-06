@@ -68,10 +68,11 @@ interface RowProps {
   onAdjChange: (k: keyof BoeAdjs, val: string) => void
   onNoteChange: (k: string, val: string) => void
   onTabNext: (k: string, shift: boolean) => void
+  isMobile?: boolean
 }
 
 function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholder='', note=true,
-  adjValue, noteValue, units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange, onNoteChange, onTabNext }: RowProps) {
+  adjValue, noteValue, units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange, onNoteChange, onTabNext, isMobile=false }: RowProps) {
   const gprt = gpr_t || 1; const gprp = gpr_p || 1
   const vacBaseT = (gpr_t+ltl_t)||1; const vacBaseP = (gpr_p+ltl_p)||1
   const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
@@ -116,7 +117,7 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
   )
 }
 
-function SubRow({ label, t12v, pfv, units }: { label: string; t12v: number; pfv: number; units: number }) {
+function SubRow({ label, t12v, pfv, units, isMobile=false }: { label: string; t12v: number; pfv: number; units: number; isMobile?: boolean }) {
   return (
     <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight: isMobile ? 30 : 34 }}>
       <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14 }}>{label}</div>
@@ -853,7 +854,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="conc" label="Concessions" t12v={conc_t} pfv={conc_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['conc']??''} noteValue={notes['conc']??''} {...rowProps} />
       <Row k="mod" label="Model Units" t12v={mod_t} pfv={mod_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['mod']??''} noteValue={notes['mod']??''} {...rowProps} />
       <Row k="emp" label="Employee Units" t12v={emp_t} pfv={emp_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['emp']??''} noteValue={notes['emp']??''} {...rowProps} />
-      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} />
+      <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} isMobile={isMobile} />
       <Row k="oi" label="Other Income" t12v={oi_t} pfv={oi_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['oi']??''} noteValue={notes['oi']??''} {...rowProps} />
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight: isMobile ? 32 : 36 }}>
         <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14, display:'flex', alignItems:'center' }}>Effective Gross Revenue</div>
@@ -960,7 +961,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
         </div>
       )}
 
-      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} units={units} />
+      <SubRow label="Total Controllable" t12v={ctrl_t} pfv={ctrl_p} units={units} isMobile={isMobile} />
 
       {/* Non-Controllable */}
       <SectionHead label="Non-Controllable Expenses" />
@@ -1040,8 +1041,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
       <Row k="taxm" label="Misc Taxes" t12v={taxm_t} pfv={taxm_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['taxm']??''} noteValue={notes['taxm']??''} {...rowProps} />
       <Row k="ins" label="Insurance" t12v={t12.ins} pfv={ins_p} adjType="ppu" adjPlaceholder="550" adjValue={adjs['ins']??''} noteValue={notes['ins']??''} {...rowProps} />
-      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} />
-      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} />
+      <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} isMobile={isMobile} />
+      <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} isMobile={isMobile} />
 
       {/* NOI */}
       <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'#0D1B2E', minHeight: isMobile ? 38 : 42 }}>
