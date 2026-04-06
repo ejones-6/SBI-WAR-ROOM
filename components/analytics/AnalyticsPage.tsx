@@ -757,7 +757,7 @@ function MarketCompTracker({ deals, capRateMap, onOpenDeal }: { deals: Deal[]; c
 }
 
 // ── Main Export ───────────────────────────────────────────────────────────────
-export default function AnalyticsPage({ deals, boeMap, capRateMap }: Props) {
+export default function AnalyticsPage({ deals, boeMap, capRateMap, onOpenDeal }: Props) {
   return (
     <div style={{ padding: '24px 28px', background: '#EEEDE7', minHeight: '100%' }}>
       {/* Header */}
