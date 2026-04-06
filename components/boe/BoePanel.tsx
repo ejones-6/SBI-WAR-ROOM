@@ -78,14 +78,14 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
   const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
   const pctP = isNeg ? (k==='vac' ? Math.abs(pfv/vacBaseP)*100 : Math.abs(pfv/gprp)*100) : 0
   return (
-    <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 32 : 36 }}>
+    <div style={{ display:'grid', gridTemplateColumns: COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
       <div style={{ fontSize:12, color:'#334155', paddingLeft:14, paddingRight:8 }}>{label}</div>
       <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>
         {fmt(t12v)}
         {isNeg && t12v !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctT)}</div>}
       </div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display: isMobile ? 'none' : undefined }}>{fmtpu(t12v, units)}</div>
-      <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4, display: isMobile ? 'none' : undefined }}>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>
+      <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>
         {isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
       </div>
       <div style={{ padding:'2px 6px' }}>
@@ -108,8 +108,8 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
         {fmt(pfv)}
         {isNeg && pfv !== 0 && <div style={{ fontSize:9, color:'#E57373' }}>{fmtPct(pctP)}</div>}
       </div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display: isMobile ? 'none' : undefined }}>{fmtpu(pfv, units)}</div>
-      {note && !isMobile && <div style={{ padding:'2px 6px 2px 4px' }}>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv, units)}</div>
+      {note && <div style={{ padding:'2px 6px 2px 4px' }}>
         <input type="text" tabIndex={-1} value={noteValue} onChange={e => onNoteChange(k as string, e.target.value)}
           placeholder="Notes…" style={{ width:'100%', padding:'3px 6px', border:'1px solid rgba(13,27,46,0.1)', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", outline:'none' }} />
       </div>}
@@ -119,13 +119,13 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
 
 function SubRow({ label, t12v, pfv, units, isMobile=false }: { label: string; t12v: number; pfv: number; units: number; isMobile?: boolean }) {
   return (
-    <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight: isMobile ? 30 : 34 }}>
+    <div style={{ display:'grid', gridTemplateColumns: COL, background:'rgba(13,27,46,0.03)', borderBottom:'1px solid rgba(13,27,46,0.06)', minHeight:34, minWidth: isMobile ? 660 : 'auto' }}>
       <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14 }}>{label}</div>
       <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12v)}</div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display: isMobile ? 'none' : undefined }}>{fmtpu(t12v,units)}</div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v,units)}</div>
       <div/><div/>
       <div style={{ textAlign:'right', fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums', color:'#0D1B2E', paddingRight:8 }}>{fmt(pfv)}</div>
-      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display: isMobile ? 'none' : undefined }}>{fmtpu(pfv,units)}</div>
+      <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(pfv,units)}</div>
       <div/>
     </div>
   )
@@ -756,7 +756,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   return (
     <div data-boe-panel="1" style={{ fontSize:13, fontFamily:"'DM Sans',sans-serif" }}>
       {/* KPI Strip */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile ? '12px 14px' : '16px 20px', gap:1 }}>
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,1fr)' : 'repeat(4,1fr)', background:'#0D1B2E', padding: isMobile ? '12px 14px' : '16px 20px', gap:1, position: isMobile ? 'sticky' : 'static', top:0, zIndex:10 }}>
         <div style={{ padding:'8px 16px', borderRight:'1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ fontSize:9, color:'rgba(255,255,255,0.4)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>T12 NOI</div>
           <div style={{ fontSize:20, fontWeight:700, color:'#fff', fontFamily:"'Cormorant Garamond',serif" }}>{pp ? fmt(noi_t) : '—'}</div>
@@ -846,7 +846,10 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       )}
 
       {/* Column headers */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)' }}>
+      {/* Mobile: horizontal scroll wrapper for BOE rows */}
+      <div style={{ overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' } as any}>
+      {/* Column headers */}
+      <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'minmax(130px,1fr) 75px 65px 65px 85px 75px 65px minmax(100px,1fr)' : COL, background:'rgba(13,27,46,0.04)', borderBottom:'1px solid rgba(13,27,46,0.08)', minWidth: isMobile ? 660 : 'auto' }}>
         {['Line Item','T12 Total','$/Unit','%','ADJ','PF Total','PF $/Unit','Notes'].map(h => (
           <div key={h} style={{ padding:'7px 8px', fontSize:9, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.1em', textTransform:'uppercase', textAlign: h==='Line Item'?'left':'right', paddingLeft: h==='Line Item'?14:undefined }}>{h}</div>
         ))}
@@ -863,7 +866,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="emp" label="Employee Units" t12v={emp_t} pfv={emp_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['emp']??''} noteValue={notes['emp']??''} {...rowProps} />
       <SubRow label="Base Rental Revenue" t12v={brr_t} pfv={brr_p} units={units} isMobile={isMobile} />
       <Row k="oi" label="Other Income" t12v={oi_t} pfv={oi_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['oi']??''} noteValue={notes['oi']??''} {...rowProps} />
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight: isMobile ? 32 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, background:'rgba(13,27,46,0.06)', borderBottom:'1px solid rgba(13,27,46,0.1)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:12, fontWeight:700, color:'#0D1B2E', paddingLeft:14, display:'flex', alignItems:'center' }}>Effective Gross Revenue</div>
         <div style={{ textAlign:'right', fontSize:13, fontWeight:700, fontVariantNumeric:'tabular-nums', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(egr_t)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(egr_t,units)}</div>
@@ -879,7 +882,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="mkt" label="Marketing" t12v={mkt_t} pfv={mkt_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['mkt']??''} noteValue={notes['mkt']??''} {...rowProps} />
 
       {/* R&M with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 32 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           R&M
           <button onClick={() => setShowRM(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -916,7 +919,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       )}
 
       {/* Payroll with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 32 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           Payroll
           <button onClick={() => setShowPayroll(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -972,7 +975,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
       {/* Non-Controllable */}
       <SectionHead label="Non-Controllable Expenses" />
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 32 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, alignItems:'center', borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14 }}>Mgmt Fee</div>
         <div style={{ textAlign:'right', fontSize:12, fontVariantNumeric:'tabular-nums', paddingRight:8 }}>{fmt(t12.mgt)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12.mgt,units)}</div>
@@ -987,7 +990,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <Row k="utl" label="Utilities" t12v={utl_t} pfv={utl_p} adjType="dollar" adjPlaceholder="$ adj" adjValue={adjs['utl']??''} noteValue={notes['utl']??''} {...rowProps} />
 
       {/* RE Tax with build-up */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight: isMobile ? 32 : 36 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, borderBottom:'1px solid rgba(13,27,46,0.04)', minHeight:36, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:12, color:'#334155', paddingLeft:14, display:'flex', alignItems:'center', gap:6 }}>
           Real Estate Taxes
           <button onClick={() => setShowTax(p=>!p)} style={{ fontSize:9, padding:'1px 6px', borderRadius:4, border:'1px solid rgba(13,27,46,0.15)', background:'transparent', cursor:'pointer', color:'#8A9BB0' }}>Build-up</button>
@@ -1051,8 +1054,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       <SubRow label="Total Non-Controllable" t12v={nctrl_t} pfv={nctrl_p} units={units} isMobile={isMobile} />
       <SubRow label="Total OpEx" t12v={opex_t} pfv={opex_p} units={units} isMobile={isMobile} />
 
+      </div>{/* end horizontal scroll wrapper */}
       {/* NOI */}
-      <div style={{ display:'grid', gridTemplateColumns: isMobile ? COL_MOB : COL, background:'#0D1B2E', minHeight: isMobile ? 38 : 42 }}>
+      <div style={{ display:'grid', gridTemplateColumns: COL, background:'#0D1B2E', minHeight:42, minWidth: isMobile ? 660 : 'auto' }}>
         <div style={{ fontSize:13, fontWeight:700, color:'#fff', paddingLeft:14, display:'flex', alignItems:'center' }}>NOI</div>
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(noi_t)}</div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_t,units)}</div>
