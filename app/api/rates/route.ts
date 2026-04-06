@@ -58,18 +58,42 @@ async function fetchSofr(): Promise<{ close: number; prev: number } | null> {
 }
 
 async function fhForex(): Promise<{ close: number; prev: number } | null> {
+  // Try Finnhub forex quote using the OANDA symbol directly
   try {
-    // base=EUR gives us how many USD per 1 EUR directly
     const res = await fetch(
-      `https://finnhub.io/api/v1/forex/rates?base=EUR&token=${FH}`,
+      `https://finnhub.io/api/v1/quote?symbol=OANDA:EUR_USD&token=${FH}`,
       { cache: 'no-store', signal: AbortSignal.timeout(5000) }
     )
-    if (!res.ok) return null
-    const d = await res.json()
-    const eurusd = d?.quote?.USD
-    if (!eurusd || eurusd === 0) return null
-    return { close: parseFloat(Number(eurusd).toFixed(5)), prev: parseFloat(Number(eurusd).toFixed(5)) }
-  } catch { return null }
+    if (res.ok) {
+      const d = await res.json()
+      if (d.c && d.c > 0) return { close: parseFloat(d.c.toFixed(5)), prev: parseFloat((d.pc || d.c).toFixed(5)) }
+    }
+  } catch {}
+  // Fallback: exchangerate-api free endpoint (no key needed)
+  try {
+    const res = await fetch(
+      'https://api.exchangerate-api.com/v4/latest/EUR',
+      { cache: 'no-store', signal: AbortSignal.timeout(5000) }
+    )
+    if (res.ok) {
+      const d = await res.json()
+      const usd = d?.rates?.USD
+      if (usd && usd > 0) return { close: parseFloat(Number(usd).toFixed(5)), prev: parseFloat(Number(usd).toFixed(5)) }
+    }
+  } catch {}
+  // Final fallback: open.er-api.com (also free, no key)
+  try {
+    const res = await fetch(
+      'https://open.er-api.com/v6/latest/EUR',
+      { cache: 'no-store', signal: AbortSignal.timeout(5000) }
+    )
+    if (res.ok) {
+      const d = await res.json()
+      const usd = d?.rates?.USD
+      if (usd && usd > 0) return { close: parseFloat(Number(usd).toFixed(5)), prev: parseFloat(Number(usd).toFixed(5)) }
+    }
+  } catch {}
+  return null
 }
 
 export async function GET() {
