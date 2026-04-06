@@ -86,21 +86,40 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
       </div>
       {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>}
       {!isMobile && <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>{isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}</div>}
-      <div style={{ padding: isMobile?'1px 2px':'2px 6px' }}>
-        <input
-          type="text"
-          value={adjValue}
-          placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
-          onChange={e => onAdjChange(k, e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Tab' || e.key === 'Enter') {
-              e.preventDefault()
-              onAdjChange(k, e.currentTarget.value)
-              onTabNext(k as string, e.shiftKey)
-            }
-          }}
-          data-adj-key={k}
-          style={{ width:'100%', padding: isMobile?'2px 3px':'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize: isMobile?'16px':'11px', fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
+      <div style={{ padding: isMobile?'0':'2px 6px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {isMobile ? (
+          <div style={{ width:'100%', height:22, overflow:'hidden', position:'relative' }}>
+            <input
+              type="text"
+              value={adjValue}
+              placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
+              onChange={e => onAdjChange(k, e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Tab' || e.key === 'Enter') {
+                  e.preventDefault()
+                  onAdjChange(k, e.currentTarget.value)
+                  onTabNext(k as string, e.shiftKey)
+                }
+              }}
+              data-adj-key={k}
+              style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) scale(0.6)', transformOrigin:'center center', width:'167%', border:'1px solid #F0B429', borderRadius:4, fontSize:16, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right', padding:'2px 4px' }} />
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={adjValue}
+            placeholder={adjPlaceholder || (adjType==='pct'?'%':adjType==='ppu'?'$/unit':'$ adj')}
+            onChange={e => onAdjChange(k, e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Tab' || e.key === 'Enter') {
+                e.preventDefault()
+                onAdjChange(k, e.currentTarget.value)
+                onTabNext(k as string, e.shiftKey)
+              }
+            }}
+            data-adj-key={k}
+            style={{ width:'100%', padding:'3px 6px', border:'1px solid #F0B429', borderRadius:4, fontSize:11, fontFamily:"'DM Sans',sans-serif", background:'rgba(240,180,41,0.06)', outline:'none', textAlign:'right' }} />
+        )}
       </div>
       <div style={{ textAlign:'right', fontSize: isMobile?10:12, fontVariantNumeric:'tabular-nums', fontWeight:600, color:'#0D1B2E', paddingRight: isMobile?4:8 }}>
         {fmt(pfv)}
