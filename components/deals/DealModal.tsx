@@ -15,7 +15,232 @@ interface Props {
   onSaveCapRate?: (dealName: string, capAdj: number) => void
 }
 
-type Tab = 'details' | 'boe'
+type Tab = 'details' | 'boe' | 'noi'
+
+
+// ── NOI Walk + Cap Rate Sensitivity ───────────────────────────────────────────
+function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
+  const NAVY = '#0D1B2E'
+  const GOLD = '#C9A84C'
+
+  if (!boe?.t12) return (
+    <div style={{ padding:40, textAlign:'center', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif" }}>
+      No BOE data yet — build the BOE first then come back here.
+    </div>
+  )
+
+  const t12 = boe.t12
+  const adjs = boe.adjs ?? {}
+  const period = parseFloat(boe.period) || 12
+  const units = deal.units || 1
+  const pp = deal.purchase_price || 0
+
+  const v = (k: string) => adjs[k] !== undefined && adjs[k] !== '' ? parseFloat(adjs[k]) : null
+
+  // PF calc — mirrors BoePanel logic exactly
+  const gpr_t = t12.gpr ?? 0
+  const ltl_t = t12.ltl ?? 0
+  const rrp_t12 = gpr_t + ltl_t
+  const rrp_adjPct = v('gpr') ?? 0
+  const rrp_pf = rrp_t12 * (1 + rrp_adjPct / 100)
+  const ltl_p = ltl_t
+  const gpr_p = rrp_pf - ltl_p
+
+  const vac_t = t12.vac ?? 0
+  const vac_p = v('vac') != null ? -(v('vac')! / 100) * (gpr_p + ltl_p) : vac_t
+  const bad_t = t12.bad ?? 0
+  const bad_p = v('bad') != null ? -(v('bad')! / 100) * gpr_p : bad_t
+  const conc_t = t12.conc ?? 0
+  const conc_p = v('conc') != null ? -(v('conc')! / 100) * gpr_p : conc_t
+  const mod_t = t12.mod ?? 0
+  const mod_p = v('mod') != null ? -(v('mod')! / 100) * gpr_p : mod_t
+  const emp_t = t12.emp ?? 0
+  const emp_p = v('emp') != null ? -(v('emp')! / 100) * gpr_p : emp_t
+  const oi_t = t12.oi ?? 0
+  const oi_p = oi_t + (v('oi') ?? 0)
+  const ga_t = t12.ga ?? 0; const ga_p = v('ga') != null ? ga_t + v('ga')! : ga_t
+  const mkt_t = t12.mkt ?? 0; const mkt_p = v('mkt') != null ? mkt_t + v('mkt')! : mkt_t
+  const rm_p_base = (boe.rmi?.['rmi-rm'] ? parseFloat(boe.rmi['rmi-rm']) : 0) + (boe.rmi?.['rmi-ct'] ? parseFloat(boe.rmi['rmi-ct']) : 0) + (boe.rmi?.['rmi-tu'] ? parseFloat(boe.rmi['rmi-tu']) : 0)
+  const rm_p = rm_p_base > 0 ? rm_p_base * units : (t12.rm ?? 0)
+  const pay_t = t12.pay ?? 0; const pay_p = v('pay') != null ? pay_t + v('pay')! : pay_t
+  const utl_t = t12.utl ?? 0; const utl_p = v('utl') != null ? utl_t + v('utl')! : utl_t
+  const mgt_t = t12.mgt ?? 0; const mgt_p = v('mgt') != null ? mgt_t + v('mgt')! : mgt_t
+  const tax_t = t12.tax ?? 0; const taxm_t = t12.taxm ?? 0
+  const tax_p = v('tx-mil') != null || v('tx-rat') != null ? (tax_t + taxm_t) : (tax_t + taxm_t)
+  const ins_t = t12.ins ?? 0; const ins_p = v('ins') != null ? ins_t + v('ins')! : ins_t
+
+  const egr_p = rrp_pf + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p
+  const noi_pf = boe.pf_noi_override || (egr_p - ga_p - mkt_p - rm_p - pay_p - utl_p - mgt_p - tax_p - ins_p)
+
+  const fmt = (n: number) => {
+    const abs = Math.abs(n)
+    if (abs >= 1000000) return `$${(n/1000000).toFixed(1)}M`
+    if (abs >= 1000) return `$${Math.round(n/1000)}K`
+    return `$${Math.round(n)}`
+  }
+  const fmtFull = (n: number) => n < 0
+    ? `-$${Math.abs(Math.round(n)).toLocaleString()}`
+    : `$${Math.round(n).toLocaleString()}`
+
+  // Waterfall bars
+  const bars: { label: string; value: number; type: 'income'|'expense'|'total'|'start' }[] = [
+    { label: 'RRP', value: rrp_pf, type: 'start' },
+    { label: 'Vacancy', value: vac_p, type: 'expense' },
+    { label: 'Bad Debt & Conc.', value: bad_p + conc_p, type: 'expense' },
+    { label: 'Mod & Emp.', value: mod_p + emp_p, type: 'expense' },
+    { label: 'Other Income', value: oi_p, type: 'income' },
+    { label: 'G&A', value: -ga_p, type: 'expense' },
+    { label: 'Marketing', value: -mkt_p, type: 'expense' },
+    { label: 'R&M', value: -rm_p, type: 'expense' },
+    { label: 'Payroll', value: -pay_p, type: 'expense' },
+    { label: 'Utl & Mgmt', value: -(utl_p + mgt_p), type: 'expense' },
+    { label: 'Tax', value: -(tax_p), type: 'expense' },
+    { label: 'Insurance', value: -ins_p, type: 'expense' },
+    { label: 'PF NOI', value: noi_pf, type: 'total' },
+  ]
+
+  // Chart dimensions
+  const chartH = 220
+  const barW = 52
+  const gap = 10
+  const padL = 52
+  const padR = 16
+  const padT = 32
+  const padB = 48
+  const totalW = padL + bars.length * (barW + gap) - gap + padR
+
+  // Find scale
+  const maxVal = Math.max(...bars.map(b => b.type === 'start' || b.type === 'total' ? b.value : 0), noi_pf, rrp_pf)
+  const minVal = 0
+  const range = maxVal - minVal || 1
+  const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
+
+  // Running total for waterfall positioning
+  let running = 0
+  const barData = bars.map((b) => {
+    let y1: number, y2: number
+    if (b.type === 'start' || b.type === 'total') {
+      y1 = toY(0); y2 = toY(b.value); running = b.value
+    } else {
+      const prev = running
+      running += b.value
+      y1 = toY(Math.min(prev, running))
+      y2 = toY(Math.max(prev, running))
+    }
+    return { ...b, y1, y2, top: Math.min(y1, y2), height: Math.abs(y2 - y1) }
+  })
+
+  const color = (type: string, value: number) => {
+    if (type === 'start') return '#2E7D50'
+    if (type === 'total') return NAVY
+    if (type === 'income') return '#2E7D50'
+    return value < 0 ? '#C0392B' : '#2E7D50'
+  }
+
+  // Cap rate sensitivity
+  const deltas = [-4, -2, 0, 2, 4]
+
+  return (
+    <div style={{ padding:24, fontFamily:"'DM Sans',sans-serif", overflowX:'auto' }}>
+      {/* NOI Walk Chart */}
+      <div style={{ marginBottom:8 }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY, marginBottom:4 }}>NOI Walk</div>
+        <div style={{ fontSize:11, color:'#8A9BB0' }}>PF values — updates live as you adjust the BOE</div>
+      </div>
+
+      <svg width={totalW} height={padT + chartH + padB} style={{ overflow:'visible', display:'block', marginBottom:32 }}>
+        {/* Y axis gridlines */}
+        {[0, 0.25, 0.5, 0.75, 1].map(pct => {
+          const val = minVal + pct * range
+          const y = toY(val)
+          return (
+            <g key={pct}>
+              <line x1={padL} x2={totalW - padR} y1={y} y2={y} stroke="rgba(13,27,46,0.06)" strokeWidth={1} />
+              <text x={padL - 4} y={y + 3} textAnchor="end" fontSize={8} fill="#8A9BB0">{fmt(val)}</text>
+            </g>
+          )
+        })}
+
+        {/* Bars */}
+        {barData.map((b, i) => {
+          const x = padL + i * (barW + gap)
+          const c = color(b.type, b.value)
+          const labelY = padT + chartH + 16
+          return (
+            <g key={b.label}>
+              {/* Connector line to previous */}
+              {i > 0 && b.type !== 'total' && (
+                <line x1={x - gap} x2={x} y1={barData[i-1].type === 'start' ? toY(barData[i-1].value) : Math.min(barData[i-1].y1, barData[i-1].y2)} y2={Math.min(b.y1, b.y2)} stroke="rgba(13,27,46,0.12)" strokeWidth={0.5} strokeDasharray="2,2" />
+              )}
+              <rect x={x} y={b.top} width={barW} height={Math.max(b.height, 2)} fill={c} rx={2} opacity={0.9} />
+              {/* Value label */}
+              <text x={x + barW/2} y={b.top - 4} textAnchor="middle" fontSize={9} fontWeight="600" fill={c}>
+                {fmtFull(b.value)}
+              </text>
+              {/* X axis label */}
+              <text x={x + barW/2} y={labelY} textAnchor="middle" fontSize={8} fill="#8A9BB0">
+                {b.label.split(' ').map((word: string, wi: number) => (
+                  <tspan key={wi} x={x + barW/2} dy={wi === 0 ? 0 : 10}>{word}</tspan>
+                ))}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* X axis line */}
+        <line x1={padL} x2={totalW - padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.15)" strokeWidth={1} />
+      </svg>
+
+      {/* Cap Rate Sensitivity */}
+      <div style={{ marginBottom:12 }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY, marginBottom:4 }}>Cap Rate Sensitivity</div>
+        <div style={{ fontSize:11, color:'#8A9BB0', marginBottom:16 }}>PF NOI: {fmtFull(noi_pf)} · Based on {units} units</div>
+      </div>
+
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ borderCollapse:'collapse', width:'100%', fontSize:12, fontFamily:"'DM Sans',sans-serif" }}>
+          <thead>
+            <tr style={{ background:NAVY }}>
+              <th style={{ padding:'10px 14px', textAlign:'left', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>PRICE ADJUSTMENT</th>
+              <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>PURCHASE PRICE</th>
+              <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>$/UNIT</th>
+              <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>CAP RATE (ADJ)</th>
+              <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>CAP RATE (GROSS)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deltas.map((d, i) => {
+              const adjPP = pp * (1 + d / 100)
+              const ppu = units > 0 ? adjPP / units : 0
+              const capAdj = adjPP > 0 ? (noi_pf / adjPP) * 100 : 0
+              const capGross = adjPP > 0 ? (egr_p / adjPP) * 100 : 0
+              const isBase = d === 0
+              return (
+                <tr key={d} style={{ background: isBase ? 'rgba(201,168,76,0.08)' : i % 2 === 0 ? '#fff' : 'rgba(13,27,46,0.015)', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
+                  <td style={{ padding:'10px 14px', fontWeight: isBase ? 700 : 400, color: isBase ? NAVY : '#555' }}>
+                    {d === 0 ? '— Base PP —' : `${d > 0 ? '+' : ''}${d}%`}
+                  </td>
+                  <td style={{ padding:'10px 14px', textAlign:'right', fontWeight: isBase ? 700 : 400, color:NAVY, fontVariantNumeric:'tabular-nums' }}>
+                    ${Math.round(adjPP).toLocaleString()}
+                  </td>
+                  <td style={{ padding:'10px 14px', textAlign:'right', color:'#555', fontVariantNumeric:'tabular-nums' }}>
+                    ${Math.round(ppu).toLocaleString()}
+                  </td>
+                  <td style={{ padding:'10px 14px', textAlign:'right', fontWeight: isBase ? 700 : 400, color: isBase ? GOLD : (capAdj >= 5 ? '#2E7D50' : capAdj >= 4 ? '#C9A84C' : '#C0392B'), fontVariantNumeric:'tabular-nums' }}>
+                    {capAdj.toFixed(2)}%
+                  </td>
+                  <td style={{ padding:'10px 14px', textAlign:'right', color:'#8A9BB0', fontVariantNumeric:'tabular-nums' }}>
+                    {capGross.toFixed(2)}%
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
@@ -198,7 +423,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           {/* Tabs */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div style={{ display:'flex', gap:0 }}>
-              {(['details','boe'] as Tab[]).map(t => (
+              {(['details','boe','noi'] as Tab[]).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
                   padding:'8px 20px', border:'none', background:'none', cursor:'pointer',
                   fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:600,
@@ -206,7 +431,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                   borderBottom: tab===t ? '2px solid #C9A84C' : '2px solid transparent',
                   textTransform:'uppercase', letterSpacing:'0.08em',
                 }}>
-                  {t === 'details' ? 'Deal Details' : 'BOE'}
+                  {t === 'details' ? 'Deal Details' : t === 'boe' ? 'BOE' : 'NOI Walk'}
                   {t === 'boe' && boe && Object.keys(boe.t12 ?? {}).length > 0 && (
                     <span style={{ marginLeft:6, background:'#2E7D50', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:9 }}>T12</span>
                   )}
@@ -359,6 +584,9 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
           {tab === 'boe' && (
             <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} />
+          )}
+          {tab === 'noi' && (
+            <NoiWalk boe={boe} deal={deal} />
           )}
         </div>
       </div>
