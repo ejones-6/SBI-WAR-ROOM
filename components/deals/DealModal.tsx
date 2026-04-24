@@ -146,8 +146,8 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
     },
     {
       label: 'Payroll', value: -pay_p, color: '#C0392B',
-      barLabel: fmtM(pay_p),
-      tooltipLines: [`Payroll`, fmtFull(pay_p), ...payrollLines.length ? payrollLines : ['No build-up data'], pctOfEGR(pay_p)],
+      barLabel: `${fmtM(pay_p)} | ${ppu(pay_p)}`,
+      tooltipLines: [`Payroll`, fmtFull(pay_p), ppu(pay_p), ...payrollLines.length ? payrollLines : ['No build-up data'], pctOfEGR(pay_p)],
     },
     {
       label: 'Utl/Mgmt', value: -(utl_p+mgt_p), color: '#C0392B',
