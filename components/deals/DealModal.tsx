@@ -70,7 +70,8 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
   const ins_t = t12.ins ?? 0; const ins_p = v('ins') != null ? ins_t + v('ins')! : ins_t
 
   const egr_p = rrp_pf + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p
-  const noi_pf = boe.pf_noi_override || (egr_p - ga_p - mkt_p - rm_p - pay_p - utl_p - mgt_p - tax_p - ins_p)
+  const noi_calc = egr_p - ga_p - mkt_p - rm_p - pay_p - utl_p - mgt_p - tax_p - ins_p
+  const noi_pf = (boe.pf_noi_override != null && boe.pf_noi_override !== 0) ? boe.pf_noi_override : noi_calc
 
   const fmt = (n: number) => {
     const abs = Math.abs(n)
@@ -82,19 +83,23 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
     ? `-$${Math.abs(Math.round(n)).toLocaleString()}`
     : `$${Math.round(n).toLocaleString()}`
 
-  // Waterfall bars
+  // T12 NOI for reference
+  const noi_t12 = (gpr_t + ltl_t + vac_t + bad_t + conc_t + mod_t + emp_t + oi_t) - (t12.ga??0) - (t12.mkt??0) - (t12.rm??0) - (t12.pay??0) - (t12.utl??0) - (t12.mgt??0) - (t12.tax??0) - (t12.taxm??0) - (t12.ins??0)
+
+  // Waterfall using PF values — each bar is the PF contribution of that item
+  // Income items: positive (green), Expense items: negative (red), floated above zero
   const bars: { label: string; value: number; type: 'income'|'expense'|'total'|'start' }[] = [
     { label: 'RRP', value: rrp_pf, type: 'start' },
     { label: 'Vacancy', value: vac_p, type: 'expense' },
     { label: 'Bad Debt & Conc.', value: bad_p + conc_p, type: 'expense' },
     { label: 'Mod & Emp.', value: mod_p + emp_p, type: 'expense' },
-    { label: 'Other Income', value: oi_p, type: 'income' },
+    { label: 'Other Inc.', value: oi_p, type: 'income' },
     { label: 'G&A', value: -ga_p, type: 'expense' },
     { label: 'Marketing', value: -mkt_p, type: 'expense' },
     { label: 'R&M', value: -rm_p, type: 'expense' },
     { label: 'Payroll', value: -pay_p, type: 'expense' },
     { label: 'Utl & Mgmt', value: -(utl_p + mgt_p), type: 'expense' },
-    { label: 'Tax', value: -(tax_p), type: 'expense' },
+    { label: 'Tax', value: -tax_p, type: 'expense' },
     { label: 'Insurance', value: -ins_p, type: 'expense' },
     { label: 'PF NOI', value: noi_pf, type: 'total' },
   ]
@@ -109,25 +114,35 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
   const padB = 48
   const totalW = padL + bars.length * (barW + gap) - gap + padR
 
-  // Find scale
-  const maxVal = Math.max(...bars.map(b => b.type === 'start' || b.type === 'total' ? b.value : 0), noi_pf, rrp_pf)
+  // Scale — based on RRP (largest bar) as max
+  const maxVal = Math.max(rrp_pf, noi_pf) * 1.1
   const minVal = 0
   const range = maxVal - minVal || 1
   const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
 
-  // Running total for waterfall positioning
+  // Waterfall positioning — income/expense bars float from their running total
   let running = 0
   const barData = bars.map((b) => {
-    let y1: number, y2: number
-    if (b.type === 'start' || b.type === 'total') {
-      y1 = toY(0); y2 = toY(b.value); running = b.value
-    } else {
+    let top: number, height: number
+    if (b.type === 'start') {
+      // RRP: full bar from 0 up
+      top = toY(b.value); height = Math.max(toY(0) - toY(b.value), 2)
+      running = b.value
+    } else if (b.type === 'total') {
+      // PF NOI: full bar from 0 up
+      top = toY(b.value); height = Math.max(toY(0) - toY(b.value), 2)
+    } else if (b.type === 'income') {
+      // Positive: floats above current running total
       const prev = running
       running += b.value
-      y1 = toY(Math.min(prev, running))
-      y2 = toY(Math.max(prev, running))
+      top = toY(running); height = Math.max(toY(prev) - toY(running), 2)
+    } else {
+      // Expense (negative value): hangs down from running total
+      const prev = running
+      running += b.value
+      top = toY(prev); height = Math.max(toY(running) - toY(prev), 2)
     }
-    return { ...b, y1, y2, top: Math.min(y1, y2), height: Math.abs(y2 - y1) }
+    return { ...b, top, height }
   })
 
   const color = (type: string, value: number) => {
@@ -168,9 +183,9 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
           const labelY = padT + chartH + 16
           return (
             <g key={b.label}>
-              {/* Connector line to previous */}
-              {i > 0 && b.type !== 'total' && (
-                <line x1={x - gap} x2={x} y1={barData[i-1].type === 'start' ? toY(barData[i-1].value) : Math.min(barData[i-1].y1, barData[i-1].y2)} y2={Math.min(b.y1, b.y2)} stroke="rgba(13,27,46,0.12)" strokeWidth={0.5} strokeDasharray="2,2" />
+              {/* Connector dotted line between bars */}
+              {i > 0 && b.type !== 'start' && (
+                <line x1={x - gap} x2={x} y1={b.top + (b.type === 'expense' ? 0 : b.height)} y2={b.top + (b.type === 'expense' ? 0 : b.height)} stroke="rgba(13,27,46,0.15)" strokeWidth={0.5} strokeDasharray="3,2" />
               )}
               <rect x={x} y={b.top} width={barW} height={Math.max(b.height, 2)} fill={c} rx={2} opacity={0.9} />
               {/* Value label */}
@@ -205,7 +220,7 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
               <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>PURCHASE PRICE</th>
               <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>$/UNIT</th>
               <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>CAP RATE (ADJ)</th>
-              <th style={{ padding:'10px 14px', textAlign:'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.1em' }}>CAP RATE (GROSS)</th>
+
             </tr>
           </thead>
           <tbody>
@@ -229,9 +244,7 @@ function NoiWalk({ boe, deal }: { boe: any; deal: any }) {
                   <td style={{ padding:'10px 14px', textAlign:'right', fontWeight: isBase ? 700 : 400, color: isBase ? GOLD : (capAdj >= 5 ? '#2E7D50' : capAdj >= 4 ? '#C9A84C' : '#C0392B'), fontVariantNumeric:'tabular-nums' }}>
                     {capAdj.toFixed(2)}%
                   </td>
-                  <td style={{ padding:'10px 14px', textAlign:'right', color:'#8A9BB0', fontVariantNumeric:'tabular-nums' }}>
-                    {capGross.toFixed(2)}%
-                  </td>
+
                 </tr>
               )
             })}
