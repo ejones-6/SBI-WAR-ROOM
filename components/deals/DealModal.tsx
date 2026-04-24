@@ -552,7 +552,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
             <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
           )}
           {tab === 'noi' && (
-            <NoiWalk boe={boe} deal={deal} />
+            <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
           )}
         </div>
       </div>
