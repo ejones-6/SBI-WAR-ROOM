@@ -201,7 +201,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
     // Compute initial PF values from boe so NOI Walk is correct on first open
     if (!boe?.t12) return {} as Record<string,number>
     const t = boe.t12 as any
-    const a = boe.adjs ?? {}
+    const a = (boe.adjs ?? {}) as any
     const v = (k: string) => a[k] !== undefined && a[k] !== '' ? parseFloat(a[k]) : null
     const units = deal.units || 1
     const pp = deal.purchase_price || 0
