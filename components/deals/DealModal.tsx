@@ -173,10 +173,10 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
   // Chart — fit all bars on screen
   const n = bars.length
-  const chartW = 820 // fixed width, bars auto-size to fit
-  const padL = 64, padR = 16, padT = 36, padB = 56, chartH = 300
-  const barW = Math.floor((chartW - padL - padR - (n-1)*6) / n)
-  const gap = 6
+  const padL = 56, padR = 16, padT = 40, padB = 64, chartH = 360, gap = 6
+  // Fill full container width dynamically
+  const chartW = typeof window !== 'undefined' ? Math.min(window.innerWidth - 80, 1040) : 960
+  const barW = Math.floor((chartW - padL - padR - (n-1)*gap) / n)
   const totalW = padL + n*(barW+gap) - gap + padR
 
   // Waterfall positioning
@@ -226,14 +226,14 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
       {/* Chart */}
       <div style={{ position:'relative' }}>
-        <svg width={totalW} height={padT+chartH+padB} style={{ overflow:'visible', display:'block' }}>
+        <svg width={totalW} height={padT+chartH+padB} style={{ overflow:'visible', display:'block', maxWidth:'100%' }}>
           {/* Gridlines + Y axis */}
           {[0,0.25,0.5,0.75,1].map(pct => {
             const val = minVal + pct*range
             const y = toY(val)
             return <g key={pct}>
               <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.05)" strokeWidth={1}/>
-              <text x={padL-8} y={y+3} textAnchor="end" fontSize={9} fill="#8A9BB0">{fmtM(val)}</text>
+              <text x={padL-8} y={y+3} textAnchor="end" fontSize={10} fill="#8A9BB0">{fmtM(val)}</text>
             </g>
           })}
           <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.2)" strokeWidth={1}/>
@@ -261,7 +261,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
               style={{ cursor:'pointer' }}>
               <rect x={x} y={y} width={barW} height={h} fill={b.color} rx={2} opacity={0.88}/>
               {/* Bar label */}
-              <text x={x+barW/2} y={isPos||b.isStart||b.isTotal ? y-4 : y+h+11} textAnchor="middle" fontSize={Math.min(9, barW/5)} fontWeight="600" fill={b.color}>
+              <text x={x+barW/2} y={isPos||b.isStart||b.isTotal ? y-5 : y+h+13} textAnchor="middle" fontSize={Math.min(12, Math.max(9, barW/5))} fontWeight="700" fill={b.color}>
                 {b.barLabel}
               </text>
               {/* X axis label — split on space */}

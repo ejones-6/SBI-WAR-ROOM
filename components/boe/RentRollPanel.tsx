@@ -145,15 +145,10 @@ export default function RentRollPanel({ savedData, onSave, dealName }: Props) {
   const [data, setData] = useState<RentRollData | null>(savedData)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
-  // Load saved rent roll from DB on mount
-  useState(() => {
-    if (savedData || !dealName) return
-    fetch(`/api/boe?deal=${encodeURIComponent(dealName)}`)
-      .then(r => r.json())
-      .then(d => { if (d?.rent_roll) { setData(d.rent_roll); onSave(d.rent_roll) } })
-      .catch(() => {})
-  })
+
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -165,14 +160,7 @@ export default function RentRollPanel({ savedData, onSave, dealName }: Props) {
       if (!parsed) { setErr('Could not parse rent roll — make sure this is a redIQ Floor Plan Summary file'); setLoading(false); return }
       setData(parsed)
       onSave(parsed)
-      // Persist to DB via BOE upsert
-      if (dealName) {
-        fetch('/api/boe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deal_name: dealName, rent_roll: parsed })
-        }).catch(() => {})
-      }
+
     } catch { setErr('Error reading file') }
     setLoading(false)
     e.target.value = ''
@@ -201,10 +189,32 @@ export default function RentRollPanel({ savedData, onSave, dealName }: Props) {
           <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: NAVY }}>Rent Roll Analysis</div>
           <div style={{ fontSize: 11, color: '#8A9BB0', marginTop: 2 }}>{data.propertyName}{data.asOf ? ` · ${data.asOf}` : ''} · {data.totalUnits} units</div>
         </div>
-        <label style={{ padding: '6px 14px', background: 'rgba(13,27,46,0.06)', color: NAVY, borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(13,27,46,0.1)' }}>
-          Re-upload
-          <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFile} />
-        </label>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          {saved && <span style={{ fontSize:11, color:'#2E7D50' }}>✓ Saved</span>}
+          <button
+            onClick={async () => {
+              if (!data) return
+              setSaving(true); setSaved(false)
+              try {
+                await fetch('/api/boe', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ deal_name: dealName, rent_roll: data })
+                })
+                setSaved(true)
+                setTimeout(() => setSaved(false), 3000)
+              } catch {}
+              setSaving(false)
+            }}
+            disabled={saving || !dealName}
+            style={{ padding: '6px 14px', background: NAVY, color: GOLD, border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer' }}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <label style={{ padding: '6px 14px', background: 'rgba(13,27,46,0.06)', color: NAVY, borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer', border: '1px solid rgba(13,27,46,0.1)' }}>
+            Re-upload
+            <input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFile} />
+          </label>
+        </div>
       </div>
 
       {/* Unit Mix Table */}
