@@ -173,7 +173,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
   // Chart — fit all bars on screen
   const n = bars.length
-  const padL = 56, padR = 16, padT = 40, padB = 64, chartH = 360, gap = 6
+  const padL = 56, padR = 16, padT = 40, padB = 90, chartH = 360, gap = 6
   // Fill full container width dynamically
   const chartW = typeof window !== 'undefined' ? Math.min(window.innerWidth - 80, 1040) : 960
   const barW = Math.floor((chartW - padL - padR - (n-1)*gap) / n)
