@@ -192,7 +192,7 @@ export default function RentRollPanel({ savedData, onSave }: Props) {
     </div>
   )
 
-  const bedTypes = [...new Set(data.mix.filter(r => r.bed >= 0).map(r => r.bed))].sort()
+  const bedTypes = Array.from(new Set(data.mix.filter(r => r.bed >= 0).map(r => r.bed))).sort()
   const maxExp = Math.max(...data.expSchedule.map(m => Object.values(m.beds).reduce((a,b)=>a+b,0)), 1)
 
   return (

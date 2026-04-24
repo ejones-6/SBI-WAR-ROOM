@@ -557,7 +557,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                   borderBottom: tab===t ? '2px solid #C9A84C' : '2px solid transparent',
                   textTransform:'uppercase', letterSpacing:'0.08em',
                 }}>
-                  {t === 'details' ? 'Deal Details' : t === 'boe' ? 'BOE' : t === 'noi' ? 'NOI Walk' : 'Rent Roll'}
+                  {t === 'details' ? 'Deal Details' : t === 'boe' ? 'BOE' : t === 'noi' ? 'NOI Walk' : 'Rent Roll Analysis'}
                   {t === 'boe' && boe && Object.keys(boe.t12 ?? {}).length > 0 && (
                     <span style={{ marginLeft:6, background:'#2E7D50', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:9 }}>T12</span>
                   )}
