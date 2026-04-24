@@ -11,7 +11,7 @@ interface Props {
 
 const ADJ_ORDER = ['gpr','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
 
-const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,oi_t3:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0,rrp_first:0,rrp_last:0 }
+const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,oi_t3:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
 
 const DEFAULT_ADJS: BoeAdjs = {
   gpr:'1.6', ltl:'3', vac:'5.0', bad:'', conc:'', mod:'', emp:'',
@@ -69,10 +69,11 @@ interface RowProps {
   onTabNext: (k: string, shift: boolean) => void
   isMobile?: boolean
   abbrev?: Record<string,string>
+  trendPct?: number | null
 }
 
 function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholder='', note=true,
-  adjValue, noteValue, units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange, onNoteChange, onTabNext, isMobile=false, abbrev={} }: RowProps) {
+  adjValue, noteValue, units, gpr_t, gpr_p, ltl_t, ltl_p, onAdjChange, onNoteChange, onTabNext, isMobile=false, abbrev={}, trendPct=null }: RowProps) {
   const gprt = gpr_t || 1; const gprp = gpr_p || 1
   const vacBaseT = (gpr_t+ltl_t)||1; const vacBaseP = (gpr_p+ltl_p)||1
   const pctT = isNeg ? (k==='vac' ? Math.abs(t12v/vacBaseT)*100 : Math.abs(t12v/gprt)*100) : 0
@@ -85,7 +86,11 @@ function Row({ k, label, t12v, pfv, isNeg=false, adjType='dollar', adjPlaceholde
         {isMobile && isNeg && pctT > 0 && <div style={{ fontSize:8, color:'#E57373', lineHeight:1 }}>{fmtPct(pctT)}</div>}
       </div>
       {!isMobile && <div style={{ textAlign:'right', fontSize:10, color:'#8A9BB0', paddingRight:8 }}>{fmtpu(t12v, units)}</div>}
-      {!isMobile && <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>{isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}</div>}
+      {!isMobile && <div style={{ textAlign:'center', fontSize:10, color:'#8A9BB0', paddingRight:4 }}>
+        {trendPct != null
+          ? <span style={{ fontSize:9, fontWeight:700, color: trendPct >= 0 ? '#2E7D50' : '#C0392B', background: trendPct >= 0 ? 'rgba(46,125,80,0.1)' : 'rgba(192,57,43,0.1)', padding:'1px 4px', borderRadius:3 }}>{trendPct >= 0 ? '+' : ''}{trendPct.toFixed(1)}%</span>
+          : isNeg && t12v !== 0 ? <span style={{color:'#E57373',fontSize:9}}>{fmtPct(pctT)}</span> : ''}
+      </div>}
       <div style={{ padding: isMobile?'0':'2px 6px', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
         {isMobile ? (
           <div style={{ width:'100%', height:22, overflow:'hidden', position:'relative' }}>
@@ -895,12 +900,8 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       {/* Income */}
       <SectionHead label="Income" />
       <div style={{ position:'relative' }}>
-        <Row k="gpr" label="Residential Rental Revenue" t12v={gpr_t+ltl_t} pfv={gpr_p+ltl_p} adjType="pct" adjPlaceholder="% growth" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
-        {rrp_trend !== null && (
-          <div style={{ position:'absolute', right: isMobile ? 76 : 420, top:'50%', transform:'translateY(-50%)', fontSize:9, fontWeight:700, color: rrp_trend >= 0 ? '#2E7D50' : '#C0392B', background: rrp_trend >= 0 ? 'rgba(46,125,80,0.08)' : 'rgba(192,57,43,0.08)', padding:'1px 5px', borderRadius:4, whiteSpace:'nowrap', pointerEvents:'none' }}>
-            {rrp_trend >= 0 ? '+' : ''}{rrp_trend.toFixed(1)}% T12 trend
-          </div>
-        )}
+        <Row k="gpr" label="Residential Rental Revenue" t12v={gpr_t+ltl_t} pfv={gpr_p+ltl_p} adjType="pct" adjPlaceholder="% growth" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} trendPct={rrp_trend} {...rowProps} />
+
       </div>
       <Row k="vac" label="Vacancy" t12v={vac_t} pfv={vac_p} isNeg adjType="pct" adjPlaceholder="5.0%" adjValue={adjs['vac']??''} noteValue={notes['vac']??''} {...rowProps} />
       <Row k="bad" label="Bad Debt" t12v={bad_t} pfv={bad_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['bad']??''} noteValue={notes['bad']??''} {...rowProps} />
