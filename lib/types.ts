@@ -30,6 +30,8 @@ export interface BoeT12 {
   gpr: number; ltl: number; vac: number; bad: number
   conc: number; mod: number; emp: number; oi: number
   oi_t3?: number
+  rrp_first?: number
+  rrp_last?: number
   ga: number; mkt: number; rm: number; pay: number
   mgt: number; utl: number; tax: number; taxm: number
   ins: number
@@ -62,7 +64,9 @@ export interface BoeData {
   lease_up_mode?: 'stabilized' | 'leaseup'
   avg_rent?: number | null
   rent_growth?: number | null
-  oi_t3?: number | null
+  oi_t3?: number
+  rrp_first?: number
+  rrp_last?: number | null
   updated_at?: string
 }
 
