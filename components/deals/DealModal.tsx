@@ -197,7 +197,51 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
 export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
-  const [pfValues, setPfValues] = useState<Record<string,number>>({})
+  const [pfValues, setPfValues] = useState<Record<string,number>>(() => {
+    // Compute initial PF values from boe so NOI Walk is correct on first open
+    if (!boe?.t12) return {}
+    const t = boe.t12 as any
+    const a = boe.adjs ?? {}
+    const v = (k: string) => a[k] !== undefined && a[k] !== '' ? parseFloat(a[k]) : null
+    const units = deal.units || 1
+    const pp = deal.purchase_price || 0
+    const rrp_t12 = (t.gpr??0) + (t.ltl??0)
+    const rrp_adjPct = v('gpr') ?? 0
+    const rrp_pf = rrp_t12 * (1 + rrp_adjPct/100)
+    const ltl_p = t.ltl ?? 0
+    const gpr_p = rrp_pf - ltl_p
+    const vac_p = v('vac')!=null ? -(v('vac')!/100)*(gpr_p+ltl_p) : (t.vac??0)
+    const bad_p = v('bad')!=null ? -(v('bad')!/100)*gpr_p : (t.bad??0)
+    const conc_p = v('conc')!=null ? -(v('conc')!/100)*gpr_p : (t.conc??0)
+    const mod_p = v('mod')!=null ? -(v('mod')!/100)*gpr_p : (t.mod??0)
+    const emp_p = v('emp')!=null ? -(v('emp')!/100)*gpr_p : (t.emp??0)
+    const oi_p = (t.oi??0) + (v('oi')??0)
+    const egr_p = rrp_pf + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p
+    const ga_p = (t.ga??0) + (v('ga')??0)
+    const mkt_p = (t.mkt??0) + (v('mkt')??0)
+    const py = boe.payroll ?? {}
+    const pv = (k: string) => parseFloat((py as any)[k] ?? '0') || 0
+    const inBase = pv('py-pm')+pv('py-am')+pv('py-la')
+    const outBase = pv('py-ms')+pv('py-mt')+pv('py-ma')
+    const payCalc = inBase*(1+pv('py-bi')) + outBase*(1+pv('py-bo')) + (inBase+outBase)*pv('py-ben')
+    const rm = boe.rmi ?? {}
+    const rv = (k: string) => parseFloat((rm as any)[k] ?? '0') || 0
+    const rmCalc = (rv('rmi-rm')+rv('rmi-ct')+rv('rmi-tu'))*units
+    const rm_p = a['rm'] ? parseFloat(a['rm'])*units : (rmCalc > 0 ? rmCalc : (t.rm??0))
+    const pay_p = a['pay'] ? parseFloat(a['pay']) : (payCalc > 0 ? payCalc : (t.pay??0))
+    const mgt_p = ((v('mgt')??2.5)/100)*egr_p
+    const utl_p = (t.utl??0) + (v('utl')??0)
+    const th = boe.tax_helper ?? {}
+    const tv = (k: string) => parseFloat((th as any)[k] ?? '0') || 0
+    const taxBase = boe.tax_mode === 'av' ? (parseFloat(String(boe.current_av??'0').replace(/[,$]/g,''))||0) : pp
+    const taxCalc = taxBase*(tv('tx-mil')/100)*(tv('tx-rat')/100)*(tv('tx-sf')/100)+tv('tx-nad')
+    const tax_p = a['tax'] ? (t.tax??0)+(v('tax')??0) : (taxCalc>0?taxCalc:(t.tax??0)+(v('tax')??0))
+    const taxm_p = (t.taxm??0) + (v('taxm')??0)
+    const ins_p = (v('ins')??550)*units
+    const opex_p = ga_p+mkt_p+rm_p+pay_p+mgt_p+utl_p+tax_p+taxm_p+ins_p
+    const noi_p = (boe.pf_noi_override != null && boe.pf_noi_override !== 0) ? boe.pf_noi_override : (egr_p - opex_p)
+    return { rrp_pf, gpr_p, ltl_p, vac_p, bad_p, conc_p, mod_p, emp_p, oi_p, egr_p, ga_p, mkt_p, rm_p, pay_p, mgt_p, utl_p, tax_p, taxm_p, ins_p, noi_p }
+  })
   const [form, setForm] = useState({
     status: deal.status,
     purchase_price: deal.purchase_price?.toString() ?? '',
@@ -538,9 +582,6 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
 
           {tab === 'boe' && (
             <BoePanel deal={deal} boe={boe} onSave={onSaveBoe} onPfChange={setPfValues} />
-          )}
-          {tab === 'noi' && (
-            <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
           )}
           {tab === 'noi' && (
             <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
