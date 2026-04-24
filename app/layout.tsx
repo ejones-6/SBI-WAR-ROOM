@@ -5,8 +5,12 @@ export const metadata: Metadata = {
   title: 'StoneBridge | War Room',
   description: 'StoneBridge Acquisitions War Room',
   icons: {
-    icon: '/stonebridge_favicon.jpeg',
-    apple: '/stonebridge_favicon.jpeg',
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/stonebridge_favicon.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/stonebridge_favicon.png',
+    shortcut: '/favicon.ico',
   },
 }
 
