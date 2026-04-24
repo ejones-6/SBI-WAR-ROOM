@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, fmtUnit, ALL_STATUSES, REGION_MAP, REGION_LABELS } from '@/lib/utils'
 import type { Region } from '@/lib/types'
@@ -22,9 +22,10 @@ type Tab = 'details' | 'boe' | 'noi'
 function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Record<string,number> }) {
   const NAVY = '#0D1B2E'
   const GOLD = '#C9A84C'
+  const [tooltip, setTooltip] = React.useState<{ label: string; value: number; pct: number | null; x: number; y: number } | null>(null)
 
   if (!boe?.t12) return (
-    <div style={{ padding: 60, textAlign: 'center', color: '#8A9BB0', fontFamily: "'DM Sans',sans-serif", fontSize: 14 }}>
+    <div style={{ padding:60, textAlign:'center', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif", fontSize:14 }}>
       No BOE data yet — build the BOE first then come back here.
     </div>
   )
@@ -33,158 +34,185 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const pp = deal.purchase_price || 0
   const pf = pfValues
 
-  const rrp_pf = pf.rrp_pf ?? 0
-  const vac_p  = pf.vac_p  ?? 0
-  const bad_p  = pf.bad_p  ?? 0
-  const conc_p = pf.conc_p ?? 0
-  const mod_p  = pf.mod_p  ?? 0
-  const emp_p  = pf.emp_p  ?? 0
-  const oi_p   = pf.oi_p   ?? 0
-  const ga_p   = pf.ga_p   ?? 0
-  const mkt_p  = pf.mkt_p  ?? 0
-  const rm_p   = pf.rm_p   ?? 0
-  const pay_p  = pf.pay_p  ?? 0
-  const mgt_p  = pf.mgt_p  ?? 0
-  const utl_p  = pf.utl_p  ?? 0
-  const tax_p  = pf.tax_p  ?? 0
-  const taxm_p = pf.taxm_p ?? 0
-  const ins_p  = pf.ins_p  ?? 0
-  const noi_pf = pf.noi_p  ?? 0
-
-  const t = boe.t12
-  const noi_t12 = t ? (t.gpr+t.ltl+t.vac+t.bad+t.conc+t.mod+t.emp+t.oi)-(t.ga+t.mkt+t.rm+t.pay+t.mgt+t.utl+t.tax+t.taxm+t.ins) : 0
+  const rrp_pf  = pf.rrp_pf  ?? 0
+  const vac_p   = pf.vac_p   ?? 0
+  const bad_p   = pf.bad_p   ?? 0
+  const conc_p  = pf.conc_p  ?? 0
+  const mod_p   = pf.mod_p   ?? 0
+  const emp_p   = pf.emp_p   ?? 0
+  const oi_p    = pf.oi_p    ?? 0
+  const egr_p   = pf.egr_p   ?? (rrp_pf + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p)
+  const ga_p    = pf.ga_p    ?? 0
+  const mkt_p   = pf.mkt_p   ?? 0
+  const rm_p    = pf.rm_p    ?? 0
+  const pay_p   = pf.pay_p   ?? 0
+  const mgt_p   = pf.mgt_p   ?? 0
+  const utl_p   = pf.utl_p   ?? 0
+  const tax_p   = pf.tax_p   ?? 0
+  const taxm_p  = pf.taxm_p  ?? 0
+  const ins_p   = pf.ins_p   ?? 0
+  const noi_pf  = pf.noi_p   ?? 0
 
   const fmt = (n: number) => {
     const abs = Math.abs(n)
     if (abs >= 1000000) return `$${(n/1000000).toFixed(2)}M`
-    if (abs >= 1000) return `${n<0?'-':''}$${Math.round(Math.abs(n)/1000)}K`
-    return `${n<0?'-':''}$${Math.round(Math.abs(n))}`
+    if (abs >= 1000) return `$${Math.round(n/1000)}K`
+    return `$${Math.round(n)}`
   }
-  const fmtFull = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
+  const fmtFull = (n: number) => n < 0
+    ? `-$${Math.abs(Math.round(n)).toLocaleString()}`
+    : `$${Math.round(n).toLocaleString()}`
+  const fmtPct = (n: number) => egr_p ? `${((Math.abs(n)/egr_p)*100).toFixed(1)}% of EGR` : ''
 
-  const dRRP     = rrp_pf - ((t?.gpr??0)+(t?.ltl??0))
-  const dVac     = vac_p  - (t?.vac??0)
-  const dBadConc = (bad_p+conc_p) - ((t?.bad??0)+(t?.conc??0))
-  const dModEmp  = (mod_p+emp_p)  - ((t?.mod??0)+(t?.emp??0))
-  const dOI      = oi_p   - (t?.oi??0)
-  const dGA      = -(ga_p   - (t?.ga??0))
-  const dMkt     = -(mkt_p  - (t?.mkt??0))
-  const dRM      = -(rm_p   - (t?.rm??0))
-  const dPay     = -(pay_p  - (t?.pay??0))
-  const dUtlMgt  = -((utl_p+mgt_p) - ((t?.utl??0)+(t?.mgt??0)))
-  const dTax     = -((tax_p+taxm_p) - ((t?.tax??0)+(t?.taxm??0)))
-  const dIns     = -(ins_p - (t?.ins??0))
-
-  const bars: { label: string; value: number }[] = [
-    { label: 'T12 NOI', value: noi_t12 },
-    ...(Math.abs(dRRP)     > 1 ? [{ label: 'RRP',        value: dRRP     }] : []),
-    ...(Math.abs(dVac)     > 1 ? [{ label: 'Vacancy',    value: dVac     }] : []),
-    ...(Math.abs(dBadConc) > 1 ? [{ label: 'Bad/Conc',   value: dBadConc }] : []),
-    ...(Math.abs(dModEmp)  > 1 ? [{ label: 'Mod/Emp',    value: dModEmp  }] : []),
-    ...(Math.abs(dOI)      > 1 ? [{ label: 'Other Inc.', value: dOI      }] : []),
-    ...(Math.abs(dGA)      > 1 ? [{ label: 'G&A',        value: dGA      }] : []),
-    ...(Math.abs(dMkt)     > 1 ? [{ label: 'Marketing',  value: dMkt     }] : []),
-    ...(Math.abs(dRM)      > 1 ? [{ label: 'R&M',        value: dRM      }] : []),
-    ...(Math.abs(dPay)     > 1 ? [{ label: 'Payroll',    value: dPay     }] : []),
-    ...(Math.abs(dUtlMgt)  > 1 ? [{ label: 'Utl/Mgmt',  value: dUtlMgt  }] : []),
-    ...(Math.abs(dTax)     > 1 ? [{ label: 'Tax',        value: dTax     }] : []),
-    ...(Math.abs(dIns)     > 1 ? [{ label: 'Insurance',  value: dIns     }] : []),
-    { label: 'PF NOI', value: noi_pf },
+  // Bars — all PF absolute values, waterfall style
+  const bars: { label: string; value: number; color: string; isTotal?: boolean; isStart?: boolean }[] = [
+    { label: 'RRP',         value: rrp_pf,          color: '#2E7D50', isStart: true },
+    { label: 'Vacancy',     value: vac_p,            color: '#C0392B' },
+    { label: 'Bad/Conc',    value: bad_p + conc_p,   color: '#C0392B' },
+    { label: 'Mod/Emp',     value: mod_p + emp_p,    color: '#C0392B' },
+    { label: 'Other Inc.',  value: oi_p,             color: '#2E7D50' },
+    { label: 'G&A',         value: -ga_p,            color: '#C0392B' },
+    { label: 'Marketing',   value: -mkt_p,           color: '#C0392B' },
+    { label: 'R&M',         value: -rm_p,            color: '#C0392B' },
+    { label: 'Payroll',     value: -pay_p,           color: '#C0392B' },
+    { label: 'Utl/Mgmt',   value: -(utl_p+mgt_p),   color: '#C0392B' },
+    { label: 'Tax',         value: -(tax_p+taxm_p),  color: '#C0392B' },
+    { label: 'Insurance',   value: -ins_p,           color: '#C0392B' },
+    { label: 'PF NOI',      value: noi_pf,           color: NAVY, isTotal: true },
   ]
 
-  const barW = 68, gap = 10, padL = 68, padR = 20, padT = 36, padB = 52, chartH = 280
+  const barW = 52, gap = 9, padL = 60, padR = 20, padT = 28, padB = 50, chartH = 210
   const totalW = padL + bars.length * (barW + gap) - gap + padR
 
-  let running = noi_t12
-  const allY: number[] = [noi_t12, noi_pf]
-  bars.slice(1,-1).forEach(b => { running += b.value; allY.push(running) })
-  const maxVal = Math.max(...allY) * 1.14
-  const minVal = Math.min(...allY, 0) * 1.1
-  const range  = maxVal - minVal || 1
-  const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
-
-  running = noi_t12
+  // Waterfall positioning
+  let running = 0
   const barData = bars.map((b, i) => {
-    const isFirst = i === 0, isLast = i === bars.length - 1
-    if (isFirst || isLast) return { ...b, top: toY(b.value), height: Math.max(toY(0) - toY(b.value), 3) }
-    const prev = running; running += b.value
-    return { ...b, top: toY(Math.max(prev, running)), height: Math.max(Math.abs(toY(prev) - toY(running)), 3) }
+    let top: number, height: number
+    if (b.isStart || b.isTotal) {
+      top = 0; height = b.value; running = b.isStart ? b.value : running
+    } else {
+      top = running; height = b.value; running += b.value
+    }
+    return { ...b, stackTop: top, stackH: height }
   })
 
-  const barColor = (b: any, i: number) => {
-    if (i === 0) return '#2E7D50'
-    if (i === bars.length-1) return NAVY
-    return b.value >= 0 ? '#2E7D50' : '#C0392B'
+  // Scale
+  const allEnds = barData.map(b => b.isStart || b.isTotal ? b.value : b.stackTop + (b.stackH < 0 ? b.stackH : 0))
+  const allTops = barData.map(b => b.isStart || b.isTotal ? b.value : b.stackTop + (b.stackH > 0 ? b.stackH : 0))
+  const maxVal = Math.max(...allTops, noi_pf) * 1.1
+  const minVal = Math.min(...allEnds, 0)
+  const range = maxVal - minVal || 1
+  const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
+
+  const getRectProps = (b: typeof barData[0]) => {
+    if (b.isStart || b.isTotal) {
+      const top = toY(b.value); const bot = toY(0)
+      return { y: Math.min(top, bot), h: Math.max(Math.abs(bot - top), 2) }
+    }
+    const from = toY(b.stackTop)
+    const to = toY(b.stackTop + b.stackH)
+    return { y: Math.min(from, to), h: Math.max(Math.abs(from - to), 2) }
   }
 
   return (
-    <div style={{ padding: '28px 32px', fontFamily: "'DM Sans',sans-serif" }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: NAVY }}>NOI Walk</div>
-        <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 3 }}>T12 → PF adjustments · updates live as you adjust the BOE</div>
+    <div style={{ padding:24, fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+        <div>
+          <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY }}>NOI Walk</div>
+          <div style={{ fontSize:11, color:'#8A9BB0', marginTop:2 }}>PF values · updates live as you adjust the BOE</div>
+        </div>
+        <div style={{ display:'flex', gap:16, fontSize:11 }}>
+          <span style={{ color:'#2E7D50', fontWeight:600 }}>EGR {fmtFull(egr_p)}</span>
+          <span style={{ color:NAVY, fontWeight:700 }}>PF NOI {fmtFull(noi_pf)}</span>
+        </div>
       </div>
 
-      <div style={{ overflowX: 'auto', marginBottom: 48 }}>
-        <svg width={totalW} height={padT + chartH + padB} style={{ overflow: 'visible', display: 'block', minWidth: totalW }}>
+      {/* Chart */}
+      <div style={{ overflowX:'auto', position:'relative' }}>
+        <svg width={totalW} height={padT + chartH + padB} style={{ overflow:'visible', display:'block' }}>
+          {/* Gridlines */}
           {[0, 0.25, 0.5, 0.75, 1].map(pct => {
             const val = minVal + pct * range
             const y = toY(val)
             return <g key={pct}>
-              <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.06)" strokeWidth={1}/>
-              <text x={padL-8} y={y+4} textAnchor="end" fontSize={10} fill="#8A9BB0">{fmt(val)}</text>
+              <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.05)" strokeWidth={1}/>
+              <text x={padL-6} y={y+3} textAnchor="end" fontSize={8} fill="#8A9BB0">{fmt(val)}</text>
             </g>
           })}
-          <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.2)" strokeWidth={1}/>
+          {/* Zero line */}
+          <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.18)" strokeWidth={1}/>
+
+          {/* Connector lines */}
+          {barData.map((b, i) => {
+            if (i === 0 || b.isTotal) return null
+            const prev = barData[i-1]
+            const connY = prev.isStart ? toY(prev.value) : toY(prev.stackTop + prev.stackH)
+            const x = padL + i * (barW + gap)
+            return <line key={`conn-${i}`} x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.15)" strokeWidth={0.5} strokeDasharray="3,2"/>
+          })}
+
+          {/* Bars */}
           {barData.map((b, i) => {
             const x = padL + i * (barW + gap)
-            const c = barColor(b, i)
-            const isLast = i === bars.length - 1
-            const connY = b.value >= 0 ? b.top : b.top + b.height
-            return <g key={b.label}>
-              {i > 0 && !isLast && (
-                <line x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.18)" strokeWidth={0.5} strokeDasharray="3,2"/>
-              )}
-              <rect x={x} y={b.top} width={barW} height={b.height} fill={c} rx={2} opacity={0.88}/>
-              <text x={x+barW/2} y={b.top-6} textAnchor="middle" fontSize={10} fontWeight="600" fill={c}>
-                {i > 0 && i < bars.length-1 && b.value > 0 ? '+' : ''}{fmt(b.value)}
+            const { y, h } = getRectProps(b)
+            const labelVal = b.isStart || b.isTotal ? b.value : b.stackH
+            const pctOfEgr = (!b.isStart && !b.isTotal && egr_p) ? (Math.abs(b.stackH)/egr_p)*100 : null
+            return <g key={b.label}
+              onMouseEnter={e => setTooltip({ label: b.label, value: labelVal, pct: pctOfEgr, x: x + barW/2, y })}
+              onMouseLeave={() => setTooltip(null)}
+              style={{ cursor:'pointer' }}>
+              <rect x={x} y={y} width={barW} height={h} fill={b.color} rx={2} opacity={0.88}/>
+              {/* Value label above/below bar */}
+              <text x={x+barW/2} y={labelVal >= 0 ? y-4 : y+h+10} textAnchor="middle" fontSize={9} fontWeight="600" fill={b.color}>
+                {fmt(labelVal)}
               </text>
-              <text x={x+barW/2} y={padT+chartH+18} textAnchor="middle" fontSize={9} fill="#8A9BB0">
-                {b.label.includes('/') ? b.label.split('/').map((w: string, wi: number) => (
-                  <tspan key={wi} x={x+barW/2} dy={wi===0?0:11}>{w}</tspan>
-                )) : b.label.split(' ').map((w: string, wi: number) => (
-                  <tspan key={wi} x={x+barW/2} dy={wi===0?0:11}>{w}</tspan>
-                ))}
-              </text>
+              {/* X label */}
+              {b.label.split('/').map((w, wi) => (
+                <text key={wi} x={x+barW/2} y={padT+chartH+14+(wi*10)} textAnchor="middle" fontSize={8} fill="#8A9BB0">{w}</text>
+              ))}
             </g>
           })}
+
+          {/* Tooltip */}
+          {tooltip && (() => {
+            const tx = Math.min(tooltip.x, totalW - 130)
+            const ty = Math.max(tooltip.y - 60, padT)
+            return <g>
+              <rect x={tx-4} y={ty} width={130} height={tooltip.pct ? 44 : 32} rx={4} fill={NAVY} opacity={0.92}/>
+              <text x={tx+4} y={ty+13} fontSize={10} fontWeight="700" fill="#fff">{tooltip.label}</text>
+              <text x={tx+4} y={ty+26} fontSize={9} fill="rgba(255,255,255,0.75)">{fmtFull(tooltip.value)}</text>
+              {tooltip.pct != null && <text x={tx+4} y={ty+38} fontSize={9} fill={GOLD}>{tooltip.pct.toFixed(1)}% of EGR</text>}
+            </g>
+          })()}
         </svg>
       </div>
 
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: NAVY }}>Cap Rate Sensitivity</div>
-        <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 3, marginBottom: 20 }}>PF NOI: {fmtFull(noi_pf)} · {units} units</div>
+      {/* Cap Rate Sensitivity */}
+      <div style={{ marginTop:32, marginBottom:12 }}>
+        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY, marginBottom:4 }}>Cap Rate Sensitivity</div>
+        <div style={{ fontSize:11, color:'#8A9BB0', marginBottom:16 }}>PF NOI: {fmtFull(noi_pf)} · {units} units</div>
       </div>
-
-      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
+      <table style={{ borderCollapse:'collapse', width:'100%', fontSize:12 }}>
         <thead>
-          <tr style={{ background: NAVY }}>
-            {['Price Adj.', 'Purchase Price', '$/Unit', 'Cap Rate (Adj)'].map(h => (
-              <th key={h} style={{ padding: '12px 16px', textAlign: h==='Price Adj.'?'left':'right', fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</th>
+          <tr style={{ background:NAVY }}>
+            {['Price Adj.','Purchase Price','$/Unit','Cap Rate (Adj)'].map(h => (
+              <th key={h} style={{ padding:'9px 14px', textAlign:h==='Price Adj.'?'left':'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.08em', textTransform:'uppercase' }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {[-4,-2,0,2,4].map((d, i) => {
-            const adjPP = pp * (1 + d/100)
-            const ppu   = units > 0 ? adjPP/units : 0
-            const cap   = adjPP > 0 ? (noi_pf/adjPP)*100 : 0
-            const isBase = d === 0
+          {[-4,-2,0,2,4].map((d,i) => {
+            const adjPP = pp*(1+d/100)
+            const ppu = units>0?adjPP/units:0
+            const cap = adjPP>0?(noi_pf/adjPP)*100:0
+            const isBase = d===0
             return (
-              <tr key={d} style={{ background: isBase ? 'rgba(201,168,76,0.08)' : i%2===0?'#fff':'rgba(13,27,46,0.015)', borderBottom: '1px solid rgba(13,27,46,0.06)' }}>
-                <td style={{ padding: '12px 16px', fontWeight: isBase?700:400, color: NAVY }}>{d===0?'— Base PP —':`${d>0?'+':''}${d}%`}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: isBase?700:400, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>${Math.round(adjPP).toLocaleString()}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums' }}>${Math.round(ppu).toLocaleString()}</td>
-                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: isBase?700:400, fontSize: isBase?15:13, color: isBase?GOLD:(cap>=5?'#2E7D50':cap>=4?'#C9A84C':'#C0392B'), fontVariantNumeric: 'tabular-nums' }}>{cap.toFixed(2)}%</td>
+              <tr key={d} style={{ background:isBase?'rgba(201,168,76,0.08)':i%2===0?'#fff':'rgba(13,27,46,0.015)', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
+                <td style={{ padding:'9px 14px', fontWeight:isBase?700:400, color:NAVY }}>{d===0?'— Base PP —':`${d>0?'+':''}${d}%`}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, color:NAVY, fontVariantNumeric:'tabular-nums' }}>${Math.round(adjPP).toLocaleString()}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', color:'#555', fontVariantNumeric:'tabular-nums' }}>${Math.round(ppu).toLocaleString()}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, fontSize:isBase?14:12, color:isBase?GOLD:(cap>=5?'#2E7D50':cap>=4?'#C9A84C':'#C0392B'), fontVariantNumeric:'tabular-nums' }}>{cap.toFixed(2)}%</td>
               </tr>
             )
           })}
