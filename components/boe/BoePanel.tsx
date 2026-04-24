@@ -7,6 +7,7 @@ interface Props {
   deal: Deal
   boe: BoeData | null
   onSave: (boe: BoeData) => Promise<any>
+  onPfChange?: (pf: Record<string,number>) => void
 }
 
 const ADJ_ORDER = ['gpr','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
@@ -157,7 +158,7 @@ function SectionHead({ label }: { label: string }) {
   return <div style={{ padding:'8px 14px', background:'rgba(13,27,46,0.05)', fontSize:10, fontWeight:700, color:'#8A9BB0', letterSpacing:'0.12em', textTransform:'uppercase' }}>{label}</div>
 }
 
-export default function BoePanel({ deal, boe, onSave }: Props) {
+export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
   const units = deal.units ?? 1
   const soldPrice = deal.sold_price ?? 0
   const pp = soldPrice > 0 ? soldPrice : (deal.purchase_price ?? 0)
@@ -306,6 +307,17 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const noi_t = egr_t-opex_t
   const noi_p_calc = egr_p-opex_p
   const noi_p = pfNoiOverride !== '' ? (parseFloat(pfNoiOverride) || noi_p_calc) : noi_p_calc
+
+  // Emit PF values to parent (for NOI Walk tab)
+  useEffect(() => {
+    onPfChange?.({
+      rrp_pf, gpr_p, ltl_p,
+      vac_p, bad_p, conc_p, mod_p, emp_p, oi_p,
+      egr_p, ga_p, mkt_p, rm_p, pay_p, mgt_p, utl_p,
+      tax_p, taxm_p, ins_p,
+      noi_p, noi_p_calc,
+    })
+  }, [rrp_pf, vac_p, bad_p, conc_p, mod_p, emp_p, oi_p, ga_p, mkt_p, rm_p, pay_p, mgt_p, utl_p, tax_p, taxm_p, ins_p, noi_p])
   const cap_na = pp ? (noi_t/pp)*100 : 0
   const cap_adj= pp ? (noi_p/pp)*100 : 0
 
