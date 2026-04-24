@@ -9,9 +9,9 @@ interface Props {
   onSave: (boe: BoeData) => Promise<any>
 }
 
-const ADJ_ORDER = ['gpr','ltl','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
+const ADJ_ORDER = ['gpr','vac','bad','conc','mod','emp','oi','ga','mkt','rmi-rm','rmi-ct','rmi-tu','py-pm','py-am','py-la','py-bi','py-ms','py-mt','py-ma','py-bo','py-ben','utl','tx-mil','tx-rat','tx-sf','tx-nad','taxm','ins']
 
-const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,oi_t3:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0 }
+const EMPTY_T12: BoeT12 = { gpr:0,ltl:0,vac:0,bad:0,conc:0,mod:0,emp:0,oi:0,oi_t3:0,ga:0,mkt:0,rm:0,pay:0,mgt:0,utl:0,tax:0,taxm:0,ins:0,rrp_first:0,rrp_last:0 }
 
 const DEFAULT_ADJS: BoeAdjs = {
   gpr:'1.6', ltl:'3', vac:'5.0', bad:'', conc:'', mod:'', emp:'',
@@ -245,6 +245,9 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const isLeaseUp = leaseUpMode === 'leaseup'
   const avgRentNum = parseFloat(avgRent.replace(/[,$]/g,'')) || 0
   const rentGrowthNum = parseFloat(rentGrowth) || 1.6
+  const rrp_first = (t12 as any).rrp_first ?? 0
+  const rrp_last  = (t12 as any).rrp_last  ?? 0
+  const rrp_trend = rrp_first && rrp_last ? ((rrp_last - rrp_first) / Math.abs(rrp_first) * 100) : null
   const gpr_t = t12.gpr
   const gpr_p = isLeaseUp
     ? (avgRentNum > 0 ? avgRentNum * units * 12 * (1 + rentGrowthNum/100) : gpr_t*(1+rentGrowthNum/100))
@@ -507,8 +510,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
     const c2addr = XLSX.utils.encode_cell({r:1,c:2})
     ws[c2addr] = { v: units, t:'n', s:{ font:{name:'Calibri',sz:10,color:{rgb:BLACK}}, numFmt:'General', fill:{patternType:'none'}, border:{}, alignment:{horizontal:'left'} } }
 
-    irow(5,  'Gross Potential Rent',            gpr_t, gpr_p, gprPct,  false, notes['gpr']||'')
-    irow(6,  '(Loss to Lease) / Gain to Lease', ltl_t, ltl_p, ltlPct,  false, notes['ltl']||'')
+    irow(5,  'Residential Rental Revenue (GPR+LTL)', gpr_t+ltl_t, gpr_p+ltl_p, v('gpr'), false, notes['gpr']||'')
     irow(7,  'Vacancy',      vac_t,  vac_p,  vacPct,  true, notes['vac']||'')
     irow(8,  'Bad Debt',     bad_t,  bad_p,  badPct,  true, notes['bad']||'')
     irow(9,  'Concessions',  conc_t, conc_p, concPct, true, notes['conc']||'')
@@ -703,6 +705,19 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
       const newT12: BoeT12 = { ...EMPTY_T12 }
       newT12.gpr  = codeMap['gpr']  ?? 0
       newT12.ltl  = codeMap['ltl']  ?? 0
+      // Capture first and last month RRP for % change display
+      if (useCols.length >= 2) {
+        const firstCol = useCols[0]
+        const lastCol  = useCols[useCols.length - 1]
+        let gprFirst = 0, gprLast = 0, ltlFirst = 0, ltlLast = 0
+        for (let i = hdrIdx+1; i < rows.length; i++) {
+          const c = String(rows[i][0] ?? '').trim().toLowerCase()
+          if (c === 'gpr') { gprFirst = parseFloat(String(rows[i][firstCol] ?? '').replace(/[,$]/g,'')) || 0; gprLast = parseFloat(String(rows[i][lastCol] ?? '').replace(/[,$]/g,'')) || 0 }
+          if (c === 'ltl') { ltlFirst = parseFloat(String(rows[i][firstCol] ?? '').replace(/[,$]/g,'')) || 0; ltlLast = parseFloat(String(rows[i][lastCol] ?? '').replace(/[,$]/g,'')) || 0 }
+        }
+        ;(newT12 as any).rrp_first = gprFirst + ltlFirst
+        ;(newT12 as any).rrp_last  = gprLast  + ltlLast
+      }
       newT12.vac  = codeMap['vac']  ?? 0
       newT12.bad  = codeMap['bad']  ?? 0
       newT12.conc = codeMap['conc'] ?? 0
@@ -769,7 +784,7 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   }
 
   const ABBREV: Record<string,string> = {
-    'Gross Potential Rent':'GPR','(Loss to Lease) / GTL':'LTL','Vacancy':'Vacancy',
+    'Residential Rental Revenue':'RRP','Vacancy':'Vacancy',
     'Bad Debt':'Bad Debt','Concessions':'Concess.','Model Units':'Model',
     'Employee Units':'Emp.','Base Rental Revenue':'Base Rev.',
     'Other Income':'Other Inc.','Effective Gross Revenue':'EGR',
@@ -879,8 +894,14 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
 
       {/* Income */}
       <SectionHead label="Income" />
-      <Row k="gpr" label="Gross Potential Rent" t12v={gpr_t} pfv={gpr_p} adjType="pct" adjPlaceholder="1.6%" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
-      <Row k="ltl" label="(Loss to Lease) / GTL" t12v={ltl_t} pfv={ltl_p} adjType="pct" adjPlaceholder="3%" adjValue={adjs['ltl']??''} noteValue={notes['ltl']??''} {...rowProps} />
+      <div style={{ position:'relative' }}>
+        <Row k="gpr" label="Residential Rental Revenue" t12v={gpr_t+ltl_t} pfv={gpr_p+ltl_p} adjType="pct" adjPlaceholder="% growth" adjValue={adjs['gpr']??''} noteValue={notes['gpr']??''} {...rowProps} />
+        {rrp_trend !== null && (
+          <div style={{ position:'absolute', right: isMobile ? 76 : 420, top:'50%', transform:'translateY(-50%)', fontSize:9, fontWeight:700, color: rrp_trend >= 0 ? '#2E7D50' : '#C0392B', background: rrp_trend >= 0 ? 'rgba(46,125,80,0.08)' : 'rgba(192,57,43,0.08)', padding:'1px 5px', borderRadius:4, whiteSpace:'nowrap', pointerEvents:'none' }}>
+            {rrp_trend >= 0 ? '+' : ''}{rrp_trend.toFixed(1)}% T12 trend
+          </div>
+        )}
+      </div>
       <Row k="vac" label="Vacancy" t12v={vac_t} pfv={vac_p} isNeg adjType="pct" adjPlaceholder="5.0%" adjValue={adjs['vac']??''} noteValue={notes['vac']??''} {...rowProps} />
       <Row k="bad" label="Bad Debt" t12v={bad_t} pfv={bad_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['bad']??''} noteValue={notes['bad']??''} {...rowProps} />
       <Row k="conc" label="Concessions" t12v={conc_t} pfv={conc_p} isNeg adjType="pct" adjPlaceholder="% of GPR" adjValue={adjs['conc']??''} noteValue={notes['conc']??''} {...rowProps} />
