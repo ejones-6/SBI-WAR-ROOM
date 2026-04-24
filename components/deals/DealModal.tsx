@@ -324,7 +324,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
 export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
-  const [rentRollData, setRentRollData] = useState<any>(null)
+  const [rentRollData, setRentRollData] = useState<any>((boe as any)?.rent_roll ?? null)
   const [pfValues, setPfValues] = useState<Record<string,number>>(() => {
     // Compute initial PF values from boe so NOI Walk is correct on first open
     if (!boe?.t12) return {} as Record<string,number>
@@ -715,7 +715,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
             <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
           )}
           {tab === 'rr' && (
-            <RentRollPanel savedData={rentRollData} onSave={setRentRollData} />
+            <RentRollPanel savedData={rentRollData} onSave={setRentRollData} dealName={deal.name} />
           )}
         </div>
       </div>
