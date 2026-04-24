@@ -81,7 +81,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
     { label: 'PF NOI',      value: noi_pf,           color: NAVY, isTotal: true },
   ]
 
-  const barW = 52, gap = 9, padL = 60, padR = 20, padT = 28, padB = 50, chartH = 210
+  const barW = 72, gap = 12, padL = 72, padR = 24, padT = 36, padB = 60, chartH = 320
   const totalW = padL + bars.length * (barW + gap) - gap + padR
 
   // Waterfall positioning
@@ -107,11 +107,11 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const getRectProps = (b: typeof barData[0]) => {
     if (b.isStart || b.isTotal) {
       const top = toY(b.value); const bot = toY(0)
-      return { y: Math.min(top, bot), h: Math.max(Math.abs(bot - top), 2) }
+      return { y: Math.min(top, bot), h: Math.max(Math.abs(bot - top), 8) }
     }
     const from = toY(b.stackTop)
     const to = toY(b.stackTop + b.stackH)
-    return { y: Math.min(from, to), h: Math.max(Math.abs(from - to), 2) }
+    return { y: Math.min(from, to), h: Math.max(Math.abs(from - to), 8) }
   }
 
   return (
@@ -137,7 +137,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
             const y = toY(val)
             return <g key={pct}>
               <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.05)" strokeWidth={1}/>
-              <text x={padL-6} y={y+3} textAnchor="end" fontSize={8} fill="#8A9BB0">{fmt(val)}</text>
+              <text x={padL-8} y={y+3} textAnchor="end" fontSize={10} fill="#8A9BB0">{fmt(val)}</text>
             </g>
           })}
           {/* Zero line */}
@@ -164,12 +164,12 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
               style={{ cursor:'pointer' }}>
               <rect x={x} y={y} width={barW} height={h} fill={b.color} rx={2} opacity={0.88}/>
               {/* Value label above/below bar */}
-              <text x={x+barW/2} y={labelVal >= 0 ? y-4 : y+h+10} textAnchor="middle" fontSize={9} fontWeight="600" fill={b.color}>
+              <text x={x+barW/2} y={labelVal >= 0 ? y-6 : y+h+12} textAnchor="middle" fontSize={10} fontWeight="700" fill={b.color}>
                 {fmt(labelVal)}
               </text>
               {/* X label */}
               {b.label.split('/').map((w, wi) => (
-                <text key={wi} x={x+barW/2} y={padT+chartH+14+(wi*10)} textAnchor="middle" fontSize={8} fill="#8A9BB0">{w}</text>
+                <text key={wi} x={x+barW/2} y={padT+chartH+16+(wi*12)} textAnchor="middle" fontSize={10} fill="#8A9BB0">{w}</text>
               ))}
             </g>
           })}
