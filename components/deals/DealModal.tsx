@@ -15,18 +15,16 @@ interface Props {
   onSaveCapRate?: (dealName: string, capAdj: number) => void
 }
 
-type Tab = 'details' | 'boe' | 'noi' | 'noi'
+type Tab = 'details' | 'boe' | 'noi'
 
 
-// ── NOI Walk + Cap Rate Sensitivity ───────────────────────────────────────────
-
-// ── NOI Walk + Cap Rate Sensitivity ───────────────────────────────────────────
+// ── NOI Walk + Cap Rate Sensitivity ──────────────────────────────────────────
 function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Record<string,number> }) {
   const NAVY = '#0D1B2E'
   const GOLD = '#C9A84C'
 
   if (!boe?.t12) return (
-    <div style={{ padding:40, textAlign:'center', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif" }}>
+    <div style={{ padding: 60, textAlign: 'center', color: '#8A9BB0', fontFamily: "'DM Sans',sans-serif", fontSize: 14 }}>
       No BOE data yet — build the BOE first then come back here.
     </div>
   )
@@ -35,7 +33,6 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const pp = deal.purchase_price || 0
   const pf = pfValues
 
-  // Grab PF totals directly from BoePanel — no recalculation
   const rrp_pf = pf.rrp_pf ?? 0
   const vac_p  = pf.vac_p  ?? 0
   const bad_p  = pf.bad_p  ?? 0
@@ -43,7 +40,6 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const mod_p  = pf.mod_p  ?? 0
   const emp_p  = pf.emp_p  ?? 0
   const oi_p   = pf.oi_p   ?? 0
-  const egr_p  = pf.egr_p  ?? 0
   const ga_p   = pf.ga_p   ?? 0
   const mkt_p  = pf.mkt_p  ?? 0
   const rm_p   = pf.rm_p   ?? 0
@@ -55,146 +51,140 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const ins_p  = pf.ins_p  ?? 0
   const noi_pf = pf.noi_p  ?? 0
 
-  // T12 NOI for start bar
   const t = boe.t12
-  const noi_t12 = t ? (t.gpr+t.ltl+t.vac+t.bad+t.conc+t.mod+t.emp+t.oi) - (t.ga+t.mkt+t.rm+t.pay+t.mgt+t.utl+t.tax+t.taxm+t.ins) : 0
+  const noi_t12 = t ? (t.gpr+t.ltl+t.vac+t.bad+t.conc+t.mod+t.emp+t.oi)-(t.ga+t.mkt+t.rm+t.pay+t.mgt+t.utl+t.tax+t.taxm+t.ins) : 0
 
   const fmt = (n: number) => {
     const abs = Math.abs(n)
     if (abs >= 1000000) return `$${(n/1000000).toFixed(2)}M`
-    if (abs >= 1000) return `$${Math.round(n/1000)}K`
-    return `$${Math.round(n)}`
+    if (abs >= 1000) return `${n<0?'-':''}$${Math.round(Math.abs(n)/1000)}K`
+    return `${n<0?'-':''}$${Math.round(Math.abs(n))}`
   }
   const fmtFull = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
 
-  // Waterfall — starts at T12 NOI, each bar is the PF delta vs T12 for that item
-  const dRRP      = rrp_pf - ((t?.gpr??0)+(t?.ltl??0))
-  const dVac      = vac_p  - (t?.vac??0)
-  const dBadConc  = (bad_p+conc_p) - ((t?.bad??0)+(t?.conc??0))
-  const dModEmp   = (mod_p+emp_p)  - ((t?.mod??0)+(t?.emp??0))
-  const dOI       = oi_p   - (t?.oi??0)
-  const dGA       = -(ga_p   - (t?.ga??0))
-  const dMkt      = -(mkt_p  - (t?.mkt??0))
-  const dRM       = -(rm_p   - (t?.rm??0))
-  const dPay      = -(pay_p  - (t?.pay??0))
-  const dUtlMgt   = -((utl_p+mgt_p) - ((t?.utl??0)+(t?.mgt??0)))
-  const dTax      = -((tax_p+taxm_p) - ((t?.tax??0)+(t?.taxm??0)))
-  const dIns      = -(ins_p  - (t?.ins??0))
+  const dRRP     = rrp_pf - ((t?.gpr??0)+(t?.ltl??0))
+  const dVac     = vac_p  - (t?.vac??0)
+  const dBadConc = (bad_p+conc_p) - ((t?.bad??0)+(t?.conc??0))
+  const dModEmp  = (mod_p+emp_p)  - ((t?.mod??0)+(t?.emp??0))
+  const dOI      = oi_p   - (t?.oi??0)
+  const dGA      = -(ga_p   - (t?.ga??0))
+  const dMkt     = -(mkt_p  - (t?.mkt??0))
+  const dRM      = -(rm_p   - (t?.rm??0))
+  const dPay     = -(pay_p  - (t?.pay??0))
+  const dUtlMgt  = -((utl_p+mgt_p) - ((t?.utl??0)+(t?.mgt??0)))
+  const dTax     = -((tax_p+taxm_p) - ((t?.tax??0)+(t?.taxm??0)))
+  const dIns     = -(ins_p - (t?.ins??0))
 
   const bars: { label: string; value: number }[] = [
     { label: 'T12 NOI', value: noi_t12 },
-    ...( Math.abs(dRRP)     > 1 ? [{ label: 'RRP',          value: dRRP     }] : [] ),
-    ...( Math.abs(dVac)     > 1 ? [{ label: 'Vacancy',      value: dVac     }] : [] ),
-    ...( Math.abs(dBadConc) > 1 ? [{ label: 'Bad/Conc',     value: dBadConc }] : [] ),
-    ...( Math.abs(dModEmp)  > 1 ? [{ label: 'Mod/Emp',      value: dModEmp  }] : [] ),
-    ...( Math.abs(dOI)      > 1 ? [{ label: 'Other Inc.',   value: dOI      }] : [] ),
-    ...( Math.abs(dGA)      > 1 ? [{ label: 'G&A',          value: dGA      }] : [] ),
-    ...( Math.abs(dMkt)     > 1 ? [{ label: 'Marketing',    value: dMkt     }] : [] ),
-    ...( Math.abs(dRM)      > 1 ? [{ label: 'R&M',          value: dRM      }] : [] ),
-    ...( Math.abs(dPay)     > 1 ? [{ label: 'Payroll',      value: dPay     }] : [] ),
-    ...( Math.abs(dUtlMgt)  > 1 ? [{ label: 'Utl/Mgmt',    value: dUtlMgt  }] : [] ),
-    ...( Math.abs(dTax)     > 1 ? [{ label: 'Tax',          value: dTax     }] : [] ),
-    ...( Math.abs(dIns)     > 1 ? [{ label: 'Insurance',    value: dIns     }] : [] ),
+    ...(Math.abs(dRRP)     > 1 ? [{ label: 'RRP',        value: dRRP     }] : []),
+    ...(Math.abs(dVac)     > 1 ? [{ label: 'Vacancy',    value: dVac     }] : []),
+    ...(Math.abs(dBadConc) > 1 ? [{ label: 'Bad/Conc',   value: dBadConc }] : []),
+    ...(Math.abs(dModEmp)  > 1 ? [{ label: 'Mod/Emp',    value: dModEmp  }] : []),
+    ...(Math.abs(dOI)      > 1 ? [{ label: 'Other Inc.', value: dOI      }] : []),
+    ...(Math.abs(dGA)      > 1 ? [{ label: 'G&A',        value: dGA      }] : []),
+    ...(Math.abs(dMkt)     > 1 ? [{ label: 'Marketing',  value: dMkt     }] : []),
+    ...(Math.abs(dRM)      > 1 ? [{ label: 'R&M',        value: dRM      }] : []),
+    ...(Math.abs(dPay)     > 1 ? [{ label: 'Payroll',    value: dPay     }] : []),
+    ...(Math.abs(dUtlMgt)  > 1 ? [{ label: 'Utl/Mgmt',  value: dUtlMgt  }] : []),
+    ...(Math.abs(dTax)     > 1 ? [{ label: 'Tax',        value: dTax     }] : []),
+    ...(Math.abs(dIns)     > 1 ? [{ label: 'Insurance',  value: dIns     }] : []),
     { label: 'PF NOI', value: noi_pf },
   ]
 
-  // Chart setup
-  const barW = 54, gap = 8, padL = 58, padR = 16, padT = 30, padB = 44, chartH = 200
+  const barW = 68, gap = 10, padL = 68, padR = 20, padT = 36, padB = 52, chartH = 280
   const totalW = padL + bars.length * (barW + gap) - gap + padR
 
   let running = noi_t12
   const allY: number[] = [noi_t12, noi_pf]
   bars.slice(1,-1).forEach(b => { running += b.value; allY.push(running) })
-  const maxVal = Math.max(...allY) * 1.12
-  const minVal = Math.min(...allY, 0) * 1.08
-  const range = maxVal - minVal || 1
+  const maxVal = Math.max(...allY) * 1.14
+  const minVal = Math.min(...allY, 0) * 1.1
+  const range  = maxVal - minVal || 1
   const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
 
   running = noi_t12
   const barData = bars.map((b, i) => {
-    const isFirst = i === 0
-    const isLast  = i === bars.length - 1
-    if (isFirst || isLast) {
-      return { ...b, top: toY(b.value), height: Math.max(toY(0) - toY(b.value), 2), runAfter: b.value }
-    }
-    const prev = running
-    running += b.value
-    const top = toY(Math.max(prev, running))
-    const height = Math.max(Math.abs(toY(prev) - toY(running)), 2)
-    return { ...b, top, height, runAfter: running }
+    const isFirst = i === 0, isLast = i === bars.length - 1
+    if (isFirst || isLast) return { ...b, top: toY(b.value), height: Math.max(toY(0) - toY(b.value), 3) }
+    const prev = running; running += b.value
+    return { ...b, top: toY(Math.max(prev, running)), height: Math.max(Math.abs(toY(prev) - toY(running)), 3) }
   })
 
   const barColor = (b: any, i: number) => {
     if (i === 0) return '#2E7D50'
-    if (i === bars.length - 1) return NAVY
+    if (i === bars.length-1) return NAVY
     return b.value >= 0 ? '#2E7D50' : '#C0392B'
   }
 
   return (
-    <div style={{ padding:24, fontFamily:"'DM Sans',sans-serif", overflowX:'auto' }}>
-      <div style={{ marginBottom:16 }}>
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY }}>NOI Walk</div>
-        <div style={{ fontSize:11, color:'#8A9BB0', marginTop:2 }}>T12 → PF adjustments → PF NOI · updates live as you adjust the BOE</div>
+    <div style={{ padding: '28px 32px', fontFamily: "'DM Sans',sans-serif" }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: NAVY }}>NOI Walk</div>
+        <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 3 }}>T12 → PF adjustments · updates live as you adjust the BOE</div>
       </div>
 
-      <svg width={totalW} height={padT + chartH + padB} style={{ overflow:'visible', display:'block', marginBottom:36 }}>
-        {[0,0.25,0.5,0.75,1].map(pct => {
-          const val = minVal + pct * range
-          const y = toY(val)
-          return <g key={pct}>
-            <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.06)" strokeWidth={1}/>
-            <text x={padL-6} y={y+3} textAnchor="end" fontSize={8} fill="#8A9BB0">{fmt(val)}</text>
-          </g>
-        })}
-        <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.2)" strokeWidth={1}/>
-
-        {barData.map((b, i) => {
-          const x = padL + i * (barW + gap)
-          const c = barColor(b, i)
-          const isLast = i === bars.length - 1
-          const connY = b.value >= 0 ? b.top : b.top + b.height
-          return <g key={b.label}>
-            {i > 0 && !isLast && (
-              <line x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.15)" strokeWidth={0.5} strokeDasharray="3,2"/>
-            )}
-            <rect x={x} y={b.top} width={barW} height={b.height} fill={c} rx={2} opacity={0.88}/>
-            <text x={x+barW/2} y={b.top - 4} textAnchor="middle" fontSize={9} fontWeight="600" fill={c}>
-              {i > 0 && i < bars.length-1 && b.value > 0 ? '+' : ''}{fmt(b.value)}
-            </text>
-            <text x={x+barW/2} y={padT+chartH+14} textAnchor="middle" fontSize={8} fill="#8A9BB0">
-              {b.label.split('/').map((w: string, wi: number) => (
-                <tspan key={wi} x={x+barW/2} dy={wi===0?0:10}>{w}</tspan>
-              ))}
-            </text>
-          </g>
-        })}
-      </svg>
-
-      {/* Cap Rate Sensitivity */}
-      <div style={{ marginBottom:12 }}>
-        <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY, marginBottom:4 }}>Cap Rate Sensitivity</div>
-        <div style={{ fontSize:11, color:'#8A9BB0', marginBottom:16 }}>PF NOI: {fmtFull(noi_pf)} · {units} units</div>
+      <div style={{ overflowX: 'auto', marginBottom: 48 }}>
+        <svg width={totalW} height={padT + chartH + padB} style={{ overflow: 'visible', display: 'block', minWidth: totalW }}>
+          {[0, 0.25, 0.5, 0.75, 1].map(pct => {
+            const val = minVal + pct * range
+            const y = toY(val)
+            return <g key={pct}>
+              <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.06)" strokeWidth={1}/>
+              <text x={padL-8} y={y+4} textAnchor="end" fontSize={10} fill="#8A9BB0">{fmt(val)}</text>
+            </g>
+          })}
+          <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.2)" strokeWidth={1}/>
+          {barData.map((b, i) => {
+            const x = padL + i * (barW + gap)
+            const c = barColor(b, i)
+            const isLast = i === bars.length - 1
+            const connY = b.value >= 0 ? b.top : b.top + b.height
+            return <g key={b.label}>
+              {i > 0 && !isLast && (
+                <line x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.18)" strokeWidth={0.5} strokeDasharray="3,2"/>
+              )}
+              <rect x={x} y={b.top} width={barW} height={b.height} fill={c} rx={2} opacity={0.88}/>
+              <text x={x+barW/2} y={b.top-6} textAnchor="middle" fontSize={10} fontWeight="600" fill={c}>
+                {i > 0 && i < bars.length-1 && b.value > 0 ? '+' : ''}{fmt(b.value)}
+              </text>
+              <text x={x+barW/2} y={padT+chartH+18} textAnchor="middle" fontSize={9} fill="#8A9BB0">
+                {b.label.includes('/') ? b.label.split('/').map((w: string, wi: number) => (
+                  <tspan key={wi} x={x+barW/2} dy={wi===0?0:11}>{w}</tspan>
+                )) : b.label.split(' ').map((w: string, wi: number) => (
+                  <tspan key={wi} x={x+barW/2} dy={wi===0?0:11}>{w}</tspan>
+                ))}
+              </text>
+            </g>
+          })}
+        </svg>
       </div>
-      <table style={{ borderCollapse:'collapse', width:'100%', fontSize:12 }}>
+
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: NAVY }}>Cap Rate Sensitivity</div>
+        <div style={{ fontSize: 12, color: '#8A9BB0', marginTop: 3, marginBottom: 20 }}>PF NOI: {fmtFull(noi_pf)} · {units} units</div>
+      </div>
+
+      <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: 13 }}>
         <thead>
-          <tr style={{ background:NAVY }}>
-            {['Price Adj.','Purchase Price','$/Unit','Cap Rate (Adj)'].map(h => (
-              <th key={h} style={{ padding:'9px 14px', textAlign: h==='Price Adj.'?'left':'right', fontSize:10, fontWeight:700, color:GOLD, letterSpacing:'0.08em' }}>{h}</th>
+          <tr style={{ background: NAVY }}>
+            {['Price Adj.', 'Purchase Price', '$/Unit', 'Cap Rate (Adj)'].map(h => (
+              <th key={h} style={{ padding: '12px 16px', textAlign: h==='Price Adj.'?'left':'right', fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {[-4,-2,0,2,4].map((d,i) => {
+          {[-4,-2,0,2,4].map((d, i) => {
             const adjPP = pp * (1 + d/100)
-            const ppu = units > 0 ? adjPP/units : 0
-            const cap = adjPP > 0 ? (noi_pf/adjPP)*100 : 0
+            const ppu   = units > 0 ? adjPP/units : 0
+            const cap   = adjPP > 0 ? (noi_pf/adjPP)*100 : 0
             const isBase = d === 0
             return (
-              <tr key={d} style={{ background: isBase ? 'rgba(201,168,76,0.08)' : i%2===0 ? '#fff' : 'rgba(13,27,46,0.015)', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
-                <td style={{ padding:'9px 14px', fontWeight:isBase?700:400, color:NAVY }}>{d===0?'— Base PP —':`${d>0?'+':''}${d}%`}</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, color:NAVY, fontVariantNumeric:'tabular-nums' }}>${Math.round(adjPP).toLocaleString()}</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', color:'#555', fontVariantNumeric:'tabular-nums' }}>${Math.round(ppu).toLocaleString()}</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, color:isBase?GOLD:(cap>=5?'#2E7D50':cap>=4?'#C9A84C':'#C0392B'), fontVariantNumeric:'tabular-nums' }}>{cap.toFixed(2)}%</td>
+              <tr key={d} style={{ background: isBase ? 'rgba(201,168,76,0.08)' : i%2===0?'#fff':'rgba(13,27,46,0.015)', borderBottom: '1px solid rgba(13,27,46,0.06)' }}>
+                <td style={{ padding: '12px 16px', fontWeight: isBase?700:400, color: NAVY }}>{d===0?'— Base PP —':`${d>0?'+':''}${d}%`}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: isBase?700:400, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>${Math.round(adjPP).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', color: '#555', fontVariantNumeric: 'tabular-nums' }}>${Math.round(ppu).toLocaleString()}</td>
+                <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: isBase?700:400, fontSize: isBase?15:13, color: isBase?GOLD:(cap>=5?'#2E7D50':cap>=4?'#C9A84C':'#C0392B'), fontVariantNumeric: 'tabular-nums' }}>{cap.toFixed(2)}%</td>
               </tr>
             )
           })}
@@ -203,6 +193,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
     </div>
   )
 }
+
 
 export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
@@ -552,7 +543,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
             <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
           )}
           {tab === 'noi' && (
-            <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
+            <NoiWalk boe={boe} deal={deal} />
           )}
         </div>
       </div>
