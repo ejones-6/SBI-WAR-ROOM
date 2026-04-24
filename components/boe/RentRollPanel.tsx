@@ -42,70 +42,62 @@ function parseRentRoll(file: ArrayBuffer): RentRollData | null {
   try {
     const wb = XLSX.read(file, { type: 'array', cellDates: true })
 
-    // Get property name from Rent Roll sheet row 2
-    const rrSheet = wb.Sheets['Rent Roll']
+    // Primary: Floor Plan Summary for unit mix
+    const fpSheet = wb.Sheets['Floor Plan Summary']
     const sdSheet = wb.Sheets['Source Data']
-    if (!rrSheet || !sdSheet) return null
+    const rrSheet = wb.Sheets['Rent Roll']
+    if (!fpSheet) return null
 
-    const rrData = XLSX.utils.sheet_to_json<any[]>(rrSheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' })
-    const sdData = XLSX.utils.sheet_to_json<any[]>(sdSheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' })
+    const fpData = XLSX.utils.sheet_to_json<any[]>(fpSheet, { header: 1, raw: true })
+    const sdData = sdSheet ? XLSX.utils.sheet_to_json<any[]>(sdSheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd' }) : []
+    const rrData = rrSheet ? XLSX.utils.sheet_to_json<any[]>(rrSheet, { header: 1, raw: true }) : []
 
-    // Property name from row 1 col 0 of Rent Roll
-    const propName = String(rrData[0]?.[0] || 'Property')
-    // As-of date from Source Data row 6 col 1
-    const asOf = String(sdData[5]?.[1] || '')
+    // Property name from row 1 col 0
+    const propName = String(fpData[0]?.[0] || 'Property')
+    const asOf = sdData[5]?.[1] ? String(sdData[5][1]) : ''
 
-    // Parse Rent Roll — data starts row 10 (index 9), cols: 2=UnitID,4=NetSF,5=Bed,6=Bath,9=OccStatus,11=InPlaceRent
-    const units: { uid: string; bed: number; sf: number; occ: string; inplace: number }[] = []
+    // Floor Plan Summary data rows start at row 7 (index 6)
+    // Cols: 0=UnitType, 3=Bed, 5=NetSF, 6=#Units, 11=OccupiedPct, 16=InPlaceRent
+    const mix: UnitMixRow[] = []
+    let totalUnits = 0
+
+    for (let i = 6; i < fpData.length; i++) {
+      const row = fpData[i]
+      if (!row[0]) continue
+      const label = String(row[0]).trim()
+      if (label === 'Total / Average') {
+        // totals row
+        const avgSF = Math.round(parseFloat(row[5]) || 0)
+        const units = parseInt(row[6]) || 0
+        const occPct = (parseFloat(row[11]) || 0) * 100
+        const inplace = Math.round(parseFloat(row[16]) || 0)
+        totalUnits = units
+        mix.push({ label: 'All Units', bed: -1, units, avgSF, occPct, avgInPlace: inplace })
+        break
+      }
+      const bed = parseInt(row[3]) || 0
+      const avgSF = Math.round(parseFloat(row[5]) || 0)
+      const units = parseInt(row[6]) || 0
+      const occPct = (parseFloat(row[11]) || 0) * 100
+      const inplace = Math.round(parseFloat(row[16]) || 0)
+      if (!units) continue
+      const bedLabel = bed === 0 ? 'Studio' : `${bed} Bed`
+      mix.push({ label: bedLabel, bed, units, avgSF, occPct, avgInPlace: inplace })
+    }
+
+    if (!totalUnits && mix.length) {
+      totalUnits = mix.filter(r => r.bed >= 0).reduce((s, r) => s + r.units, 0)
+    }
+
+    // Build uid->bed from Rent Roll for lease exp chart
+    const uidBed: Record<string, number> = {}
     for (let i = 9; i < rrData.length; i++) {
       const row = rrData[i]
       if (!row[2]) break
-      const bed = parseInt(row[5]) || 0
-      const sf = parseFloat(row[4]) || 0
-      const occ = String(row[9] || '')
-      const inplace = parseFloat(String(row[11]).replace(/[,$]/g, '')) || 0
-      units.push({ uid: String(row[2]), bed, sf, occ, inplace })
+      uidBed[String(row[2])] = parseInt(row[5]) || 1
     }
 
-    // Build uid->bed map
-    const uidBed: Record<string, number> = {}
-    units.forEach(u => { uidBed[u.uid] = u.bed })
-
-    // Aggregate unit mix by bed type
-    const mixMap: Record<number, { units: number; sfSum: number; occCount: number; ipSum: number; ipCount: number }> = {}
-    for (const u of units) {
-      if (!mixMap[u.bed]) mixMap[u.bed] = { units: 0, sfSum: 0, occCount: 0, ipSum: 0, ipCount: 0 }
-      mixMap[u.bed].units++
-      mixMap[u.bed].sfSum += u.sf
-      if (u.occ.includes('Occupied') || u.occ.includes('Notice')) mixMap[u.bed].occCount++
-      if (u.inplace > 0) { mixMap[u.bed].ipSum += u.inplace; mixMap[u.bed].ipCount++ }
-    }
-
-    const mix: UnitMixRow[] = [0, 1, 2, 3, 4]
-      .filter(b => mixMap[b])
-      .map(b => ({
-        label: BED_LABELS[b],
-        bed: b,
-        units: mixMap[b].units,
-        avgSF: Math.round(mixMap[b].sfSum / mixMap[b].units),
-        occPct: mixMap[b].occCount / mixMap[b].units * 100,
-        avgInPlace: mixMap[b].ipCount ? Math.round(mixMap[b].ipSum / mixMap[b].ipCount) : 0,
-      }))
-
-    // Totals row
-    const totalUnits = units.length
-    const totalOcc = units.filter(u => u.occ.includes('Occupied') || u.occ.includes('Notice')).length
-    const totalIP = units.filter(u => u.inplace > 0)
-    mix.push({
-      label: 'All Units', bed: -1,
-      units: totalUnits,
-      avgSF: Math.round(units.reduce((s, u) => s + u.sf, 0) / totalUnits),
-      occPct: totalOcc / totalUnits * 100,
-      avgInPlace: totalIP.length ? Math.round(totalIP.reduce((s, u) => s + u.inplace, 0) / totalIP.length) : 0,
-    })
-
-    // Parse Source Data for lease expirations
-    // Data starts row 13 (index 12), cols: 1=UnitID, 8=LeaseExp
+    // Lease expirations from Source Data
     const now = new Date()
     const expMap: Record<string, Record<number, number>> = {}
 
@@ -114,28 +106,19 @@ function parseRentRoll(file: ArrayBuffer): RentRollData | null {
       if (!row[1]) break
       const uid = String(row[1])
       const expStr = String(row[8] || '')
-      if (!expStr || expStr === 'undefined') continue
+      if (!expStr || expStr === 'undefined' || expStr === 'null') continue
       const expDate = new Date(expStr)
       if (isNaN(expDate.getTime())) continue
-
       const bed = uidBed[uid] ?? 1
+      const diff = (expDate.getFullYear() - now.getFullYear()) * 12 + (expDate.getMonth() - now.getMonth())
       let monthKey: string
-      if (expDate < now) {
-        monthKey = 'Earlier'
-      } else {
-        const diff = (expDate.getFullYear() - now.getFullYear()) * 12 + (expDate.getMonth() - now.getMonth())
-        if (diff > 12) {
-          monthKey = 'Later'
-        } else {
-          monthKey = expDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-        }
-      }
-
+      if (diff < 0) monthKey = 'Earlier'
+      else if (diff > 12) monthKey = 'Later'
+      else monthKey = expDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
       if (!expMap[monthKey]) expMap[monthKey] = {}
       expMap[monthKey][bed] = (expMap[monthKey][bed] || 0) + 1
     }
 
-    // Order months
     const monthOrder: string[] = ['Earlier']
     const d = new Date(now)
     for (let i = 0; i <= 12; i++) {
@@ -143,10 +126,7 @@ function parseRentRoll(file: ArrayBuffer): RentRollData | null {
       d.setMonth(d.getMonth() + 1)
     }
     monthOrder.push('Later')
-
-    const expSchedule: LeaseExpMonth[] = monthOrder
-      .filter(m => expMap[m])
-      .map(m => ({ label: m, beds: expMap[m] }))
+    const expSchedule: LeaseExpMonth[] = monthOrder.filter(m => expMap[m]).map(m => ({ label: m, beds: expMap[m] }))
 
     return { propertyName: propName, totalUnits, asOf, mix, expSchedule }
   } catch (e) {
