@@ -1119,11 +1119,14 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
 
       {/* NOI */}
       <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, background:'#0D1B2E', minHeight: isMobile?36:42 }}>
-        <div style={{ fontSize:13, fontWeight:700, color:'#fff', paddingLeft:14, display:'flex', alignItems:'center' }}>NOI</div>
+        <div style={{ fontSize:13, fontWeight:700, color:'#fff', paddingLeft:14, display:'flex', alignItems:'flex-start', flexDirection:'column', justifyContent:'center', gap:3 }}>
+          <div>NOI</div>
+          {!isMobile && egr_t > 0 && <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', fontWeight:400 }}>OpEx Ratio</div>}
+        </div>
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
           <div>
             <div>{fmt(noi_t)}</div>
-            {!isMobile && egr_t > 0 && <div style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,0.6)', marginTop:2 }}>OpEx Ratio {opexPct_t.toFixed(1)}%</div>}
+            {!isMobile && egr_t > 0 && <div style={{ fontSize:11, fontWeight:600, color:'rgba(255,255,255,0.5)', marginTop:3, letterSpacing:'0.02em', textAlign:'center' }}>OpEx {opexPct_t.toFixed(1)}%</div>}
           </div>
         </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_t,units)}</div>
@@ -1131,7 +1134,7 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#F0B429', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
           <div>
             <div>{fmt(noi_p)}</div>
-            {!isMobile && egr_p > 0 && <div style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,0.6)', marginTop:2 }}>OpEx Ratio {opexPct_p.toFixed(1)}%</div>}
+            {!isMobile && egr_p > 0 && <div style={{ fontSize:11, fontWeight:600, color:'rgba(255,255,255,0.5)', marginTop:3, letterSpacing:'0.02em', textAlign:'center' }}>OpEx {opexPct_p.toFixed(1)}%</div>}
           </div>
         </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_p,units)}</div>
