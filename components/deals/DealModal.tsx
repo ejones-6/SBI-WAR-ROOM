@@ -22,7 +22,7 @@ type Tab = 'details' | 'boe' | 'noi'
 function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Record<string,number> }) {
   const NAVY = '#0D1B2E'
   const GOLD = '#C9A84C'
-  const [tooltip, setTooltip] = React.useState<{ label: string; value: number; pct: number | null; x: number; y: number } | null>(null)
+  const [tooltip, setTooltip] = React.useState<{ lines: string[]; x: number; y: number } | null>(null)
 
   if (!boe?.t12) return (
     <div style={{ padding:60, textAlign:'center', color:'#8A9BB0', fontFamily:"'DM Sans',sans-serif", fontSize:14 }}>
@@ -41,7 +41,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const mod_p   = pf.mod_p   ?? 0
   const emp_p   = pf.emp_p   ?? 0
   const oi_p    = pf.oi_p    ?? 0
-  const egr_p   = pf.egr_p   ?? (rrp_pf + vac_p + bad_p + conc_p + mod_p + emp_p + oi_p)
+  const egr_p   = pf.egr_p   ?? 0
   const ga_p    = pf.ga_p    ?? 0
   const mkt_p   = pf.mkt_p   ?? 0
   const rm_p    = pf.rm_p    ?? 0
@@ -53,65 +53,159 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const ins_p   = pf.ins_p   ?? 0
   const noi_pf  = pf.noi_p   ?? 0
 
-  const fmt = (n: number) => {
-    const abs = Math.abs(n)
-    if (abs >= 1000000) return `$${(n/1000000).toFixed(2)}M`
-    if (abs >= 1000) return `$${Math.round(n/1000)}K`
-    return `$${Math.round(n)}`
-  }
-  const fmtFull = (n: number) => n < 0
-    ? `-$${Math.abs(Math.round(n)).toLocaleString()}`
-    : `$${Math.round(n).toLocaleString()}`
-  const fmtPct = (n: number) => egr_p ? `${((Math.abs(n)/egr_p)*100).toFixed(1)}% of EGR` : ''
+  const fmtFull = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
+  const fmtM = (n: number) => { const a=Math.abs(n); if(a>=1000000) return `$${(n/1000000).toFixed(2)}M`; if(a>=1000) return `$${Math.round(n/1000)}K`; return `$${Math.round(n)}`}
+  const ppu = (n: number) => units > 0 ? `$${Math.round(Math.abs(n)/units).toLocaleString()}/unit` : '—'
+  const pctOfRRP = (n: number) => rrp_pf > 0 ? `${(Math.abs(n)/rrp_pf*100).toFixed(1)}%` : '—'
+  const pctOfEGR = (n: number) => egr_p > 0 ? `${(Math.abs(n)/egr_p*100).toFixed(1)}% of EGR` : '—'
 
-  // Bars — all PF absolute values, waterfall style
-  const bars: { label: string; value: number; color: string; isTotal?: boolean; isStart?: boolean }[] = [
-    { label: 'RRP',         value: rrp_pf,          color: '#2E7D50', isStart: true },
-    { label: 'Vacancy',     value: vac_p,            color: '#C0392B' },
-    { label: 'Bad/Conc',    value: bad_p + conc_p,   color: '#C0392B' },
-    { label: 'Mod/Emp',     value: mod_p + emp_p,    color: '#C0392B' },
-    { label: 'Other Inc.',  value: oi_p,             color: '#2E7D50' },
-    { label: 'G&A',         value: -ga_p,            color: '#C0392B' },
-    { label: 'Marketing',   value: -mkt_p,           color: '#C0392B' },
-    { label: 'R&M',         value: -rm_p,            color: '#C0392B' },
-    { label: 'Payroll',     value: -pay_p,           color: '#C0392B' },
-    { label: 'Utl/Mgmt',   value: -(utl_p+mgt_p),   color: '#C0392B' },
-    { label: 'Tax',         value: -(tax_p+taxm_p),  color: '#C0392B' },
-    { label: 'Insurance',   value: -ins_p,           color: '#C0392B' },
-    { label: 'PF NOI',      value: noi_pf,           color: NAVY, isTotal: true },
+  // Payroll detail from boe.payroll
+  const py = boe.payroll ?? {}
+  const pv = (k: string) => parseFloat(py[k]??'0')||0
+  const payrollLines = [
+    ...(pv('py-pm')>0 ? [`Prop Mgr: $${Math.round(pv('py-pm')).toLocaleString()}`] : []),
+    ...(pv('py-am')>0 ? [`Asst Mgr: $${Math.round(pv('py-am')).toLocaleString()}`] : []),
+    ...(pv('py-la')>0 ? [`Leasing: $${Math.round(pv('py-la')).toLocaleString()}`] : []),
+    ...(pv('py-ms')>0 ? [`Maint Sup: $${Math.round(pv('py-ms')).toLocaleString()}`] : []),
+    ...(pv('py-mt')>0 ? [`Maint Tech: $${Math.round(pv('py-mt')).toLocaleString()}`] : []),
+    ...(pv('py-ma')>0 ? [`Maint Asst: $${Math.round(pv('py-ma')).toLocaleString()}`] : []),
   ]
 
-  const barW = 72, gap = 12, padL = 72, padR = 24, padT = 36, padB = 60, chartH = 320
-  const totalW = padL + bars.length * (barW + gap) - gap + padR
+  // Tax tooltip
+  const th = boe.tax_helper ?? {}
+  const tv = (k: string) => parseFloat(th[k]??'0')||0
+  const taxMode = boe.tax_mode ?? 'pp'
+  const taxBase = taxMode === 'av' ? (parseFloat(String(boe.current_av??'0').replace(/[,$]/g,''))||0) : pp
+  const taxLabel = taxMode === 'av' ? 'Current Cycle (AV)' : 'Reassessment (PP)'
+  const taxLines = [
+    taxLabel,
+    `Base: $${Math.round(taxBase).toLocaleString()}`,
+    ...(tv('tx-mil')>0 ? [`Mill Rate: ${tv('tx-mil')}‰`] : []),
+    ...(tv('tx-rat')>0 ? [`Assessment Ratio: ${tv('tx-rat')}%`] : []),
+    ...(tv('tx-sf')>0  ? [`State Factor: ${tv('tx-sf')}`] : []),
+    ...(tv('tx-nad')>0 ? [`Non-Ad Val: $${Math.round(tv('tx-nad')).toLocaleString()}`] : []),
+    `Total: ${fmtFull(tax_p+taxm_p)}`,
+  ]
+
+  // Bar definitions — label shown ON bar, tooltipLines shown on hover
+  const bars: {
+    label: string
+    value: number
+    color: string
+    barLabel: string
+    tooltipLines: string[]
+    isStart?: boolean
+    isTotal?: boolean
+  }[] = [
+    {
+      label: 'RRP', value: rrp_pf, color: '#2E7D50', isStart: true,
+      barLabel: ppu(rrp_pf),
+      tooltipLines: [`RRP`, fmtFull(rrp_pf), ppu(rrp_pf)],
+    },
+    {
+      label: 'Vacancy', value: vac_p, color: '#C0392B',
+      barLabel: pctOfRRP(vac_p),
+      tooltipLines: [`Vacancy`, pctOfRRP(vac_p), fmtFull(vac_p)],
+    },
+    {
+      label: 'Bad Debt/Conc', value: bad_p+conc_p, color: '#C0392B',
+      barLabel: pctOfRRP(bad_p+conc_p),
+      tooltipLines: [
+        'Bad Debt/Conc',
+        `Bad Debt: ${pctOfRRP(bad_p)} (${fmtFull(bad_p)})`,
+        `Conc: ${pctOfRRP(conc_p)} (${fmtFull(conc_p)})`,
+        `Total: ${fmtFull(bad_p+conc_p)}`,
+      ],
+    },
+    {
+      label: 'Mod/Emp Units', value: mod_p+emp_p, color: '#C0392B',
+      barLabel: pctOfRRP(mod_p+emp_p),
+      tooltipLines: [`Mod/Emp Units`, pctOfRRP(mod_p+emp_p), fmtFull(mod_p+emp_p)],
+    },
+    {
+      label: 'Other Inc.', value: oi_p, color: '#2E7D50',
+      barLabel: ppu(oi_p),
+      tooltipLines: [`Other Income`, ppu(oi_p), fmtFull(oi_p)],
+    },
+    {
+      label: 'G&A', value: -ga_p, color: '#C0392B',
+      barLabel: ppu(ga_p),
+      tooltipLines: [`G&A`, ppu(ga_p), fmtFull(ga_p), pctOfEGR(ga_p)],
+    },
+    {
+      label: 'Mktg', value: -mkt_p, color: '#C0392B',
+      barLabel: ppu(mkt_p),
+      tooltipLines: [`Marketing`, ppu(mkt_p), fmtFull(mkt_p), pctOfEGR(mkt_p)],
+    },
+    {
+      label: 'R&M', value: -rm_p, color: '#C0392B',
+      barLabel: ppu(rm_p),
+      tooltipLines: [`R&M`, ppu(rm_p), fmtFull(rm_p), pctOfEGR(rm_p)],
+    },
+    {
+      label: 'Payroll', value: -pay_p, color: '#C0392B',
+      barLabel: fmtM(pay_p),
+      tooltipLines: [`Payroll`, fmtFull(pay_p), ...payrollLines.length ? payrollLines : ['No build-up data'], pctOfEGR(pay_p)],
+    },
+    {
+      label: 'Utl/Mgmt', value: -(utl_p+mgt_p), color: '#C0392B',
+      barLabel: ppu(utl_p+mgt_p),
+      tooltipLines: [`Utilities + Mgmt Fee`, fmtFull(utl_p+mgt_p), pctOfEGR(utl_p+mgt_p)],
+    },
+    {
+      label: 'RE / Other Tax', value: -(tax_p+taxm_p), color: '#C0392B',
+      barLabel: ppu(tax_p+taxm_p),
+      tooltipLines: taxLines,
+    },
+    {
+      label: 'Ins', value: -ins_p, color: '#C0392B',
+      barLabel: ppu(ins_p),
+      tooltipLines: [`Insurance`, ppu(ins_p), fmtFull(ins_p), pctOfEGR(ins_p)],
+    },
+    {
+      label: 'PF NOI', value: noi_pf, color: NAVY, isTotal: true,
+      barLabel: fmtM(noi_pf),
+      tooltipLines: [`PF NOI`, fmtFull(noi_pf), units>0?`$${Math.round(noi_pf/units).toLocaleString()}/unit`:''],
+    },
+  ]
+
+  // Chart — fit all bars on screen
+  const n = bars.length
+  const chartW = 820 // fixed width, bars auto-size to fit
+  const padL = 64, padR = 16, padT = 36, padB = 56, chartH = 300
+  const barW = Math.floor((chartW - padL - padR - (n-1)*6) / n)
+  const gap = 6
+  const totalW = padL + n*(barW+gap) - gap + padR
 
   // Waterfall positioning
   let running = 0
-  const barData = bars.map((b, i) => {
-    let top: number, height: number
+  const barData = bars.map((b) => {
+    let stackTop: number, stackH: number
     if (b.isStart || b.isTotal) {
-      top = 0; height = b.value; running = b.isStart ? b.value : running
+      stackTop = 0; stackH = b.value; if (b.isStart) running = b.value
     } else {
-      top = running; height = b.value; running += b.value
+      stackTop = running; stackH = b.value; running += b.value
     }
-    return { ...b, stackTop: top, stackH: height }
+    return { ...b, stackTop, stackH }
   })
 
-  // Scale
-  const allEnds = barData.map(b => b.isStart || b.isTotal ? b.value : b.stackTop + (b.stackH < 0 ? b.stackH : 0))
-  const allTops = barData.map(b => b.isStart || b.isTotal ? b.value : b.stackTop + (b.stackH > 0 ? b.stackH : 0))
-  const maxVal = Math.max(...allTops, noi_pf) * 1.1
-  const minVal = Math.min(...allEnds, 0)
+  const allVals: number[] = []
+  barData.forEach(b => {
+    if (b.isStart || b.isTotal) allVals.push(b.value)
+    else { allVals.push(b.stackTop); allVals.push(b.stackTop + b.stackH) }
+  })
+  const maxVal = Math.max(...allVals) * 1.12
+  const minVal = Math.min(...allVals, 0)
   const range = maxVal - minVal || 1
   const toY = (v: number) => padT + (1 - (v - minVal) / range) * chartH
 
   const getRectProps = (b: typeof barData[0]) => {
     if (b.isStart || b.isTotal) {
       const top = toY(b.value); const bot = toY(0)
-      return { y: Math.min(top, bot), h: Math.max(Math.abs(bot - top), 8) }
+      return { y: Math.min(top,bot), h: Math.max(Math.abs(bot-top), 8) }
     }
-    const from = toY(b.stackTop)
-    const to = toY(b.stackTop + b.stackH)
-    return { y: Math.min(from, to), h: Math.max(Math.abs(from - to), 8) }
+    const from = toY(b.stackTop); const to = toY(b.stackTop+b.stackH)
+    return { y: Math.min(from,to), h: Math.max(Math.abs(from-to), 8) }
   }
 
   return (
@@ -120,69 +214,72 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
         <div>
           <div style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:18, fontWeight:700, color:NAVY }}>NOI Walk</div>
-          <div style={{ fontSize:11, color:'#8A9BB0', marginTop:2 }}>PF values · updates live as you adjust the BOE</div>
+          <div style={{ fontSize:11, color:'#8A9BB0', marginTop:2 }}>PF values · hover bars for detail</div>
         </div>
-        <div style={{ display:'flex', gap:16, fontSize:11 }}>
-          <span style={{ color:'#2E7D50', fontWeight:600 }}>EGR {fmtFull(egr_p)}</span>
-          <span style={{ color:NAVY, fontWeight:700 }}>PF NOI {fmtFull(noi_pf)}</span>
+        <div style={{ display:'flex', gap:16, fontSize:12 }}>
+          <span style={{ color:'#555' }}>EGR <strong style={{color:NAVY}}>{fmtFull(egr_p)}</strong></span>
+          <span style={{ color:'#555' }}>PF NOI <strong style={{color:NAVY}}>{fmtFull(noi_pf)}</strong></span>
         </div>
       </div>
 
       {/* Chart */}
-      <div style={{ overflowX:'auto', position:'relative' }}>
-        <svg width={totalW} height={padT + chartH + padB} style={{ overflow:'visible', display:'block' }}>
-          {/* Gridlines */}
-          {[0, 0.25, 0.5, 0.75, 1].map(pct => {
-            const val = minVal + pct * range
+      <div style={{ position:'relative' }}>
+        <svg width={totalW} height={padT+chartH+padB} style={{ overflow:'visible', display:'block' }}>
+          {/* Gridlines + Y axis */}
+          {[0,0.25,0.5,0.75,1].map(pct => {
+            const val = minVal + pct*range
             const y = toY(val)
             return <g key={pct}>
               <line x1={padL} x2={totalW-padR} y1={y} y2={y} stroke="rgba(13,27,46,0.05)" strokeWidth={1}/>
-              <text x={padL-8} y={y+3} textAnchor="end" fontSize={10} fill="#8A9BB0">{fmt(val)}</text>
+              <text x={padL-8} y={y+3} textAnchor="end" fontSize={9} fill="#8A9BB0">{fmtM(val)}</text>
             </g>
           })}
-          {/* Zero line */}
-          <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.18)" strokeWidth={1}/>
+          <line x1={padL} x2={totalW-padR} y1={toY(0)} y2={toY(0)} stroke="rgba(13,27,46,0.2)" strokeWidth={1}/>
 
           {/* Connector lines */}
-          {barData.map((b, i) => {
-            if (i === 0 || b.isTotal) return null
+          {barData.map((b,i) => {
+            if (i===0||b.isTotal) return null
             const prev = barData[i-1]
-            const connY = prev.isStart ? toY(prev.value) : toY(prev.stackTop + prev.stackH)
-            const x = padL + i * (barW + gap)
-            return <line key={`conn-${i}`} x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.15)" strokeWidth={0.5} strokeDasharray="3,2"/>
+            const connY = prev.isStart ? toY(prev.value) : toY(prev.stackTop+prev.stackH)
+            const x = padL + i*(barW+gap)
+            return <line key={`c${i}`} x1={x-gap} x2={x} y1={connY} y2={connY} stroke="rgba(13,27,46,0.15)" strokeWidth={0.5} strokeDasharray="3,2"/>
           })}
 
           {/* Bars */}
-          {barData.map((b, i) => {
-            const x = padL + i * (barW + gap)
-            const { y, h } = getRectProps(b)
-            const labelVal = b.isStart || b.isTotal ? b.value : b.stackH
-            const pctOfEgr = (!b.isStart && !b.isTotal && egr_p) ? (Math.abs(b.stackH)/egr_p)*100 : null
+          {barData.map((b,i) => {
+            const x = padL + i*(barW+gap)
+            const {y,h} = getRectProps(b)
+            const isPos = b.stackH >= 0
             return <g key={b.label}
-              onMouseEnter={e => setTooltip({ label: b.label, value: labelVal, pct: pctOfEgr, x: x + barW/2, y })}
+              onMouseEnter={e => {
+                const svgRect = (e.currentTarget.ownerSVGElement as SVGElement).getBoundingClientRect()
+                setTooltip({ lines: b.tooltipLines, x: x+barW/2, y })
+              }}
               onMouseLeave={() => setTooltip(null)}
               style={{ cursor:'pointer' }}>
               <rect x={x} y={y} width={barW} height={h} fill={b.color} rx={2} opacity={0.88}/>
-              {/* Value label above/below bar */}
-              <text x={x+barW/2} y={labelVal >= 0 ? y-6 : y+h+12} textAnchor="middle" fontSize={10} fontWeight="700" fill={b.color}>
-                {fmt(labelVal)}
+              {/* Bar label */}
+              <text x={x+barW/2} y={isPos||b.isStart||b.isTotal ? y-4 : y+h+11} textAnchor="middle" fontSize={Math.min(9, barW/5)} fontWeight="600" fill={b.color}>
+                {b.barLabel}
               </text>
-              {/* X label */}
-              {b.label.split('/').map((w, wi) => (
-                <text key={wi} x={x+barW/2} y={padT+chartH+16+(wi*12)} textAnchor="middle" fontSize={10} fill="#8A9BB0">{w}</text>
+              {/* X axis label — split on space */}
+              {b.label.split(' ').map((w,wi) => (
+                <text key={wi} x={x+barW/2} y={padT+chartH+14+(wi*11)} textAnchor="middle" fontSize={Math.min(9,barW/4.5)} fill="#8A9BB0">{w}</text>
               ))}
             </g>
           })}
 
           {/* Tooltip */}
           {tooltip && (() => {
-            const tx = Math.min(tooltip.x, totalW - 130)
-            const ty = Math.max(tooltip.y - 60, padT)
-            return <g>
-              <rect x={tx-4} y={ty} width={130} height={tooltip.pct ? 44 : 32} rx={4} fill={NAVY} opacity={0.92}/>
-              <text x={tx+4} y={ty+13} fontSize={10} fontWeight="700" fill="#fff">{tooltip.label}</text>
-              <text x={tx+4} y={ty+26} fontSize={9} fill="rgba(255,255,255,0.75)">{fmtFull(tooltip.value)}</text>
-              {tooltip.pct != null && <text x={tx+4} y={ty+38} fontSize={9} fill={GOLD}>{tooltip.pct.toFixed(1)}% of EGR</text>}
+            const lines = tooltip.lines.filter(Boolean)
+            const tw = 160, th2 = 16*lines.length+14
+            const tx = Math.min(Math.max(tooltip.x - tw/2, padL), totalW-padR-tw)
+            const ty = Math.max(tooltip.y - th2 - 8, padT)
+            return <g style={{ pointerEvents:'none' }}>
+              <rect x={tx} y={ty} width={tw} height={th2} rx={5} fill={NAVY} opacity={0.94}/>
+              {lines.map((l,li) => (
+                <text key={li} x={tx+10} y={ty+14+li*16} fontSize={li===0?10:9} fontWeight={li===0?'700':'400'} fill={li===0?'#fff':li===lines.length-1?GOLD:'rgba(255,255,255,0.75)'}>{l}</text>
+              ))}
             </g>
           })()}
         </svg>
@@ -204,14 +301,14 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
         <tbody>
           {[-4,-2,0,2,4].map((d,i) => {
             const adjPP = pp*(1+d/100)
-            const ppu = units>0?adjPP/units:0
+            const ppuVal = units>0?adjPP/units:0
             const cap = adjPP>0?(noi_pf/adjPP)*100:0
             const isBase = d===0
             return (
               <tr key={d} style={{ background:isBase?'rgba(201,168,76,0.08)':i%2===0?'#fff':'rgba(13,27,46,0.015)', borderBottom:'1px solid rgba(13,27,46,0.06)' }}>
                 <td style={{ padding:'9px 14px', fontWeight:isBase?700:400, color:NAVY }}>{d===0?'— Base PP —':`${d>0?'+':''}${d}%`}</td>
                 <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, color:NAVY, fontVariantNumeric:'tabular-nums' }}>${Math.round(adjPP).toLocaleString()}</td>
-                <td style={{ padding:'9px 14px', textAlign:'right', color:'#555', fontVariantNumeric:'tabular-nums' }}>${Math.round(ppu).toLocaleString()}</td>
+                <td style={{ padding:'9px 14px', textAlign:'right', color:'#555', fontVariantNumeric:'tabular-nums' }}>${Math.round(ppuVal).toLocaleString()}</td>
                 <td style={{ padding:'9px 14px', textAlign:'right', fontWeight:isBase?700:400, fontSize:isBase?14:12, color:isBase?GOLD:(cap>=5?'#2E7D50':cap>=4?'#C9A84C':'#C0392B'), fontVariantNumeric:'tabular-nums' }}>{cap.toFixed(2)}%</td>
               </tr>
             )

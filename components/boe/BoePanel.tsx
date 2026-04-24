@@ -320,6 +320,8 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
   }, [rrp_pf, vac_p, bad_p, conc_p, mod_p, emp_p, oi_p, ga_p, mkt_p, rm_p, pay_p, mgt_p, utl_p, tax_p, taxm_p, ins_p, noi_p])
   const cap_na = pp ? (noi_t/pp)*100 : 0
   const cap_adj= pp ? (noi_p/pp)*100 : 0
+  const opexPct_t = egr_t > 0 ? (opex_t/egr_t)*100 : 0
+  const opexPct_p = egr_p > 0 ? (opex_p/egr_p)*100 : 0
 
   function handleExport() {
     const wb = XLSX.utils.book_new()
@@ -1118,10 +1120,20 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
       {/* NOI */}
       <div style={{ display:'grid', gridTemplateColumns: isMobile?'100px 72px 48px 72px':COL, background:'#0D1B2E', minHeight: isMobile?36:42 }}>
         <div style={{ fontSize:13, fontWeight:700, color:'#fff', paddingLeft:14, display:'flex', alignItems:'center' }}>NOI</div>
-        <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(noi_t)}</div>
+        <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
+          <div>
+            <div>{fmt(noi_t)}</div>
+            {!isMobile && egr_t > 0 && <div style={{ fontSize:9, color:'rgba(255,255,255,0.45)', marginTop:1 }}>OpEx {opexPct_t.toFixed(1)}% EGR</div>}
+          </div>
+        </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_t,units)}</div>
         <div/><div/>
-        <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#F0B429', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmt(noi_p)}</div>
+        <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#F0B429', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
+          <div>
+            <div>{fmt(noi_p)}</div>
+            {!isMobile && egr_p > 0 && <div style={{ fontSize:9, color:'rgba(255,255,255,0.45)', marginTop:1 }}>OpEx {opexPct_p.toFixed(1)}% EGR</div>}
+          </div>
+        </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_p,units)}</div>
         <div/>
       </div>
