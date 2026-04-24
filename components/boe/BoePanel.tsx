@@ -1123,7 +1123,7 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#fff', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
           <div>
             <div>{fmt(noi_t)}</div>
-            {!isMobile && egr_t > 0 && <div style={{ fontSize:9, color:'rgba(255,255,255,0.45)', marginTop:1 }}>OpEx {opexPct_t.toFixed(1)}% EGR</div>}
+            {!isMobile && egr_t > 0 && <div style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,0.6)', marginTop:2 }}>OpEx Ratio {opexPct_t.toFixed(1)}%</div>}
           </div>
         </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_t,units)}</div>
@@ -1131,7 +1131,7 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
         <div style={{ textAlign:'right', fontSize:14, fontWeight:700, color:'#F0B429', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
           <div>
             <div>{fmt(noi_p)}</div>
-            {!isMobile && egr_p > 0 && <div style={{ fontSize:9, color:'rgba(255,255,255,0.45)', marginTop:1 }}>OpEx {opexPct_p.toFixed(1)}% EGR</div>}
+            {!isMobile && egr_p > 0 && <div style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,0.6)', marginTop:2 }}>OpEx Ratio {opexPct_p.toFixed(1)}%</div>}
           </div>
         </div>
         <div style={{ textAlign:'right', fontSize:10, color:'rgba(255,255,255,0.5)', paddingRight:8, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>{fmtpu(noi_p,units)}</div>

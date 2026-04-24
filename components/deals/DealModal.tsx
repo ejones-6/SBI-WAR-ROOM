@@ -4,6 +4,7 @@ import type { Deal, BoeData, CapRate } from '@/lib/types'
 import { fmtShort, fmtUnit, ALL_STATUSES, REGION_MAP, REGION_LABELS } from '@/lib/utils'
 import type { Region } from '@/lib/types'
 import BoePanel from '../boe/BoePanel'
+import RentRollPanel from '../boe/RentRollPanel'
 
 interface Props {
   deal: Deal
@@ -15,7 +16,7 @@ interface Props {
   onSaveCapRate?: (dealName: string, capAdj: number) => void
 }
 
-type Tab = 'details' | 'boe' | 'noi'
+type Tab = 'details' | 'boe' | 'noi' | 'rr'
 
 
 // ── NOI Walk + Cap Rate Sensitivity ──────────────────────────────────────────
@@ -56,6 +57,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   const fmtFull = (n: number) => n < 0 ? `-$${Math.abs(Math.round(n)).toLocaleString()}` : `$${Math.round(n).toLocaleString()}`
   const fmtM = (n: number) => { const a=Math.abs(n); if(a>=1000000) return `$${(n/1000000).toFixed(2)}M`; if(a>=1000) return `$${Math.round(n/1000)}K`; return `$${Math.round(n)}`}
   const ppu = (n: number) => units > 0 ? `$${Math.round(Math.abs(n)/units).toLocaleString()}/unit` : '—'
+  const ppum = (n: number) => units > 0 ? `$${Math.round(Math.abs(n)/units/12).toLocaleString()}/unit/mo` : '—'
   const pctOfRRP = (n: number) => rrp_pf > 0 ? `${(Math.abs(n)/rrp_pf*100).toFixed(1)}%` : '—'
   const pctOfEGR = (n: number) => egr_p > 0 ? `${(Math.abs(n)/egr_p*100).toFixed(1)}% of EGR` : '—'
 
@@ -99,8 +101,8 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
   }[] = [
     {
       label: 'RRP', value: rrp_pf, color: '#2E7D50', isStart: true,
-      barLabel: ppu(rrp_pf),
-      tooltipLines: [`RRP`, fmtFull(rrp_pf), ppu(rrp_pf)],
+      barLabel: ppum(rrp_pf),
+      tooltipLines: [`RRP`, fmtFull(rrp_pf), ppum(rrp_pf)],
     },
     {
       label: 'Vacancy', value: vac_p, color: '#C0392B',
@@ -322,6 +324,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
 
 export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveBoe, onSaveCapRate }: Props) {
   const [tab, setTab] = useState<Tab>('details')
+  const [rentRollData, setRentRollData] = useState<any>(null)
   const [pfValues, setPfValues] = useState<Record<string,number>>(() => {
     // Compute initial PF values from boe so NOI Walk is correct on first open
     if (!boe?.t12) return {} as Record<string,number>
@@ -546,7 +549,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           {/* Tabs */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div style={{ display:'flex', gap:0 }}>
-              {(['details','boe','noi'] as Tab[]).map(t => (
+              {(['details','boe','noi','rr'] as Tab[]).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
                   padding:'8px 20px', border:'none', background:'none', cursor:'pointer',
                   fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:600,
@@ -554,7 +557,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
                   borderBottom: tab===t ? '2px solid #C9A84C' : '2px solid transparent',
                   textTransform:'uppercase', letterSpacing:'0.08em',
                 }}>
-                  {t === 'details' ? 'Deal Details' : t === 'boe' ? 'BOE' : 'NOI Walk'}
+                  {t === 'details' ? 'Deal Details' : t === 'boe' ? 'BOE' : t === 'noi' ? 'NOI Walk' : 'Rent Roll'}
                   {t === 'boe' && boe && Object.keys(boe.t12 ?? {}).length > 0 && (
                     <span style={{ marginLeft:6, background:'#2E7D50', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:9 }}>T12</span>
                   )}
@@ -710,6 +713,9 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
           )}
           {tab === 'noi' && (
             <NoiWalk boe={boe} deal={deal} pfValues={pfValues} />
+          )}
+          {tab === 'rr' && (
+            <RentRollPanel savedData={rentRollData} onSave={setRentRollData} />
           )}
         </div>
       </div>
