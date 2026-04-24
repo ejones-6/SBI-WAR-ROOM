@@ -199,7 +199,7 @@ export default function DealModal({ deal, boe, capRate, onClose, onSave, onSaveB
   const [tab, setTab] = useState<Tab>('details')
   const [pfValues, setPfValues] = useState<Record<string,number>>(() => {
     // Compute initial PF values from boe so NOI Walk is correct on first open
-    if (!boe?.t12) return {}
+    if (!boe?.t12) return {} as Record<string,number>
     const t = boe.t12 as any
     const a = boe.adjs ?? {}
     const v = (k: string) => a[k] !== undefined && a[k] !== '' ? parseFloat(a[k]) : null
