@@ -254,11 +254,16 @@ export default function BoePanel({ deal, boe, onSave }: Props) {
   const rrp_last  = (t12 as any).rrp_last  ?? 0
   const rrp_trend = rrp_first && rrp_last ? ((rrp_last - rrp_first) / Math.abs(rrp_first) * 100) : null
   const gpr_t = t12.gpr
-  const gpr_p = isLeaseUp
-    ? (avgRentNum > 0 ? avgRentNum * units * 12 * (1 + rentGrowthNum/100) : gpr_t*(1+rentGrowthNum/100))
-    : (v('gpr')!=null ? gpr_t*(1+v('gpr')!/100) : gpr_t)
   const ltl_t = t12.ltl
-  const ltl_p = isLeaseUp ? 0 : t12.ltl*(1+(v('ltl')??3)/100)
+  const rrp_t12 = gpr_t + ltl_t
+  // RRP PF = combined (GPR+LTL) grown by the adj % — applies to the whole RRP, not just GPR
+  const rrp_adjPct = v('gpr') ?? 0
+  const rrp_pf = isLeaseUp
+    ? (avgRentNum > 0 ? avgRentNum * units * 12 * (1 + rentGrowthNum/100) : rrp_t12*(1+rentGrowthNum/100))
+    : rrp_t12 * (1 + rrp_adjPct/100)
+  // Split rrp_pf back into gpr_p/ltl_p so downstream % calcs (vac, bad debt) still work
+  const ltl_p = isLeaseUp ? 0 : ltl_t
+  const gpr_p = rrp_pf - ltl_p
   const vac_t = t12.vac; const vac_p = v('vac')!=null ? -(v('vac')!/100)*(gpr_p+ltl_p) : vac_t
   const bad_t = t12.bad; const bad_p = v('bad')!=null ? -(v('bad')!/100)*gpr_p : bad_t
   const conc_t= t12.conc;const conc_p= v('conc')!=null? -(v('conc')!/100)*gpr_p : conc_t
