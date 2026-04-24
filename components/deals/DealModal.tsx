@@ -266,7 +266,7 @@ function NoiWalk({ boe, deal, pfValues }: { boe: any; deal: any; pfValues: Recor
               </text>
               {/* X axis label — split on space */}
               {b.label.split(' ').map((w,wi) => (
-                <text key={wi} x={x+barW/2} y={padT+chartH+14+(wi*11)} textAnchor="middle" fontSize={Math.min(9,barW/4.5)} fill="#8A9BB0">{w}</text>
+                <text key={wi} x={x+barW/2} y={padT+chartH+28+(wi*36)} textAnchor="middle" fontSize={34} fontWeight="700" fill="#0D1B2E">{w}</text>
               ))}
             </g>
           })}
