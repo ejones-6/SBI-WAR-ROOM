@@ -172,7 +172,7 @@ function MarketIntelligence({ deals }: { deals: Deal[] }) {
   )
 }
 
-// ── 2. Cap Rate Distribution ─────────────────────────────────────────────────
+// ── 2. Cap Rate Analysis ─────────────────────────────────────────────────
 function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap: Record<string, CapRate> }) {
   const [view, setView] = useState<'dist' | 'market'>('dist')
   const [yearFilter, setYearFilter] = useState<'all' | '2024' | '2025' | '2026'>('all')
@@ -235,7 +235,7 @@ function CapRateDistribution({ deals, capRateMap }: { deals: Deal[]; capRateMap:
       <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(232,160,32,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={sectionLabel('rgba(232,160,32,0.55)')}>Underwriting Intelligence</div>
-          <div style={darkCardTitle}>Cap Rate Distribution</div>
+          <div style={darkCardTitle}>Cap Rate Analysis</div>
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 4, marginRight: 6, paddingRight: 10, borderRight: '1px solid rgba(232,160,32,0.15)' }}>
@@ -767,7 +767,7 @@ export default function AnalyticsPage({ deals, boeMap, capRateMap, onOpenDeal }:
         <div style={{ fontSize: 12, color: MUTED, marginTop: 3 }}>{deals.length.toLocaleString()} deals · {Object.keys(boeMap).length} underwritten · {Object.keys(capRateMap).length} cap rates tracked</div>
       </div>
 
-      {/* Row 1: Market Intelligence + Cap Rate Distribution */}
+      {/* Row 1: Market Intelligence + Cap Rate Analysis */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <MarketIntelligence deals={deals} />
         <CapRateDistribution deals={deals} capRateMap={capRateMap} />
