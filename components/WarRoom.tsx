@@ -199,7 +199,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               deal_name: boe.deal_name,
-              noi_cap_rate: capAdj / 100,
+              noi_cap_rate: capAdj,
               broker_cap_rate: null,
               purchase_price: pp / 1000,
               sold_price: deal.sold_price ? deal.sold_price / 1000 : null,

@@ -677,7 +677,7 @@ export default function BoePanel({ deal, boe, onSave, onPfChange }: Props) {
         const crRes = await fetch('/api/cap-rates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deal_name: deal.name, noi_cap_rate: cap_adj, broker_cap_rate: null, purchase_price: pp / 1000 }),
+          body: JSON.stringify({ deal_name: deal.name, noi_cap_rate: cap_adj, broker_cap_rate: null, purchase_price: pp }),
         })
         if (!crRes.ok) console.error('cap-rate save failed', await crRes.text())
       } catch(err) { console.error('cap-rate fetch error', err) }
