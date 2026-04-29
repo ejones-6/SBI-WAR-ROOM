@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, BoeData, CapRate } from '@/lib/types'
 import DealsPage from './deals/DealsPage'
@@ -26,7 +25,6 @@ interface Props {
 
 export default function WarRoom({ initialDeals, initialBoeData, initialCapRates, userEmail, loadAllDeals }: Props) {
   const supabase = createClient()
-  const router = useRouter()
   const [page, setPage] = useState<Page>('deals')
   const [showMobileNav, setShowMobileNav] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -88,15 +86,14 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
       setLoadingAll(true)
       const sb = createClient()
 
-      // Wait for auth to be ready — retry up to 5 times
-      let session = null
-      for (let i = 0; i < 5; i++) {
-        const { data } = await sb.auth.getSession()
-        if (data.session) { session = data.session; break }
-        await new Promise(r => setTimeout(r, 500))
+      // Get email from sb_auth cookie (set by MSAL portal)
+      const match = document.cookie.match(/sb_auth=([^;]+)/)
+      if (match) {
+        try {
+          const payload = JSON.parse(atob(match[1].split('.')[1]))
+          setResolvedEmail(payload.email ?? payload.preferred_username ?? '')
+        } catch {}
       }
-      if (!session) { router.push('/login'); return }
-      setResolvedEmail(session.user?.email ?? '')
 
       // Round 1: active deals fast
       const { data: active, error: e1 } = await sb.from('deals')
@@ -260,8 +257,7 @@ export default function WarRoom({ initialDeals, initialBoeData, initialCapRates,
   }, [])
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
+    window.location.href = 'https://platform.stonebridgeinvestments.com'
   }
 
   // Status counts for badges
