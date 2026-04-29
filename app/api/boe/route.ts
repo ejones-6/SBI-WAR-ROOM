@@ -26,13 +26,29 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase()
     const body = await req.json()
     if (!body.deal_name) return NextResponse.json({ error: 'deal_name required' }, { status: 400 })
+
+    // Strip _rent_roll_only flag if present
+    const { _rent_roll_only, ...cleanBody } = body
+
+    let saveBody = cleanBody
+    if (_rent_roll_only) {
+      // Only update rent_roll field
+      const { data: existing } = await supabase.from('boe_data').select('*').eq('deal_name', body.deal_name).single()
+      saveBody = { ...(existing || {}), deal_name: body.deal_name, rent_roll: body.rent_roll }
+    }
+
     const { data, error } = await supabase
       .from('boe_data')
-      .upsert(body, { onConflict: 'deal_name' })
+      .upsert(saveBody, { onConflict: 'deal_name' })
       .select()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    if (error) {
+      console.error('BOE save error:', error)
+      return NextResponse.json({ error: error.message, details: error }, { status: 500 })
+    }
     return NextResponse.json(data?.[0] ?? null)
   } catch (e: any) {
+    console.error('BOE route exception:', e)
     return NextResponse.json({ error: e?.message ?? 'unknown' }, { status: 500 })
   }
 }
