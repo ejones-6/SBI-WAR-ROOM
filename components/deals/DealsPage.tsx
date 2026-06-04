@@ -20,6 +20,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
   const [regions, setRegions] = useState<Set<string>>(new Set(['all']))
   const [brokers, setBrokers] = useState<Set<string>>(new Set(['all']))
   const [sort, setSort] = useState('modified-desc')
+  const [tierFilter, setTierFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
@@ -69,6 +70,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     if (!filters.has('all')) d = d.filter(x => Array.from(filters).some(f => x.status === f))
     if (!regions.has('all')) d = d.filter(x => regions.has(getRegion(x.market)))
     if (!brokers.has('all')) d = d.filter(x => brokers.has(getBrokerBucket(x.broker)))
+    if (tierFilter !== 'all') d = d.filter(x => boeMap[x.name]?.noi_badge === tierFilter)
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
@@ -176,6 +178,13 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <option value="location-asc">Location A–Z</option>
           <option value="added-desc">Date Added (Newest)</option>
           <option value="added-asc">Date Added (Oldest)</option>
+        </select>
+        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} style={{ padding: '8px 12px', border: '1px solid rgba(13,27,46,0.12)', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background:'#fff' }}>
+          <option value="all">All Tiers</option>
+          <option value="BOE">BOE</option>
+          <option value="Tier 1 Model">Tier 1</option>
+          <option value="Tier 2 Model">Tier 2</option>
+          <option value="Tier 3 Model">Tier 3</option>
         </select>
         <button onClick={() => setShowAdd(true)} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.08em', fontFamily: "'DM Sans',sans-serif" }}>
           + Add Deal
