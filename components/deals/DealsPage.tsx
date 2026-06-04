@@ -70,13 +70,13 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
     if (!filters.has('all')) d = d.filter(x => Array.from(filters).some(f => x.status === f))
     if (!regions.has('all')) d = d.filter(x => regions.has(getRegion(x.market)))
     if (!brokers.has('all')) d = d.filter(x => brokers.has(getBrokerBucket(x.broker)))
-    if (tierFilter !== 'all') d = d.filter(x => boeMap[x.name]?.noi_badge === tierFilter)
+    if (tierFilter !== 'all') d = d.filter(x => (boeMap[x.name]?.noi_badge ?? 'BOE') === tierFilter)
     if (search) {
       const q = search.toLowerCase()
       d = d.filter(x => x.name.toLowerCase().includes(q) || x.market?.toLowerCase().includes(q) || x.broker?.toLowerCase().includes(q))
     }
     return sortDeals(d, sort)
-  }, [deals, filters, regions, brokers, sort, search])
+  }, [deals, filters, regions, brokers, sort, search, tierFilter, boeMap])
 
   const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE)
   const totalPages = Math.ceil(filtered.length / PER_PAGE)
@@ -179,13 +179,6 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
           <option value="added-desc">Date Added (Newest)</option>
           <option value="added-asc">Date Added (Oldest)</option>
         </select>
-        <select value={tierFilter} onChange={e => setTierFilter(e.target.value)} style={{ padding: '8px 12px', border: '1px solid rgba(13,27,46,0.12)', borderRadius: 8, fontSize: 13, fontFamily: "'DM Sans',sans-serif", background:'#fff' }}>
-          <option value="all">All Tiers</option>
-          <option value="BOE">BOE</option>
-          <option value="Tier 1 Model">Tier 1</option>
-          <option value="Tier 2 Model">Tier 2</option>
-          <option value="Tier 3 Model">Tier 3</option>
-        </select>
         <button onClick={() => setShowAdd(true)} style={{ padding: '8px 18px', background: '#0D1B2E', color: '#F0B429', border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', letterSpacing: '0.08em', fontFamily: "'DM Sans',sans-serif" }}>
           + Add Deal
         </button>
@@ -272,6 +265,22 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
         })}
       </div>
 
+
+      {/* Tier chips */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', marginBottom: isMobile ? 6 : 16, paddingBottom: isMobile ? 2 : 0 }}>
+        {[{label:'All Tiers',value:'all'},{label:'BOE',value:'BOE'},{label:'Tier 1',value:'Tier 1 Model'},{label:'Tier 2',value:'Tier 2 Model'},{label:'Tier 3',value:'Tier 3 Model'}].map(t => {
+          const active = tierFilter === t.value
+          return (
+            <button key={t.value} onClick={() => { setPage(1); setTierFilter(t.value) }} style={{
+              padding: '3px 10px', borderRadius: 16, border: '1px solid',
+              borderColor: active ? '#2E7D50' : 'rgba(13,27,46,0.1)',
+              background: active ? 'rgba(46,125,80,0.1)' : 'transparent',
+              color: active ? '#2E7D50' : '#8A9BB0',
+              fontSize: 10, fontWeight: 600, cursor: 'pointer', fontFamily: "'DM Sans',sans-serif"
+            }}>{t.label}</button>
+          )
+        })}
+      </div>
 
       {/* Mobile card view — 2-col portrait grid */}
       {isMobile && (
