@@ -268,7 +268,7 @@ export default function DealsPage({ deals, capRateMap, boeMap, onOpenDeal, onAdd
 
       {/* Tier chips */}
       <div style={{ display: 'flex', gap: 6, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', marginBottom: isMobile ? 6 : 16, paddingBottom: isMobile ? 2 : 0 }}>
-        {[{label:'All Tiers',value:'all'},{label:'BOE',value:'BOE'},{label:'Tier 1',value:'Tier 1 Model'},{label:'Tier 2',value:'Tier 2 Model'},{label:'Tier 3',value:'Tier 3 Model'}].map(t => {
+        {[{label:'All Tiers',value:'all'},{label:'BOE',value:'BOE'},{label:'Tier 1',value:'Tier 1 Model'},{label:'Tier 2',value:'Tier 2 Model'}].map(t => {
           const active = tierFilter === t.value
           return (
             <button key={t.value} onClick={() => { setPage(1); setTierFilter(t.value) }} style={{
